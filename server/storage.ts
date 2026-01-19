@@ -451,6 +451,19 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  // --- User Stripe Info ---
+  async updateUserStripeInfo(userId: string, stripeInfo: {
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+  }): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...stripeInfo, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
   // --- Market Preferences ---
   async getMarketPreferences(userId: string): Promise<MarketPreferences | null> {
     const [prefs] = await db

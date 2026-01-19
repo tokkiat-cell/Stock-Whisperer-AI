@@ -12,6 +12,7 @@ import MarketScan from "@/pages/scan";
 import ChatPage from "@/pages/chat";
 import PortfolioPage from "@/pages/portfolio";
 import TradingPage from "@/pages/trading";
+import PricingPage from "@/pages/pricing";
 import AuthPage from "@/pages/auth";
 import LayoutShell from "@/components/layout-shell";
 
@@ -67,6 +68,30 @@ function Router() {
       
       <Route path="/trading">
         <ProtectedRoute component={TradingPage} />
+      </Route>
+      
+      <Route path="/pricing">
+        <ProtectedRoute component={PricingPage} />
+      </Route>
+      
+      <Route path="/checkout/success">
+        <ProtectedRoute component={() => (
+          <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <h1 className="text-2xl font-bold text-green-500">Payment Successful!</h1>
+            <p className="text-muted-foreground">Thank you for subscribing to TradeMind.</p>
+            <a href="/" className="text-primary hover:underline">Go to Dashboard</a>
+          </div>
+        )} />
+      </Route>
+      
+      <Route path="/checkout/cancel">
+        <ProtectedRoute component={() => (
+          <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <h1 className="text-2xl font-bold">Payment Cancelled</h1>
+            <p className="text-muted-foreground">Your payment was cancelled. No charges were made.</p>
+            <a href="/pricing" className="text-primary hover:underline">Back to Pricing</a>
+          </div>
+        )} />
       </Route>
       
       <Route component={NotFound} />

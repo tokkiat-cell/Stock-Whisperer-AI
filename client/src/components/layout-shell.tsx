@@ -10,7 +10,8 @@ import {
   MessageCircle,
   PieChart,
   User as UserIcon,
-  Server
+  Server,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -29,6 +30,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/trading", label: "IBKR Trading", icon: Server },
     { href: "/chat", label: "TradeMind AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
+    { href: "/pricing", label: "Pricing", icon: CreditCard },
   ];
 
   const NavContent = () => (

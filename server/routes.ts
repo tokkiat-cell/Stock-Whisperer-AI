@@ -8,6 +8,9 @@ import { analyzeStockWithAI } from "./lib/aiAnalysis";
 import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
+import { stripeService } from "./stripeService";
+import { stripeStorage } from "./stripeStorage";
+import { getStripePublishableKey } from "./stripeClient";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // Setup Auth
@@ -1208,6 +1211,152 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       res.json(result);
     } catch (error) {
       res.status(500).json({ success: false, message: "Failed to cancel order", error: "Internal server error" });
+    }
+  });
+
+  // --- Stripe Payment Routes ---
+  app.get('/api/stripe/publishable-key', isAuthenticated, async (req, res) => {
+    try {
+      const publishableKey = await getStripePublishableKey();
+      res.json({ publishableKey });
+    } catch (error) {
+      console.error("Failed to get publishable key:", error);
+      res.status(500).json({ message: "Failed to get Stripe publishable key" });
+    }
+  });
+
+  app.get('/api/stripe/products', isAuthenticated, async (req, res) => {
+    try {
+      const products = await stripeStorage.listProducts();
+      res.json({ data: products });
+    } catch (error) {
+      console.error("Failed to list products:", error);
+      res.status(500).json({ message: "Failed to fetch products" });
+    }
+  });
+
+  app.get('/api/stripe/products-with-prices', isAuthenticated, async (req, res) => {
+    try {
+      const rows = await stripeStorage.listProductsWithPrices();
+      
+      const productsMap = new Map();
+      for (const row of rows as any[]) {
+        if (!productsMap.has(row.product_id)) {
+          productsMap.set(row.product_id, {
+            id: row.product_id,
+            name: row.product_name,
+            description: row.product_description,
+            active: row.product_active,
+            metadata: row.product_metadata,
+            prices: []
+          });
+        }
+        if (row.price_id) {
+          productsMap.get(row.product_id).prices.push({
+            id: row.price_id,
+            unit_amount: row.unit_amount,
+            currency: row.currency,
+            recurring: row.recurring,
+            active: row.price_active,
+          });
+        }
+      }
+
+      res.json({ data: Array.from(productsMap.values()) });
+    } catch (error) {
+      console.error("Failed to list products with prices:", error);
+      res.status(500).json({ message: "Failed to fetch products" });
+    }
+  });
+
+  app.get('/api/stripe/subscription', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.stripeSubscriptionId) {
+        return res.json({ subscription: null });
+      }
+
+      const subscription = await stripeStorage.getSubscription(user.stripeSubscriptionId);
+      res.json({ subscription });
+    } catch (error) {
+      console.error("Failed to get subscription:", error);
+      res.status(500).json({ message: "Failed to get subscription" });
+    }
+  });
+
+  app.post('/api/stripe/checkout', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      // @ts-ignore
+      const userEmail = req.user.claims.email || '';
+      const { priceId, mode } = req.body;
+
+      if (!priceId) {
+        return res.status(400).json({ message: "priceId is required" });
+      }
+
+      const user = await storage.getUser(userId);
+      
+      let customerId = user?.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripeService.createCustomer(userEmail, userId);
+        await storage.updateUserStripeInfo(userId, { stripeCustomerId: customer.id });
+        customerId = customer.id;
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      
+      let session;
+      if (mode === 'payment') {
+        session = await stripeService.createOneTimeCheckoutSession(
+          customerId,
+          priceId,
+          `${baseUrl}/checkout/success`,
+          `${baseUrl}/checkout/cancel`
+        );
+      } else {
+        session = await stripeService.createCheckoutSession(
+          customerId,
+          priceId,
+          `${baseUrl}/checkout/success`,
+          `${baseUrl}/checkout/cancel`
+        );
+      }
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Failed to create checkout session:", error);
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  app.post('/api/stripe/customer-portal', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.stripeCustomerId) {
+        return res.status(400).json({ message: "No Stripe customer found" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createCustomerPortalSession(
+        user.stripeCustomerId,
+        `${baseUrl}/settings`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Failed to create portal session:", error);
+      res.status(500).json({ message: "Failed to create customer portal session" });
     }
   });
 

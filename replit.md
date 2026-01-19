@@ -31,6 +31,12 @@ Key features:
   - Daily performance with day-over-day comparison
   - Customizable settings to toggle US/Singapore market visibility
   - Auto-refresh every 60 seconds
+- **Stripe Subscription Billing**: Subscription-based access with two plans
+  - TradeMind Basic ($19.99/month or $199.90/year)
+  - TradeMind Pro ($49.99/month or $499.90/year)
+  - Secure checkout via Stripe-hosted payment pages
+  - Customer portal for subscription management
+  - Uses stripe-replit-sync for automatic schema management
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
