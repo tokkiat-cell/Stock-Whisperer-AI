@@ -25,12 +25,20 @@ Key features:
   - Submit orders to IBKR for execution
   - "Trade" button on AI Scanner recommendations creates pre-filled draft orders
   - Order status tracking (Draft, Submitted, Filled, Cancelled)
-- **Market Overview Dashboard**: Real-time display of US and Singapore market indices
+- **Market Overview Dashboard**: Real-time display of global market indices
   - US Markets: S&P 500, Dow Jones, Nasdaq, Russell 2000
   - Singapore Markets: STI, STI ETF, DBS, OCBC, UOB
+  - Hong Kong Markets: Hang Seng Index, HSCE, Tencent, Alibaba HK, AIA
+  - China Markets: Shanghai Composite, Shenzhen Component, CSI 300, SSE 50
+  - European Markets: Euro Stoxx 50, FTSE 100, DAX, CAC 40
   - Daily performance with day-over-day comparison
-  - Customizable settings to toggle US/Singapore market visibility
+  - Customizable settings to toggle market visibility for each region
   - Auto-refresh every 60 seconds
+- **Top 10 Market Movers**: View top moving stocks by market region
+  - Selectable market region: US, Singapore, Hong Kong, China, Europe
+  - Shows highest percentage change stocks for selected market
+  - Click to analyze any stock
+  - Preference persists across sessions
 - **Stripe Subscription Billing**: Subscription-based access with two plans
   - stockwhisperer Basic ($19.99/month or $199.90/year)
   - stockwhisperer Pro ($49.99/month or $499.90/year)
@@ -85,7 +93,7 @@ Key tables:
 - `user_notification_settings` - User notification preferences for Telegram and WhatsApp
 - `ibkr_settings` - IBKR connection settings (host, port, clientId) per user
 - `trading_orders` - Trading orders with symbol, action, entry/SL/TP, status, and IBKR order ID
-- `market_preferences` - User preferences for market index visibility (US/Singapore toggle, custom indices)
+- `market_preferences` - User preferences for market index visibility (US/Singapore/HK/CN/EU toggle, selected movers market)
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
