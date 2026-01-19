@@ -6,10 +6,13 @@ TradeMind is an AI-powered stock trading assistant that provides real-time analy
 
 Key features:
 - Real-time stock quotes via Yahoo Finance API
-- AI-powered stock analysis using OpenAI (GPT models)
+- AI-powered stock analysis using Gemini AI (gemini-2.5-flash)
 - S&P 500 market scanning with automated trade recommendations
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
+- Portfolio & P&L tracking page
+- Configurable trade risk amount and timeframe selection
+- Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
 
 ## User Preferences
 
@@ -57,10 +60,14 @@ Key tables:
 - **Protected Routes**: Middleware `isAuthenticated` guards API endpoints
 
 ### AI Integration
-- **Provider**: OpenAI via Replit AI Integrations
-- **Models**: GPT for text analysis, supports image and audio capabilities
-- **Configuration**: Uses `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` environment variables
-- **Features**: Stock analysis with JSON-structured responses
+- **Provider**: Google Gemini via Replit AI Integrations
+- **Model**: gemini-2.5-flash
+- **Configuration**: Uses `AI_INTEGRATIONS_GEMINI_API_KEY` and `AI_INTEGRATIONS_GEMINI_BASE_URL` environment variables
+- **Features**: 
+  - Stock analysis with JSON-structured responses
+  - AI chat assistant with formatted markdown responses
+  - Market scanning with technical analysis (candle patterns, moving averages)
+  - Trade recommendations based on user risk profile and timeframe
 
 ## External Dependencies
 
@@ -75,8 +82,8 @@ Key tables:
 ### Required Environment Variables
 - `DATABASE_URL` - PostgreSQL connection string
 - `SESSION_SECRET` - Secret for session encryption
-- `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key from Replit
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI base URL from Replit
+- `AI_INTEGRATIONS_GEMINI_API_KEY` - Gemini API key from Replit
+- `AI_INTEGRATIONS_GEMINI_BASE_URL` - Gemini base URL from Replit
 - `ISSUER_URL` - Replit OIDC issuer (defaults to `https://replit.com/oidc`)
 - `REPL_ID` - Replit environment identifier
 
