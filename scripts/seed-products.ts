@@ -3,10 +3,10 @@ import { getUncachableStripeClient } from '../server/stripeClient';
 async function createProducts() {
   const stripe = await getUncachableStripeClient();
   
-  console.log('Creating TradeMind subscription products...');
+  console.log('Creating stockwhisperer subscription products...');
 
   const existingProducts = await stripe.products.search({ 
-    query: "metadata['app']:'trademind'" 
+    query: "metadata['app']:'stockwhisperer'" 
   });
   
   if (existingProducts.data.length > 0) {
@@ -16,10 +16,10 @@ async function createProducts() {
   }
 
   const basicProduct = await stripe.products.create({
-    name: 'TradeMind Basic',
+    name: 'stockwhisperer Basic',
     description: 'Essential AI trading analysis tools for individual traders',
     metadata: {
-      app: 'trademind',
+      app: 'stockwhisperer',
       tier: 'basic',
       features: 'ai_analysis,watchlist,alerts',
     },
@@ -46,10 +46,10 @@ async function createProducts() {
   console.log(`  - Yearly: ${basicYearly.id} ($${(basicYearly.unit_amount || 0) / 100}/yr)`);
 
   const proProduct = await stripe.products.create({
-    name: 'TradeMind Pro',
+    name: 'stockwhisperer Pro',
     description: 'Advanced AI trading with market scanning and IBKR integration',
     metadata: {
-      app: 'trademind',
+      app: 'stockwhisperer',
       tier: 'pro',
       features: 'ai_analysis,watchlist,alerts,scanner,ibkr,priority_support',
     },

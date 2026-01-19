@@ -755,7 +755,7 @@ CRITICAL RULES:
         },
       });
 
-      const systemPrompt = `You are TradeMind, an AI trading assistant. You help users with stock market questions, trading strategies, and portfolio analysis.
+      const systemPrompt = `You are stockwhisperer.AI, an AI trading assistant. You help users with stock market questions, trading strategies, and portfolio analysis.
 
 Current market context:
 - Top recommendations: ${JSON.stringify(recommendations.slice(0, 5))}
