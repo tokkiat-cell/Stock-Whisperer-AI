@@ -240,3 +240,35 @@ export const insertTradingOrderSchema = createInsertSchema(tradingOrders).omit({
 
 export type TradingOrder = typeof tradingOrders.$inferSelect;
 export type InsertTradingOrder = z.infer<typeof insertTradingOrderSchema>;
+
+// === MARKET PREFERENCES ===
+export const marketPreferences = pgTable("market_preferences", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  selectedIndices: text("selected_indices").array().default([]).notNull(), // e.g., ['^GSPC', '^DJI', '^IXIC', '^STI']
+  selectedStocks: text("selected_stocks").array().default([]).notNull(), // Custom stocks to track
+  showUSMarket: boolean("show_us_market").default(true).notNull(),
+  showSGMarket: boolean("show_sg_market").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMarketPreferencesSchema = createInsertSchema(marketPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MarketPreferences = typeof marketPreferences.$inferSelect;
+export type InsertMarketPreferences = z.infer<typeof insertMarketPreferencesSchema>;
+
+// Market Index type for API response
+export type MarketIndex = {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  previousClose: number;
+  market: 'US' | 'SG';
+};

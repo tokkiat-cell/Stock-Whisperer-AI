@@ -298,6 +298,119 @@ CRITICAL RULES:
     }
   });
 
+  // Market Indices - US and Singapore
+  const marketIndicesConfig = {
+    US: [
+      { symbol: '^GSPC', name: 'S&P 500' },
+      { symbol: '^DJI', name: 'Dow Jones' },
+      { symbol: '^IXIC', name: 'Nasdaq' },
+      { symbol: '^RUT', name: 'Russell 2000' },
+    ],
+    SG: [
+      { symbol: '^STI', name: 'Straits Times Index' },
+      { symbol: 'ES3.SI', name: 'STI ETF' },
+      { symbol: 'D05.SI', name: 'DBS Group' },
+      { symbol: 'O39.SI', name: 'OCBC Bank' },
+      { symbol: 'U11.SI', name: 'UOB' },
+    ],
+  };
+
+  app.get(api.market.indices.path, isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user?.claims?.sub;
+      const prefs = userId ? await storage.getMarketPreferences(userId) : null;
+      
+      const showUS = prefs?.showUSMarket ?? true;
+      const showSG = prefs?.showSGMarket ?? true;
+      
+      const indicesToFetch: { symbol: string; name: string; market: 'US' | 'SG' }[] = [];
+      
+      if (showUS) {
+        marketIndicesConfig.US.forEach(idx => indicesToFetch.push({ ...idx, market: 'US' }));
+      }
+      if (showSG) {
+        marketIndicesConfig.SG.forEach(idx => indicesToFetch.push({ ...idx, market: 'SG' }));
+      }
+      
+      // Also add any custom selected indices
+      if (prefs?.selectedIndices?.length) {
+        prefs.selectedIndices.forEach(symbol => {
+          if (!indicesToFetch.find(i => i.symbol === symbol)) {
+            indicesToFetch.push({ symbol, name: symbol, market: 'US' });
+          }
+        });
+      }
+      
+      const quotes = await Promise.all(
+        indicesToFetch.map(async (idx) => {
+          try {
+            const quote = await getStockQuote(idx.symbol);
+            if (!quote) return null;
+            return {
+              symbol: idx.symbol,
+              name: idx.name,
+              price: quote.price,
+              change: quote.change,
+              changePercent: quote.changePercent,
+              previousClose: quote.price - quote.change,
+              market: idx.market,
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+      
+      res.json(quotes.filter(q => q !== null));
+    } catch (error) {
+      console.error("Failed to fetch market indices:", error);
+      res.status(500).json({ message: "Failed to fetch market indices" });
+    }
+  });
+
+  // Market Preferences
+  app.get(api.market.preferences.path, isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const prefs = await storage.getMarketPreferences(userId);
+      
+      res.json({
+        selectedIndices: prefs?.selectedIndices ?? [],
+        selectedStocks: prefs?.selectedStocks ?? [],
+        showUSMarket: prefs?.showUSMarket ?? true,
+        showSGMarket: prefs?.showSGMarket ?? true,
+      });
+    } catch (error) {
+      console.error("Failed to get market preferences:", error);
+      res.status(500).json({ message: "Failed to get market preferences" });
+    }
+  });
+
+  app.put(api.market.updatePreferences.path, isAuthenticated, async (req, res) => {
+    try {
+      // @ts-ignore
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const updates = api.market.updatePreferences.input.parse(req.body);
+      const prefs = await storage.upsertMarketPreferences(userId, updates);
+      
+      res.json({
+        selectedIndices: prefs.selectedIndices,
+        selectedStocks: prefs.selectedStocks,
+        showUSMarket: prefs.showUSMarket,
+        showSGMarket: prefs.showSGMarket,
+      });
+    } catch (error) {
+      console.error("Failed to update market preferences:", error);
+      res.status(500).json({ message: "Failed to update market preferences" });
+    }
+  });
+
   // --- Portfolio Holdings Routes ---
   
   // Image extraction endpoint using Gemini vision

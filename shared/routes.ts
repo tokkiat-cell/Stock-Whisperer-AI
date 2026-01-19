@@ -183,6 +183,51 @@ export const api = {
         })),
       },
     },
+    indices: {
+      method: 'GET' as const,
+      path: '/api/market/indices',
+      responses: {
+        200: z.array(z.object({
+          symbol: z.string(),
+          name: z.string(),
+          price: z.number(),
+          change: z.number(),
+          changePercent: z.number(),
+          previousClose: z.number(),
+          market: z.enum(['US', 'SG']),
+        })),
+      },
+    },
+    preferences: {
+      method: 'GET' as const,
+      path: '/api/market/preferences',
+      responses: {
+        200: z.object({
+          selectedIndices: z.array(z.string()),
+          selectedStocks: z.array(z.string()),
+          showUSMarket: z.boolean(),
+          showSGMarket: z.boolean(),
+        }),
+      },
+    },
+    updatePreferences: {
+      method: 'PUT' as const,
+      path: '/api/market/preferences',
+      input: z.object({
+        selectedIndices: z.array(z.string()).optional(),
+        selectedStocks: z.array(z.string()).optional(),
+        showUSMarket: z.boolean().optional(),
+        showSGMarket: z.boolean().optional(),
+      }),
+      responses: {
+        200: z.object({
+          selectedIndices: z.array(z.string()),
+          selectedStocks: z.array(z.string()),
+          showUSMarket: z.boolean(),
+          showSGMarket: z.boolean(),
+        }),
+      },
+    },
   },
   dashboard: {
     chat: {

@@ -1,5 +1,5 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders, marketPreferences,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
@@ -9,7 +9,8 @@ import {
   type PriceAlert, type InsertPriceAlert,
   type UserNotificationSettings, type InsertUserNotificationSettings,
   type IbkrSettings, type InsertIbkrSettings,
-  type TradingOrder, type InsertTradingOrder
+  type TradingOrder, type InsertTradingOrder,
+  type MarketPreferences, type InsertMarketPreferences
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -77,6 +78,10 @@ export interface IStorage {
   createTradingOrder(order: InsertTradingOrder): Promise<TradingOrder>;
   updateTradingOrder(id: number, userId: string, updates: Partial<TradingOrder>): Promise<TradingOrder | null>;
   deleteTradingOrder(id: number, userId: string): Promise<boolean>;
+
+  // Market Preferences methods
+  getMarketPreferences(userId: string): Promise<MarketPreferences | null>;
+  upsertMarketPreferences(userId: string, updates: Partial<InsertMarketPreferences>): Promise<MarketPreferences>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -444,6 +449,43 @@ export class DatabaseStorage implements IStorage {
   async deleteTradingOrder(id: number, userId: string): Promise<boolean> {
     const result = await db.delete(tradingOrders).where(and(eq(tradingOrders.id, id), eq(tradingOrders.userId, userId))).returning();
     return result.length > 0;
+  }
+
+  // --- Market Preferences ---
+  async getMarketPreferences(userId: string): Promise<MarketPreferences | null> {
+    const [prefs] = await db
+      .select()
+      .from(marketPreferences)
+      .where(eq(marketPreferences.userId, userId));
+    return prefs || null;
+  }
+
+  async upsertMarketPreferences(userId: string, updates: Partial<InsertMarketPreferences>): Promise<MarketPreferences> {
+    const existing = await this.getMarketPreferences(userId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(marketPreferences)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(marketPreferences.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(marketPreferences)
+        .values({
+          userId,
+          selectedIndices: updates.selectedIndices ?? [],
+          selectedStocks: updates.selectedStocks ?? [],
+          showUSMarket: updates.showUSMarket ?? true,
+          showSGMarket: updates.showSGMarket ?? true,
+        })
+        .returning();
+      return created;
+    }
   }
 }
 
