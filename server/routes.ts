@@ -6,6 +6,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { searchStocks, getStockQuote, getStockHistory } from "./lib/marketData";
 import { analyzeStockWithAI } from "./lib/aiAnalysis";
 import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
+import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -917,6 +918,183 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       res.json(settings);
     } catch (error) {
       res.status(500).json({ message: "Failed to update notification settings" });
+    }
+  });
+
+  // --- IBKR Settings Routes ---
+  app.get(api.ibkr.settings.get.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const settings = await storage.getIbkrSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get IBKR settings" });
+    }
+  });
+
+  app.post(api.ibkr.settings.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.ibkr.settings.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const settings = await storage.upsertIbkrSettings({
+        userId,
+        host: parsed.data.host ?? "127.0.0.1",
+        port: parsed.data.port ?? 4002,
+        clientId: parsed.data.clientId ?? 1,
+      });
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update IBKR settings" });
+    }
+  });
+
+  app.post(api.ibkr.testConnection.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const result = await ibkrService.testConnection(userId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Connection test failed", error: "Internal server error" });
+    }
+  });
+
+  // --- Trading Orders Routes ---
+  app.get(api.tradingOrders.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orders = await storage.getTradingOrders(userId);
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get trading orders" });
+    }
+  });
+
+  app.get(api.tradingOrders.get.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      const order = await storage.getTradingOrderById(orderId, userId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get trading order" });
+    }
+  });
+
+  app.post(api.tradingOrders.create.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.tradingOrders.create.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      
+      const validation = ibkrService.validateOrder({ ...parsed.data, userId });
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.errors.join(", ") });
+      }
+
+      const order = await storage.createTradingOrder({
+        userId,
+        symbol: parsed.data.symbol,
+        action: parsed.data.action,
+        orderType: parsed.data.orderType,
+        quantity: parsed.data.quantity,
+        entryPrice: parsed.data.entryPrice,
+        stopLoss: parsed.data.stopLoss ?? null,
+        takeProfit: parsed.data.takeProfit ?? null,
+        sourceRecommendationId: parsed.data.sourceRecommendationId ?? null,
+        notes: parsed.data.notes ?? null,
+      });
+      res.status(201).json(order);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create trading order" });
+    }
+  });
+
+  app.patch(api.tradingOrders.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      const parsed = api.tradingOrders.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+
+      const existingOrder = await storage.getTradingOrderById(orderId, userId);
+      if (!existingOrder) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (existingOrder.status !== "DRAFT") {
+        return res.status(400).json({ message: "Only draft orders can be modified" });
+      }
+
+      const order = await storage.updateTradingOrder(orderId, userId, parsed.data);
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update trading order" });
+    }
+  });
+
+  app.delete(api.tradingOrders.delete.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      const deleted = await storage.deleteTradingOrder(orderId, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete trading order" });
+    }
+  });
+
+  app.post(api.tradingOrders.submit.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      const result = await ibkrService.submitOrder(orderId, userId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to submit order", error: "Internal server error" });
+    }
+  });
+
+  app.post(api.tradingOrders.cancel.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      const result = await ibkrService.cancelOrder(orderId, userId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to cancel order", error: "Internal server error" });
     }
   });
 

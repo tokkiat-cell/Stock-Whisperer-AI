@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTradeSetupSchema, tradeSetups, insertPortfolioHoldingSchema, portfolioHoldings, insertWatchlistSchema, watchlist, priceAlerts, userNotificationSettings } from './schema';
+import { insertTradeSetupSchema, tradeSetups, insertPortfolioHoldingSchema, portfolioHoldings, insertWatchlistSchema, watchlist, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -453,6 +453,128 @@ export const api = {
       responses: {
         200: z.custom<typeof userNotificationSettings.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+  },
+  ibkr: {
+    settings: {
+      get: {
+        method: 'GET' as const,
+        path: '/api/ibkr/settings',
+        responses: {
+          200: z.custom<typeof ibkrSettings.$inferSelect>().nullable(),
+        },
+      },
+      update: {
+        method: 'POST' as const,
+        path: '/api/ibkr/settings',
+        input: z.object({
+          host: z.string().min(1).max(100).optional(),
+          port: z.number().int().min(1).max(65535).optional(),
+          clientId: z.number().int().min(0).optional(),
+        }),
+        responses: {
+          200: z.custom<typeof ibkrSettings.$inferSelect>(),
+          400: errorSchemas.validation,
+        },
+      },
+    },
+    testConnection: {
+      method: 'POST' as const,
+      path: '/api/ibkr/test-connection',
+      responses: {
+        200: z.object({
+          success: z.boolean(),
+          message: z.string(),
+          error: z.string().optional(),
+        }),
+      },
+    },
+  },
+  tradingOrders: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/trading-orders',
+      responses: {
+        200: z.array(z.custom<typeof tradingOrders.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/trading-orders/:id',
+      responses: {
+        200: z.custom<typeof tradingOrders.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/trading-orders',
+      input: z.object({
+        symbol: z.string().min(1).max(10),
+        action: z.enum(['BUY', 'SELL']),
+        orderType: z.enum(['LIMIT', 'MARKET', 'STOP']),
+        quantity: z.number().int().min(1),
+        entryPrice: z.string(),
+        stopLoss: z.string().optional().nullable(),
+        takeProfit: z.string().optional().nullable(),
+        sourceRecommendationId: z.number().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      }),
+      responses: {
+        201: z.custom<typeof tradingOrders.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/trading-orders/:id',
+      input: z.object({
+        entryPrice: z.string().optional(),
+        stopLoss: z.string().optional().nullable(),
+        takeProfit: z.string().optional().nullable(),
+        quantity: z.number().int().min(1).optional(),
+        notes: z.string().optional().nullable(),
+      }),
+      responses: {
+        200: z.custom<typeof tradingOrders.$inferSelect>(),
+        404: errorSchemas.notFound,
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/trading-orders/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+    submit: {
+      method: 'POST' as const,
+      path: '/api/trading-orders/:id/submit',
+      responses: {
+        200: z.object({
+          success: z.boolean(),
+          orderId: z.number().optional(),
+          ibkrOrderId: z.number().optional(),
+          message: z.string(),
+          error: z.string().optional(),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
+    cancel: {
+      method: 'POST' as const,
+      path: '/api/trading-orders/:id/cancel',
+      responses: {
+        200: z.object({
+          success: z.boolean(),
+          orderId: z.number().optional(),
+          message: z.string(),
+          error: z.string().optional(),
+        }),
+        404: errorSchemas.notFound,
       },
     },
   },
