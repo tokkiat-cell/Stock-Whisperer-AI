@@ -4,7 +4,7 @@ import { StockCard } from "@/components/stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Plus, Search, TrendingUp, Activity, DollarSign, List, Scan } from "lucide-react";
+import { Plus, Search, TrendingUp, Activity, DollarSign, List, ScanLine } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -123,7 +123,7 @@ export default function Dashboard() {
             <div className="absolute right-0 top-0 w-64 h-64 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:bg-primary/20 transition-colors" />
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
               <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-xl shadow-primary/20">
-                <Scan className="w-8 h-8 text-primary-foreground" />
+                <ScanLine className="w-8 h-8 text-primary-foreground" />
               </div>
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-xl font-display font-bold mb-2">Ready for today's top trade setups?</h3>
