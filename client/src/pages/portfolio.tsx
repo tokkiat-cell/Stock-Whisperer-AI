@@ -1,19 +1,21 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
   DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
-  Image, X, Sparkles
+  Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain
 } from "lucide-react";
-import type { PortfolioHolding, WatchlistItem } from "@shared/schema";
+import type { PortfolioHolding, WatchlistItem, PriceAlert } from "@shared/schema";
 
 export default function PortfolioPage() {
   const { toast } = useToast();
@@ -33,6 +35,13 @@ export default function PortfolioPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [extractedSymbols, setExtractedSymbols] = useState<string[]>([]);
   
+  // Price Alert State
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [alertSymbol, setAlertSymbol] = useState("");
+  const [alertPrice, setAlertPrice] = useState("");
+  const [alertDirection, setAlertDirection] = useState<"ABOVE" | "BELOW">("ABOVE");
+  const [alertType, setAlertType] = useState<"PRICE" | "AI_MODEL">("PRICE");
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,6 +52,122 @@ export default function PortfolioPage() {
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
   });
+
+  const { data: priceAlerts = [] } = useQuery<PriceAlert[]>({
+    queryKey: ["/api/price-alerts"],
+  });
+
+  const { data: triggeredAlerts = [], refetch: refetchTriggered } = useQuery<PriceAlert[]>({
+    queryKey: ["/api/price-alerts/triggered"],
+  });
+
+  // Check alerts periodically (every 60 seconds when tab is active and on watchlist tab)
+  const checkAlertsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/price-alerts/check");
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      if (data.triggered > 0) {
+        queryClient.invalidateQueries({ queryKey: ["/api/price-alerts"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/price-alerts/triggered"] });
+        toast({ 
+          title: `${data.triggered} price alert${data.triggered > 1 ? 's' : ''} triggered!`,
+          variant: "default"
+        });
+      }
+    },
+    onError: () => {
+      // Silently fail - don't disturb user if alert check fails
+    },
+  });
+
+  // Check alerts on mount and periodically only when document is visible and on watchlist tab
+  useEffect(() => {
+    const checkIfActive = () => {
+      return !document.hidden && activeTab === "watchlist";
+    };
+    
+    // Initial check if active
+    if (checkIfActive()) {
+      checkAlertsMutation.mutate();
+    }
+    
+    const interval = setInterval(() => {
+      if (checkIfActive()) {
+        checkAlertsMutation.mutate();
+      }
+    }, 60000); // Check every 60 seconds
+    
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  const createAlertMutation = useMutation({
+    mutationFn: async (data: { symbol: string; targetPrice: string; direction: string; alertType: string }) => {
+      return apiRequest("POST", "/api/price-alerts", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/price-alerts"] });
+      setAlertDialogOpen(false);
+      setAlertPrice("");
+      setAlertSymbol("");
+      toast({ title: "Price alert created" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create alert", variant: "destructive" });
+    },
+  });
+
+  const deleteAlertMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/price-alerts/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/price-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/price-alerts/triggered"] });
+      toast({ title: "Alert removed" });
+    },
+  });
+
+  const dismissAlertMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("POST", `/api/price-alerts/${id}/dismiss`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/price-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/price-alerts/triggered"] });
+    },
+  });
+
+  const getAlertsForSymbol = (symbol: string) => {
+    return priceAlerts.filter(a => a.symbol === symbol && a.isActive && !a.isTriggered);
+  };
+
+  const handleCreateAlert = () => {
+    if (!alertSymbol || !alertPrice) {
+      toast({ title: "Please fill all fields", variant: "destructive" });
+      return;
+    }
+    const priceNum = parseFloat(alertPrice);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      toast({ title: "Please enter a valid positive price", variant: "destructive" });
+      return;
+    }
+    createAlertMutation.mutate({
+      symbol: alertSymbol.toUpperCase(),
+      targetPrice: alertPrice,
+      direction: alertDirection,
+      alertType: alertType,
+    });
+  };
+
+  const openAlertDialog = (symbol: string) => {
+    setAlertSymbol(symbol);
+    setAlertPrice("");
+    setAlertDirection("ABOVE");
+    setAlertType("PRICE");
+    setAlertDialogOpen(true);
+  };
 
   const createHoldingMutation = useMutation({
     mutationFn: async (data: { symbol: string; shares: string; avgCost: string }) => {
@@ -599,6 +724,54 @@ export default function PortfolioPage() {
         </TabsContent>
 
         <TabsContent value="watchlist" className="mt-6">
+          {/* Triggered Alerts Banner */}
+          {triggeredAlerts.length > 0 && (
+            <Card className="p-4 mb-4 border-primary/50 bg-primary/5">
+              <div className="flex items-center gap-2 mb-3">
+                <BellRing className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Triggered Alerts ({triggeredAlerts.length})</h3>
+              </div>
+              <div className="space-y-3">
+                {triggeredAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-start justify-between p-3 bg-background rounded-md border" data-testid={`triggered-alert-${alert.id}`}>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-primary">{alert.symbol}</span>
+                        <Badge variant={alert.direction === 'ABOVE' ? 'default' : 'secondary'}>
+                          {alert.direction === 'ABOVE' ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                          ${parseFloat(alert.targetPrice).toFixed(2)}
+                        </Badge>
+                        {alert.alertType === 'AI_MODEL' && (
+                          <Badge variant="outline">
+                            <Brain className="w-3 h-3 mr-1" />
+                            AI
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Triggered at ${parseFloat(alert.triggeredPrice || '0').toFixed(2)} on {new Date(alert.triggeredAt!).toLocaleString()}
+                      </p>
+                      {alert.aiAnalysis && (
+                        <div className="mt-2 p-2 bg-muted rounded text-sm">
+                          <p className="font-medium text-xs mb-1">AI Analysis:</p>
+                          <p className="text-muted-foreground text-xs whitespace-pre-wrap">{alert.aiAnalysis}</p>
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => dismissAlertMutation.mutate(alert.id)}
+                      data-testid={`button-dismiss-alert-${alert.id}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <div className="flex flex-wrap gap-2 mb-4">
             <Dialog open={addWatchOpen} onOpenChange={setAddWatchOpen}>
               <DialogTrigger asChild>
@@ -690,31 +863,147 @@ export default function PortfolioPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {watchlist.map((item) => (
-                <Card key={item.id} className="p-4" data-testid={`watchlist-${item.symbol}`}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-semibold text-lg text-primary">{item.symbol}</h4>
-                      {item.notes && (
-                        <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Added {new Date(item.createdAt!).toLocaleDateString()}
-                      </p>
+              {watchlist.map((item) => {
+                const symbolAlerts = getAlertsForSymbol(item.symbol);
+                return (
+                  <Card key={item.id} className="p-4" data-testid={`watchlist-${item.symbol}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-lg text-primary">{item.symbol}</h4>
+                        {item.notes && (
+                          <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Added {new Date(item.createdAt!).toLocaleDateString()}
+                        </p>
+                        
+                        {/* Active Alerts for this symbol */}
+                        {symbolAlerts.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {symbolAlerts.map((alert) => (
+                              <div key={alert.id} className="flex items-center gap-1 text-xs">
+                                <Badge variant="outline" className="text-xs">
+                                  {alert.direction === 'ABOVE' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                  ${parseFloat(alert.targetPrice).toFixed(2)}
+                                  {alert.alertType === 'AI_MODEL' && <Brain className="w-3 h-3 ml-1" />}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteAlertMutation.mutate(alert.id)}
+                                  data-testid={`button-delete-alert-${alert.id}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openAlertDialog(item.symbol)}
+                          data-testid={`button-add-alert-${item.symbol}`}
+                        >
+                          <Bell className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteWatchlistMutation.mutate(item.id)}
+                          data-testid={`button-delete-watch-${item.symbol}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteWatchlistMutation.mutate(item.id)}
-                      data-testid={`button-delete-watch-${item.symbol}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
+
+          {/* Create Alert Dialog */}
+          <Dialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Set Price Alert for {alertSymbol}</DialogTitle>
+                <DialogDescription>
+                  Get notified when this stock reaches your target price.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium">Target Price</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="150.00"
+                    value={alertPrice}
+                    onChange={(e) => setAlertPrice(e.target.value)}
+                    data-testid="input-alert-price"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Alert When Price Goes</label>
+                  <Select value={alertDirection} onValueChange={(v) => setAlertDirection(v as "ABOVE" | "BELOW")}>
+                    <SelectTrigger data-testid="select-alert-direction">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ABOVE">
+                        <div className="flex items-center gap-2">
+                          <ChevronUp className="w-4 h-4" />
+                          Above Target
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="BELOW">
+                        <div className="flex items-center gap-2">
+                          <ChevronDown className="w-4 h-4" />
+                          Below Target
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Alert Type</label>
+                  <Select value={alertType} onValueChange={(v) => setAlertType(v as "PRICE" | "AI_MODEL")}>
+                    <SelectTrigger data-testid="select-alert-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PRICE">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4" />
+                          Price Alert Only
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="AI_MODEL">
+                        <div className="flex items-center gap-2">
+                          <Brain className="w-4 h-4" />
+                          AI Model Analysis
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    AI Model will analyze the stock when the price alert triggers
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleCreateAlert} 
+                  className="w-full"
+                  disabled={createAlertMutation.isPending}
+                  data-testid="button-submit-alert"
+                >
+                  {createAlertMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Alert"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

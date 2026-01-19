@@ -11,6 +11,7 @@ Key features:
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
 - Portfolio management with holdings tracking, bulk import (Excel/paste/image AI extraction), and watchlist
+- **Price Alerts**: Set price alerts on watchlist stocks to monitor when they hit a target price (above/below) with optional AI model analysis
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
@@ -55,6 +56,7 @@ Key tables:
 - `conversations/messages` - Chat history (for potential voice/chat features)
 - `portfolio_holdings` - User portfolio holdings with shares and average cost
 - `watchlist` - User watchlist items with optional notes
+- `price_alerts` - User price alerts with target price, direction (ABOVE/BELOW), and alert type (PRICE/AI_MODEL)
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
