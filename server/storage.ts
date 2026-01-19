@@ -95,14 +95,44 @@ export class DatabaseStorage implements IStorage {
   async saveTradeRecommendations(recommendations: any[]): Promise<void> {
     await db.delete(tradeRecommendations);
     if (recommendations && recommendations.length > 0) {
-      const formattedRecs = recommendations.map(rec => ({
-        ...rec,
-        entryPrice: String(rec.entryPrice),
-        takeProfit: String(rec.takeProfit),
-        stopLoss: String(rec.stopLoss),
-        riskReward: String(rec.riskReward)
-      }));
-      await db.insert(tradeRecommendations).values(formattedRecs);
+      const validRecs = recommendations
+        .map(rec => {
+          // Parse riskReward - it can be "1:2.1" format or just "2.1"
+          let riskRewardValue = String(rec.riskReward || '0');
+          if (riskRewardValue.includes(':')) {
+            const parts = riskRewardValue.split(':');
+            riskRewardValue = parts[1] || parts[0];
+          }
+          riskRewardValue = riskRewardValue.replace(/[^\d.]/g, '') || '0';
+          
+          // Parse price fields with fallback to 0
+          const parseNumeric = (val: any): string => {
+            const cleaned = String(val || '0').replace(/[^\d.]/g, '');
+            const num = parseFloat(cleaned);
+            return isFinite(num) && num > 0 ? cleaned : '0';
+          };
+          
+          const entryPrice = parseNumeric(rec.entryPrice);
+          const takeProfit = parseNumeric(rec.takeProfit);
+          const stopLoss = parseNumeric(rec.stopLoss);
+          
+          return {
+            symbol: String(rec.symbol || ''),
+            recommendation: String(rec.recommendation || 'BUY'),
+            entryPrice,
+            takeProfit,
+            stopLoss,
+            riskReward: riskRewardValue,
+            rationale: String(rec.rationale || ''),
+            isValid: rec.symbol && entryPrice !== '0'
+          };
+        })
+        .filter(rec => rec.isValid)
+        .map(({ isValid, ...rec }) => rec);
+      
+      if (validRecs.length > 0) {
+        await db.insert(tradeRecommendations).values(validRecs);
+      }
     }
   }
 }

@@ -135,14 +135,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const prompt = `
         Scan the following S&P 500 stocks and current prices: ${JSON.stringify(validQuotes)}.
         Generate exactly 5 high-probability trade setups for today's market.
-        Return a JSON array of objects with:
-        - symbol: string
-        - recommendation: "BUY" or "SELL"
-        - entryPrice: string (e.g. "125.50")
-        - takeProfit: string
-        - stopLoss: string
-        - riskReward: string (e.g. "1:2.5")
-        - rationale: string (detailed technical/fundamental explanation)
+        
+        Return a JSON object with this exact structure:
+        {
+          "recommendations": [
+            {
+              "symbol": "AAPL",
+              "recommendation": "BUY",
+              "entryPrice": "125.50",
+              "takeProfit": "130.00",
+              "stopLoss": "122.00",
+              "riskReward": "2.5",
+              "rationale": "detailed technical/fundamental explanation"
+            }
+          ]
+        }
+        
+        Important: 
+        - recommendation must be exactly "BUY" or "SELL"
+        - All price values must be numeric strings without currency symbols (e.g., "125.50" not "$125.50")
+        - riskReward must be a single numeric value (e.g., "2.5" not "1:2.5")
       `;
 
       const response = await analyzeStockWithAI("SCAN", 0); // Reuse logic or customize
@@ -161,8 +173,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         response_format: { type: "json_object" }
       });
 
-      const result = JSON.parse(aiResponse.choices[0].message.content || '{"recommendations":[]}');
-      const recommendations = Array.isArray(result.recommendations) ? result.recommendations : [];
+      const result = JSON.parse(aiResponse.choices[0].message.content || '[]');
+      // Handle both array format and object with recommendations key
+      const recommendations = Array.isArray(result) 
+        ? result 
+        : (Array.isArray(result.recommendations) ? result.recommendations : []);
+      
+      if (recommendations.length === 0) {
+        console.log("AI returned no recommendations. Raw response:", aiResponse.choices[0].message.content);
+      }
+      
       await storage.saveTradeRecommendations(recommendations);
 
       res.json({ message: "Scan complete. 5 new setups generated." });
