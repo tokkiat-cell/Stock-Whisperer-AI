@@ -41,7 +41,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             <Wallet className="text-primary-foreground w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-xl tracking-tight">TradeMind</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight">TradeMind.AI</h1>
             <p className="text-xs text-muted-foreground font-medium">AI Trading Assistant</p>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Wallet className="text-primary-foreground w-4 h-4" />
           </div>
-          <span className="font-display font-bold text-lg">TradeMind</span>
+          <span className="font-display font-bold text-lg">TradeMind.AI</span>
         </div>
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
