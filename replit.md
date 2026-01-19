@@ -10,7 +10,8 @@ Key features:
 - S&P 500 market scanning with automated trade recommendations
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
-- Portfolio management with holdings tracking, bulk import (Excel/paste), and watchlist
+- Portfolio management with holdings tracking, bulk import (Excel/paste/image AI extraction), and watchlist
+- AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
 
@@ -70,6 +71,8 @@ Key tables:
   - AI chat assistant with formatted markdown responses
   - Market scanning with technical analysis (candle patterns, moving averages)
   - Trade recommendations based on user risk profile and timeframe
+  - Image analysis using Gemini vision (analyze charts, extract stock symbols from screenshots)
+  - Portfolio image extraction (upload portfolio screenshots to auto-extract stock tickers)
 
 ## External Dependencies
 
