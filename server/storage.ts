@@ -94,7 +94,7 @@ export class DatabaseStorage implements IStorage {
 
   async saveTradeRecommendations(recommendations: any[]): Promise<void> {
     await db.delete(tradeRecommendations);
-    if (recommendations.length > 0) {
+    if (recommendations && recommendations.length > 0) {
       await db.insert(tradeRecommendations).values(recommendations);
     }
   }

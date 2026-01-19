@@ -1,4 +1,6 @@
-import yahooFinance from 'yahoo-finance2';
+import { YahooFinance } from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance();
 
 export interface MarketData {
   symbol: string;
@@ -10,7 +12,7 @@ export interface MarketData {
 
 export async function searchStocks(query: string) {
   try {
-    const results = await (yahooFinance as any).search(query.toUpperCase());
+    const results = await yahooFinance.search(query.toUpperCase());
     return results.quotes.map(quote => ({
       symbol: quote.symbol,
       name: (quote as any).shortname || (quote as any).longname || quote.symbol
@@ -23,7 +25,7 @@ export async function searchStocks(query: string) {
 
 export async function getStockQuote(symbol: string): Promise<MarketData | null> {
   try {
-    const quote = await (yahooFinance as any).quote(symbol.toUpperCase());
+    const quote = await yahooFinance.quote(symbol.toUpperCase());
     
     if (!quote) return null;
 

@@ -162,7 +162,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
 
       const result = JSON.parse(aiResponse.choices[0].message.content || '{"recommendations":[]}');
-      await storage.saveTradeRecommendations(result.recommendations);
+      const recommendations = Array.isArray(result.recommendations) ? result.recommendations : [];
+      await storage.saveTradeRecommendations(recommendations);
 
       res.json({ message: "Scan complete. 5 new setups generated." });
     } catch (error) {
