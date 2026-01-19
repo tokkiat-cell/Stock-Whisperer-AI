@@ -13,7 +13,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
   DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
-  Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain, LineChart
+  Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain, LineChart,
+  ShieldCheck, ExternalLink
 } from "lucide-react";
 import type { PortfolioHolding, WatchlistItem, PriceAlert, UserNotificationSettings } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -872,6 +873,15 @@ export default function PortfolioPage() {
               </DialogContent>
             </Dialog>
 
+            <Button 
+              variant="outline" 
+              onClick={() => setSettingsOpen(true)}
+              data-testid="button-open-settings"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+
             <Dialog open={importWatchOpen} onOpenChange={setImportWatchOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="button-import-watchlist">
@@ -1221,6 +1231,42 @@ export default function PortfolioPage() {
                       </p>
                     </div>
                   )}
+                </div>
+
+                {/* 2FA Security Reminder */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="w-6 h-6 text-green-500 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-medium">Two-Factor Authentication (2FA)</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Protect your account by enabling 2FA on your login provider (Google, GitHub, etc.). 
+                        This adds an extra layer of security to your TradeMind account.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <a 
+                          href="https://myaccount.google.com/signinoptions/two-step-verification" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          data-testid="link-google-2fa"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Google 2FA
+                        </a>
+                        <a 
+                          href="https://github.com/settings/security" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          data-testid="link-github-2fa"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          GitHub 2FA
+                        </a>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </DialogContent>
