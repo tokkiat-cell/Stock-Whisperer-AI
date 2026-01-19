@@ -1,13 +1,25 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart, RefreshCw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart, RefreshCw, Globe } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { StockChart } from "@/components/stock-chart";
 import { MarketOverview } from "@/components/market-overview";
+import { apiRequest } from "@/lib/queryClient";
+
+type MoversMarket = 'US' | 'SG' | 'HK' | 'CN' | 'EU';
+
+const MARKET_LABELS: Record<MoversMarket, string> = {
+  US: 'United States',
+  SG: 'Singapore',
+  HK: 'Hong Kong',
+  CN: 'China',
+  EU: 'Europe',
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -17,6 +29,33 @@ export default function Dashboard() {
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedMoversMarket, setSelectedMoversMarket] = useState<MoversMarket>('US');
+
+  // Fetch market preferences to get the selected movers market
+  const { data: marketPrefs } = useQuery<{
+    selectedMoversMarket: string;
+  }>({
+    queryKey: ['/api/market/preferences'],
+  });
+
+  // Update local state when preferences load
+  const moversMarket = (marketPrefs?.selectedMoversMarket as MoversMarket) || selectedMoversMarket;
+
+  const updatePreferences = useMutation({
+    mutationFn: async (updates: { selectedMoversMarket: string }) => {
+      return apiRequest('PUT', '/api/market/preferences', updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/market/preferences'] });
+    },
+  });
+
+  const handleMarketChange = (market: MoversMarket) => {
+    setSelectedMoversMarket(market);
+    updatePreferences.mutate({ selectedMoversMarket: market });
+    // Invalidate movers query to refetch with new market
+    queryClient.invalidateQueries({ queryKey: ['/api/market/premarket-movers'] });
+  };
 
   const openChart = (symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -34,14 +73,21 @@ export default function Dashboard() {
   const handleRefreshMovers = async () => {
     setIsRefreshing(true);
     try {
-      await queryClient.invalidateQueries({ queryKey: ["/api/market/premarket-movers"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/market/premarket-movers", moversMarket] });
     } finally {
       setIsRefreshing(false);
     }
   };
 
   const { data: premarketMovers, isLoading: moversLoading } = useQuery<any[]>({
-    queryKey: ["/api/market/premarket-movers"],
+    queryKey: ["/api/market/premarket-movers", moversMarket],
+    queryFn: async () => {
+      const res = await fetch(`/api/market/premarket-movers?market=${moversMarket}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to fetch movers');
+      return res.json();
+    },
   });
 
   const { data: recommendations } = useQuery<any[]>({
@@ -133,13 +179,28 @@ export default function Dashboard() {
 
       {/* Top 10 Market Movers */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
             Top 10 Market Movers
           </h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">Highest % change today</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              <Select value={moversMarket} onValueChange={(value) => handleMarketChange(value as MoversMarket)}>
+                <SelectTrigger className="w-[140px]" data-testid="select-movers-market">
+                  <SelectValue placeholder="Select market" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MARKET_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key} data-testid={`option-market-${key}`}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-xs text-muted-foreground hidden sm:inline">Highest % change today</span>
             <Button
               variant="outline"
               size="sm"

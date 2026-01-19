@@ -75,16 +75,28 @@ function MarketSettingsDialog({ preferences, onUpdate }: {
   const [open, setOpen] = useState(false);
   const [showUS, setShowUS] = useState(preferences.showUSMarket);
   const [showSG, setShowSG] = useState(preferences.showSGMarket);
+  const [showHK, setShowHK] = useState(preferences.showHKMarket);
+  const [showCN, setShowCN] = useState(preferences.showCNMarket);
+  const [showEU, setShowEU] = useState(preferences.showEUMarket);
 
   useEffect(() => {
     if (open) {
       setShowUS(preferences.showUSMarket);
       setShowSG(preferences.showSGMarket);
+      setShowHK(preferences.showHKMarket);
+      setShowCN(preferences.showCNMarket);
+      setShowEU(preferences.showEUMarket);
     }
-  }, [open, preferences.showUSMarket, preferences.showSGMarket]);
+  }, [open, preferences.showUSMarket, preferences.showSGMarket, preferences.showHKMarket, preferences.showCNMarket, preferences.showEUMarket]);
 
   const handleSave = () => {
-    onUpdate({ showUSMarket: showUS, showSGMarket: showSG });
+    onUpdate({ 
+      showUSMarket: showUS, 
+      showSGMarket: showSG,
+      showHKMarket: showHK,
+      showCNMarket: showCN,
+      showEUMarket: showEU,
+    });
     setOpen(false);
   };
 
@@ -99,7 +111,7 @@ function MarketSettingsDialog({ preferences, onUpdate }: {
         <DialogHeader>
           <DialogTitle>Market Display Settings</DialogTitle>
         </DialogHeader>
-        <div className="space-y-6 py-4">
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Globe className="w-5 h-5 text-blue-500" />
@@ -127,6 +139,51 @@ function MarketSettingsDialog({ preferences, onUpdate }: {
               checked={showSG} 
               onCheckedChange={setShowSG}
               data-testid="switch-sg-market"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-red-500" />
+              <div>
+                <p className="font-medium">Hong Kong Markets</p>
+                <p className="text-xs text-muted-foreground">Hang Seng, Tencent, Alibaba, AIA</p>
+              </div>
+            </div>
+            <Switch 
+              checked={showHK} 
+              onCheckedChange={setShowHK}
+              data-testid="switch-hk-market"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-yellow-500" />
+              <div>
+                <p className="font-medium">China Markets</p>
+                <p className="text-xs text-muted-foreground">Shanghai Composite, CSI 300, Shenzhen</p>
+              </div>
+            </div>
+            <Switch 
+              checked={showCN} 
+              onCheckedChange={setShowCN}
+              data-testid="switch-cn-market"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-purple-500" />
+              <div>
+                <p className="font-medium">European Markets</p>
+                <p className="text-xs text-muted-foreground">Euro Stoxx 50, FTSE, DAX, CAC 40</p>
+              </div>
+            </div>
+            <Switch 
+              checked={showEU} 
+              onCheckedChange={setShowEU}
+              data-testid="switch-eu-market"
             />
           </div>
           
@@ -161,6 +218,9 @@ export function MarketOverview() {
 
   const usIndices = indices?.filter(i => i.market === 'US') || [];
   const sgIndices = indices?.filter(i => i.market === 'SG') || [];
+  const hkIndices = indices?.filter(i => i.market === 'HK') || [];
+  const cnIndices = indices?.filter(i => i.market === 'CN') || [];
+  const euIndices = indices?.filter(i => i.market === 'EU') || [];
 
   if (isLoading) {
     return (
@@ -220,13 +280,55 @@ export function MarketOverview() {
       )}
 
       {sgIndices.length > 0 && (
-        <div data-testid="section-sg-markets">
+        <div className="mb-6" data-testid="section-sg-markets">
           <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2" data-testid="heading-sg-markets">
             <span className="w-2 h-2 rounded-full bg-orange-500"></span>
             Singapore Markets
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {sgIndices.map(index => (
+              <IndexCard key={index.symbol} index={index} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hkIndices.length > 0 && (
+        <div className="mb-6" data-testid="section-hk-markets">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2" data-testid="heading-hk-markets">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Hong Kong Markets
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {hkIndices.map(index => (
+              <IndexCard key={index.symbol} index={index} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {cnIndices.length > 0 && (
+        <div className="mb-6" data-testid="section-cn-markets">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2" data-testid="heading-cn-markets">
+            <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+            China Markets
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {cnIndices.map(index => (
+              <IndexCard key={index.symbol} index={index} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {euIndices.length > 0 && (
+        <div className="mb-6" data-testid="section-eu-markets">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2" data-testid="heading-eu-markets">
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            European Markets
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {euIndices.map(index => (
               <IndexCard key={index.symbol} index={index} />
             ))}
           </div>
