@@ -74,3 +74,40 @@ export type StockQuote = {
   changePercent: number;
   companyName?: string;
 };
+
+// === PORTFOLIO HOLDINGS ===
+export const portfolioHoldings = pgTable("portfolio_holdings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  shares: numeric("shares").notNull(),
+  avgCost: numeric("avg_cost").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPortfolioHoldingSchema = createInsertSchema(portfolioHoldings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PortfolioHolding = typeof portfolioHoldings.$inferSelect;
+export type InsertPortfolioHolding = z.infer<typeof insertPortfolioHoldingSchema>;
+
+// === WATCHLIST ===
+export const watchlist = pgTable("watchlist", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWatchlistSchema = createInsertSchema(watchlist).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type WatchlistItem = typeof watchlist.$inferSelect;
+export type InsertWatchlistItem = z.infer<typeof insertWatchlistSchema>;

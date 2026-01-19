@@ -1,11 +1,13 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
-  type UpsertUser 
+  type UpsertUser,
+  type PortfolioHolding, type InsertPortfolioHolding,
+  type WatchlistItem, type InsertWatchlistItem
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { authStorage } from "./replit_integrations/auth/storage";
 
 export interface IStorage {
@@ -25,6 +27,20 @@ export interface IStorage {
   upsertSp500Stock(symbol: string, name: string, price?: string): Promise<void>;
   getTradeRecommendations(): Promise<any[]>;
   saveTradeRecommendations(recommendations: any[]): Promise<void>;
+
+  // Portfolio Holdings methods
+  getPortfolioHoldings(userId: string): Promise<PortfolioHolding[]>;
+  createPortfolioHolding(holding: InsertPortfolioHolding): Promise<PortfolioHolding>;
+  updatePortfolioHolding(id: number, shares: string, avgCost: string): Promise<PortfolioHolding>;
+  deletePortfolioHolding(id: number): Promise<void>;
+  bulkCreatePortfolioHoldings(holdings: InsertPortfolioHolding[]): Promise<PortfolioHolding[]>;
+
+  // Watchlist methods
+  getWatchlist(userId: string): Promise<WatchlistItem[]>;
+  addToWatchlist(item: InsertWatchlistItem): Promise<WatchlistItem>;
+  updateWatchlistNote(id: number, notes: string): Promise<WatchlistItem>;
+  removeFromWatchlist(id: number): Promise<void>;
+  bulkAddToWatchlist(items: InsertWatchlistItem[]): Promise<WatchlistItem[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -134,6 +150,70 @@ export class DatabaseStorage implements IStorage {
         await db.insert(tradeRecommendations).values(validRecs);
       }
     }
+  }
+
+  // --- Portfolio Holdings ---
+  async getPortfolioHoldings(userId: string): Promise<PortfolioHolding[]> {
+    return await db
+      .select()
+      .from(portfolioHoldings)
+      .where(eq(portfolioHoldings.userId, userId))
+      .orderBy(desc(portfolioHoldings.createdAt));
+  }
+
+  async createPortfolioHolding(holding: InsertPortfolioHolding): Promise<PortfolioHolding> {
+    const [newHolding] = await db.insert(portfolioHoldings).values(holding).returning();
+    return newHolding;
+  }
+
+  async updatePortfolioHolding(id: number, shares: string, avgCost: string): Promise<PortfolioHolding> {
+    const [updated] = await db
+      .update(portfolioHoldings)
+      .set({ shares, avgCost, updatedAt: new Date() })
+      .where(eq(portfolioHoldings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePortfolioHolding(id: number): Promise<void> {
+    await db.delete(portfolioHoldings).where(eq(portfolioHoldings.id, id));
+  }
+
+  async bulkCreatePortfolioHoldings(holdings: InsertPortfolioHolding[]): Promise<PortfolioHolding[]> {
+    if (holdings.length === 0) return [];
+    return await db.insert(portfolioHoldings).values(holdings).returning();
+  }
+
+  // --- Watchlist ---
+  async getWatchlist(userId: string): Promise<WatchlistItem[]> {
+    return await db
+      .select()
+      .from(watchlist)
+      .where(eq(watchlist.userId, userId))
+      .orderBy(desc(watchlist.createdAt));
+  }
+
+  async addToWatchlist(item: InsertWatchlistItem): Promise<WatchlistItem> {
+    const [newItem] = await db.insert(watchlist).values(item).returning();
+    return newItem;
+  }
+
+  async updateWatchlistNote(id: number, notes: string): Promise<WatchlistItem> {
+    const [updated] = await db
+      .update(watchlist)
+      .set({ notes })
+      .where(eq(watchlist.id, id))
+      .returning();
+    return updated;
+  }
+
+  async removeFromWatchlist(id: number): Promise<void> {
+    await db.delete(watchlist).where(eq(watchlist.id, id));
+  }
+
+  async bulkAddToWatchlist(items: InsertWatchlistItem[]): Promise<WatchlistItem[]> {
+    if (items.length === 0) return [];
+    return await db.insert(watchlist).values(items).returning();
   }
 }
 

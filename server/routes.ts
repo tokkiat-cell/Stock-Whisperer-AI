@@ -280,6 +280,156 @@ CRITICAL RULES:
     }
   });
 
+  // --- Portfolio Holdings Routes ---
+  app.get(api.portfolio.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    // @ts-ignore
+    const userId = req.user.claims.sub;
+    const holdings = await storage.getPortfolioHoldings(userId);
+    res.json(holdings);
+  });
+
+  app.post(api.portfolio.create.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.portfolio.create.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const holding = await storage.createPortfolioHolding({
+        userId,
+        symbol: parsed.data.symbol.toUpperCase(),
+        shares: parsed.data.shares,
+        avgCost: parsed.data.avgCost,
+      });
+      res.status(201).json(holding);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create holding" });
+    }
+  });
+
+  app.patch(api.portfolio.update.path, isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const parsed = api.portfolio.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const updated = await storage.updatePortfolioHolding(id, parsed.data.shares, parsed.data.avgCost);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update holding" });
+    }
+  });
+
+  app.delete(api.portfolio.delete.path, isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePortfolioHolding(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete holding" });
+    }
+  });
+
+  app.post(api.portfolio.bulkCreate.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.portfolio.bulkCreate.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const holdingsToCreate = parsed.data.holdings.map(h => ({
+        userId,
+        symbol: h.symbol.toUpperCase(),
+        shares: h.shares,
+        avgCost: h.avgCost,
+      }));
+      const holdings = await storage.bulkCreatePortfolioHoldings(holdingsToCreate);
+      res.status(201).json(holdings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create holdings" });
+    }
+  });
+
+  // --- Watchlist Routes ---
+  app.get(api.watchlist.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    // @ts-ignore
+    const userId = req.user.claims.sub;
+    const items = await storage.getWatchlist(userId);
+    res.json(items);
+  });
+
+  app.post(api.watchlist.add.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.watchlist.add.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const item = await storage.addToWatchlist({
+        userId,
+        symbol: parsed.data.symbol.toUpperCase(),
+        notes: parsed.data.notes || null,
+      });
+      res.status(201).json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add to watchlist" });
+    }
+  });
+
+  app.patch(api.watchlist.updateNote.path, isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const parsed = api.watchlist.updateNote.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const updated = await storage.updateWatchlistNote(id, parsed.data.notes);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update note" });
+    }
+  });
+
+  app.delete(api.watchlist.remove.path, isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.removeFromWatchlist(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove from watchlist" });
+    }
+  });
+
+  app.post(api.watchlist.bulkAdd.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.watchlist.bulkAdd.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const itemsToAdd = parsed.data.symbols.map(symbol => ({
+        userId,
+        symbol: symbol.toUpperCase(),
+        notes: null,
+      }));
+      const items = await storage.bulkAddToWatchlist(itemsToAdd);
+      res.status(201).json(items);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add to watchlist" });
+    }
+  });
+
   // --- Dashboard Chat ---
   app.post(api.dashboard.chat.path, isAuthenticated, async (req, res) => {
     try {
