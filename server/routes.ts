@@ -291,14 +291,11 @@ CRITICAL RULES:
       }
       const { imageBase64 } = parsed.data;
       
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
-        httpOptions: {
-          apiVersion: "",
-          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-        },
-      });
+      // Validate image size (max 10MB base64 = ~7.5MB actual image)
+      const MAX_BASE64_SIZE = 10 * 1024 * 1024;
+      if (imageBase64.length > MAX_BASE64_SIZE) {
+        return res.status(400).json({ message: "Image too large. Maximum size is 10MB." });
+      }
 
       // Extract base64 data and mime type from data URL
       const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
@@ -307,6 +304,21 @@ CRITICAL RULES:
       }
       const mimeType = matches[1];
       const base64Data = matches[2];
+
+      // Validate mime type is an image
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedMimeTypes.includes(mimeType)) {
+        return res.status(400).json({ message: "Invalid image type. Supported: JPEG, PNG, GIF, WebP" });
+      }
+      
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+      });
 
       const prompt = `Analyze this image and extract all stock ticker symbols you can find.
       Look for:
@@ -339,15 +351,21 @@ CRITICAL RULES:
       try {
         const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
         const parsed = JSON.parse(cleanJson);
-        const symbols = (parsed.symbols || []).filter((s: string) => 
-          typeof s === 'string' && s.length > 0 && s.length <= 5 && /^[A-Z]+$/.test(s.toUpperCase())
-        ).map((s: string) => s.toUpperCase());
+        const rawSymbols = (parsed.symbols || [])
+          .filter((s: string) => 
+            typeof s === 'string' && s.length > 0 && s.length <= 5 && /^[A-Z]+$/i.test(s)
+          )
+          .map((s: string) => s.toUpperCase());
+        
+        // Deduplicate symbols
+        const symbols = [...new Set(rawSymbols)];
         res.json({ symbols });
-      } catch {
-        res.json({ symbols: [] });
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", parseError, "Response:", responseText);
+        res.json({ symbols: [], message: "AI response was not in expected format" });
       }
     } catch (error) {
-      console.error(error);
+      console.error("Image extraction error:", error);
       res.status(500).json({ message: "Failed to extract from image" });
     }
   });
