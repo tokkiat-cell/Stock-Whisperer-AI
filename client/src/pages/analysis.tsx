@@ -5,13 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AnalysisResult } from "@/components/analysis-result";
-import { Search, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { Search, Sparkles, ArrowRight, Loader2, LineChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { StockChart } from "@/components/stock-chart";
 
 export default function AnalysisPage() {
   const [location] = useLocation();
   const [search, setSearch] = useState("");
   const { toast } = useToast();
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartSymbol, setChartSymbol] = useState("");
+
+  const openChart = (symbol: string) => {
+    setChartSymbol(symbol);
+    setChartOpen(true);
+  };
   
   // Parse query param for initial search
   useEffect(() => {
@@ -127,6 +135,20 @@ export default function AnalysisPage() {
         </div>
       )}
 
+      {/* View Chart Button */}
+      {quote && (
+        <div className="flex justify-center">
+          <Button 
+            variant="outline" 
+            onClick={() => openChart(search)}
+            data-testid="button-view-chart"
+          >
+            <LineChart className="w-4 h-4 mr-2" />
+            View Chart
+          </Button>
+        </div>
+      )}
+
       {/* Analysis Results */}
       {analyzeMutation.data && (
         <AnalysisResult 
@@ -135,6 +157,12 @@ export default function AnalysisPage() {
           isPending={createTradeMutation.isPending}
         />
       )}
+
+      <StockChart
+        symbol={chartSymbol}
+        open={chartOpen}
+        onOpenChange={setChartOpen}
+      />
     </div>
   );
 }

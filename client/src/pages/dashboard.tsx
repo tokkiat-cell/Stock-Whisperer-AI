@@ -2,15 +2,24 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { StockChart } from "@/components/stock-chart";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [, setLocation] = useLocation();
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartSymbol, setChartSymbol] = useState("");
+
+  const openChart = (symbol: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setChartSymbol(symbol);
+    setChartOpen(true);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +90,15 @@ export default function Dashboard() {
                 <div className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/50">
                   #{idx + 1}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 h-6 w-6"
+                  onClick={(e) => openChart(stock.symbol, e)}
+                  data-testid={`button-chart-${stock.symbol}`}
+                >
+                  <LineChart className="w-4 h-4" />
+                </Button>
                 <div className="flex flex-col items-center text-center pt-2">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${stock.changePercent >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                     {stock.changePercent >= 0 ? (
@@ -155,6 +173,12 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      <StockChart
+        symbol={chartSymbol}
+        open={chartOpen}
+        onOpenChange={setChartOpen}
+      />
     </div>
   );
 }

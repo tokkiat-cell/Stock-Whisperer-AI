@@ -55,10 +55,33 @@ export function StockChart({ symbol, open, onOpenChange }: StockChartProps) {
     enabled: open && !!symbol,
   });
 
+  const [chartReady, setChartReady] = useState(false);
+
   useEffect(() => {
-    if (!open || !chartContainerRef.current || !data) return;
+    if (!open || !data) {
+      setChartReady(false);
+      return;
+    }
 
     const container = chartContainerRef.current;
+    if (!container) return;
+
+    const checkReady = () => {
+      if (container.clientWidth > 0) {
+        setChartReady(true);
+      } else {
+        requestAnimationFrame(checkReady);
+      }
+    };
+
+    requestAnimationFrame(checkReady);
+  }, [open, data]);
+
+  useEffect(() => {
+    if (!chartReady || !chartContainerRef.current || !data) return;
+
+    const container = chartContainerRef.current;
+    if (container.clientWidth === 0) return;
     
     const chart = createChart(container, {
       layout: {
@@ -157,7 +180,7 @@ export function StockChart({ symbol, open, onOpenChange }: StockChartProps) {
       chart.remove();
       chartRef.current = null;
     };
-  }, [open, data, visibleMAs]);
+  }, [chartReady, data, visibleMAs]);
 
   const toggleMA = (ma: keyof typeof visibleMAs) => {
     setVisibleMAs((prev) => ({ ...prev, [ma]: !prev[ma] }));

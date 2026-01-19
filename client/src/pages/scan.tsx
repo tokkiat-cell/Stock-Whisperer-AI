@@ -26,12 +26,14 @@ import {
   Clock,
   BarChart3,
   Activity,
-  Send
+  Send,
+  LineChart
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { StockChart } from "@/components/stock-chart";
 
 interface TechnicalIndicator {
   name: string;
@@ -77,6 +79,13 @@ export default function MarketScan() {
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [riskAmount, setRiskAmount] = useState<string>("100");
   const [timeframe, setTimeframe] = useState<Timeframe>("day");
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartSymbol, setChartSymbol] = useState("");
+
+  const openChart = (symbol: string) => {
+    setChartSymbol(symbol);
+    setChartOpen(true);
+  };
 
   const createOrderMutation = useMutation({
     mutationFn: async (rec: Recommendation) => {
@@ -275,7 +284,15 @@ export default function MarketScan() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-2xl font-bold font-mono">{rec.symbol}</h3>
+                          <Button 
+                            variant="ghost"
+                            onClick={() => openChart(rec.symbol)}
+                            className="text-2xl font-bold font-mono p-0 h-auto"
+                            data-testid={`button-chart-rec-${rec.symbol}`}
+                          >
+                            {rec.symbol}
+                            <LineChart className="w-4 h-4 ml-1" />
+                          </Button>
                           <span className={cn(
                             "text-xs font-bold px-2 py-1 rounded-full",
                             rec.recommendation === "BUY" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
@@ -439,6 +456,12 @@ export default function MarketScan() {
           <strong>Risk Disclaimer:</strong> These AI-generated trade setups are for informational purposes only and do not constitute financial advice. Always perform your own due diligence and never risk capital you cannot afford to lose.
         </p>
       </div>
+
+      <StockChart
+        symbol={chartSymbol}
+        open={chartOpen}
+        onOpenChange={setChartOpen}
+      />
     </div>
   );
 }
