@@ -4,7 +4,7 @@ import { StockCard } from "@/components/stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Plus, Search, TrendingUp, Activity, DollarSign, List } from "lucide-react";
+import { Plus, Search, TrendingUp, Activity, DollarSign, List, Scan } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
