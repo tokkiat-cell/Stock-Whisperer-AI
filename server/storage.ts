@@ -1,11 +1,12 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
   type PortfolioHolding, type InsertPortfolioHolding,
   type WatchlistItem, type InsertWatchlistItem,
-  type SavedPrompt, type InsertSavedPrompt
+  type SavedPrompt, type InsertSavedPrompt,
+  type PriceAlert, type InsertPriceAlert
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -47,6 +48,16 @@ export interface IStorage {
   getSavedPrompts(userId: string): Promise<SavedPrompt[]>;
   createSavedPrompt(prompt: InsertSavedPrompt): Promise<SavedPrompt>;
   deleteSavedPrompt(id: number, userId: string): Promise<boolean>;
+
+  // Price Alerts methods
+  getPriceAlerts(userId: string): Promise<PriceAlert[]>;
+  getPriceAlertsBySymbol(userId: string, symbol: string): Promise<PriceAlert[]>;
+  getActivePriceAlerts(): Promise<PriceAlert[]>;
+  getTriggeredPriceAlerts(userId: string): Promise<PriceAlert[]>;
+  createPriceAlert(alert: InsertPriceAlert): Promise<PriceAlert>;
+  updatePriceAlert(id: number, userId: string, updates: Partial<PriceAlert>): Promise<PriceAlert | null>;
+  triggerPriceAlert(id: number, triggeredPrice: string, aiAnalysis?: string): Promise<PriceAlert | null>;
+  deletePriceAlert(id: number, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -240,6 +251,74 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSavedPrompt(id: number, userId: string): Promise<boolean> {
     const result = await db.delete(savedPrompts).where(and(eq(savedPrompts.id, id), eq(savedPrompts.userId, userId))).returning();
+    return result.length > 0;
+  }
+
+  // --- Price Alerts ---
+  async getPriceAlerts(userId: string): Promise<PriceAlert[]> {
+    return await db
+      .select()
+      .from(priceAlerts)
+      .where(eq(priceAlerts.userId, userId))
+      .orderBy(desc(priceAlerts.createdAt));
+  }
+
+  async getPriceAlertsBySymbol(userId: string, symbol: string): Promise<PriceAlert[]> {
+    return await db
+      .select()
+      .from(priceAlerts)
+      .where(and(eq(priceAlerts.userId, userId), eq(priceAlerts.symbol, symbol.toUpperCase())))
+      .orderBy(desc(priceAlerts.createdAt));
+  }
+
+  async getActivePriceAlerts(): Promise<PriceAlert[]> {
+    return await db
+      .select()
+      .from(priceAlerts)
+      .where(and(eq(priceAlerts.isActive, true), eq(priceAlerts.isTriggered, false)));
+  }
+
+  async getTriggeredPriceAlerts(userId: string): Promise<PriceAlert[]> {
+    return await db
+      .select()
+      .from(priceAlerts)
+      .where(and(eq(priceAlerts.userId, userId), eq(priceAlerts.isTriggered, true), eq(priceAlerts.isActive, true)))
+      .orderBy(desc(priceAlerts.triggeredAt));
+  }
+
+  async createPriceAlert(alert: InsertPriceAlert): Promise<PriceAlert> {
+    const [newAlert] = await db.insert(priceAlerts).values({
+      ...alert,
+      symbol: alert.symbol.toUpperCase(),
+    }).returning();
+    return newAlert;
+  }
+
+  async updatePriceAlert(id: number, userId: string, updates: Partial<PriceAlert>): Promise<PriceAlert | null> {
+    const [updated] = await db
+      .update(priceAlerts)
+      .set(updates)
+      .where(and(eq(priceAlerts.id, id), eq(priceAlerts.userId, userId)))
+      .returning();
+    return updated || null;
+  }
+
+  async triggerPriceAlert(id: number, triggeredPrice: string, aiAnalysis?: string): Promise<PriceAlert | null> {
+    const [updated] = await db
+      .update(priceAlerts)
+      .set({
+        isTriggered: true,
+        triggeredAt: new Date(),
+        triggeredPrice,
+        aiAnalysis: aiAnalysis || null,
+      })
+      .where(eq(priceAlerts.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async deletePriceAlert(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(priceAlerts).where(and(eq(priceAlerts.id, id), eq(priceAlerts.userId, userId))).returning();
     return result.length > 0;
   }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTradeSetupSchema, tradeSetups, insertPortfolioHoldingSchema, portfolioHoldings, insertWatchlistSchema, watchlist } from './schema';
+import { insertTradeSetupSchema, tradeSetups, insertPortfolioHoldingSchema, portfolioHoldings, insertWatchlistSchema, watchlist, priceAlerts } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -327,6 +327,84 @@ export const api = {
       path: '/api/saved-prompts/:id',
       responses: {
         204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  priceAlerts: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/price-alerts',
+      responses: {
+        200: z.array(z.custom<typeof priceAlerts.$inferSelect>()),
+      },
+    },
+    listBySymbol: {
+      method: 'GET' as const,
+      path: '/api/price-alerts/symbol/:symbol',
+      responses: {
+        200: z.array(z.custom<typeof priceAlerts.$inferSelect>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/price-alerts',
+      input: z.object({
+        symbol: z.string().min(1).max(10),
+        targetPrice: z.string(),
+        direction: z.enum(['ABOVE', 'BELOW']),
+        alertType: z.enum(['PRICE', 'AI_MODEL']),
+        isActive: z.boolean().optional(),
+      }),
+      responses: {
+        201: z.custom<typeof priceAlerts.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/price-alerts/:id',
+      input: z.object({
+        targetPrice: z.string().optional(),
+        direction: z.enum(['ABOVE', 'BELOW']).optional(),
+        isActive: z.boolean().optional(),
+      }),
+      responses: {
+        200: z.custom<typeof priceAlerts.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/price-alerts/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+    triggered: {
+      method: 'GET' as const,
+      path: '/api/price-alerts/triggered',
+      responses: {
+        200: z.array(z.custom<typeof priceAlerts.$inferSelect>()),
+      },
+    },
+    checkAlerts: {
+      method: 'POST' as const,
+      path: '/api/price-alerts/check',
+      responses: {
+        200: z.object({
+          checked: z.number(),
+          triggered: z.number(),
+          alerts: z.array(z.custom<typeof priceAlerts.$inferSelect>()),
+        }),
+      },
+    },
+    dismissTriggered: {
+      method: 'POST' as const,
+      path: '/api/price-alerts/:id/dismiss',
+      responses: {
+        200: z.custom<typeof priceAlerts.$inferSelect>(),
         404: errorSchemas.notFound,
       },
     },

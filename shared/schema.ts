@@ -128,3 +128,31 @@ export const insertSavedPromptSchema = createInsertSchema(savedPrompts).omit({
 
 export type SavedPrompt = typeof savedPrompts.$inferSelect;
 export type InsertSavedPrompt = z.infer<typeof insertSavedPromptSchema>;
+
+// === PRICE ALERTS ===
+export const priceAlerts = pgTable("price_alerts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  targetPrice: numeric("target_price").notNull(),
+  direction: text("direction").notNull(), // 'ABOVE' or 'BELOW'
+  alertType: text("alert_type").notNull(), // 'PRICE' or 'AI_MODEL'
+  isActive: boolean("is_active").default(true).notNull(),
+  isTriggered: boolean("is_triggered").default(false).notNull(),
+  triggeredAt: timestamp("triggered_at"),
+  triggeredPrice: numeric("triggered_price"),
+  aiAnalysis: text("ai_analysis"), // AI model analysis result when triggered
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPriceAlertSchema = createInsertSchema(priceAlerts).omit({
+  id: true,
+  isTriggered: true,
+  triggeredAt: true,
+  triggeredPrice: true,
+  aiAnalysis: true,
+  createdAt: true,
+});
+
+export type PriceAlert = typeof priceAlerts.$inferSelect;
+export type InsertPriceAlert = z.infer<typeof insertPriceAlertSchema>;
