@@ -145,14 +145,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Market stocks configuration for scanner (shared with movers)
+  const marketStocksConfig: Record<string, string[]> = {
+    US: ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX"],
+    SG: ["D05.SI", "O39.SI", "U11.SI", "C09.SI", "Z74.SI", "G13.SI", "BN4.SI", "C38U.SI", "A17U.SI", "Y92.SI"],
+    HK: ["0700.HK", "9988.HK", "1299.HK", "0005.HK", "0941.HK", "2318.HK", "0388.HK", "0001.HK", "3690.HK", "1810.HK"],
+    CN: ["600519.SS", "601398.SS", "601288.SS", "600036.SS", "601318.SS", "600900.SS", "601857.SS", "600276.SS", "000858.SZ", "002594.SZ"],
+    EU: ["ASML.AS", "MC.PA", "SAP.DE", "SIE.DE", "OR.PA", "AIR.PA", "BNP.PA", "DTE.DE", "ALV.DE", "SAN.MC"],
+  };
+
+  const marketNames: Record<string, string> = {
+    US: "US",
+    SG: "Singapore",
+    HK: "Hong Kong",
+    CN: "China",
+    EU: "European",
+  };
+
   app.post(api.sp500.scan.path, isAuthenticated, async (req, res) => {
     try {
       // Validate input parameters
       const parsed = api.sp500.scan.input?.safeParse(req.body);
       const validTimeframes = ["day", "month", "swing", "longterm"];
+      const validMarkets = ["US", "SG", "HK", "CN", "EU"];
       
       let riskAmount = 100;
       let timeframe = "day";
+      let market = "US";
       
       if (req.body.riskAmount !== undefined) {
         const parsedRisk = parseFloat(req.body.riskAmount);
@@ -164,6 +183,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (req.body.timeframe !== undefined && validTimeframes.includes(req.body.timeframe)) {
         timeframe = req.body.timeframe;
       }
+
+      if (req.body.market !== undefined && validMarkets.includes(req.body.market)) {
+        market = req.body.market;
+      }
       
       const timeframeDescriptions: Record<string, string> = {
         day: "day trading (intraday, holding for minutes to hours)",
@@ -172,18 +195,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         longterm: "long-term investing (holding 1+ years)"
       };
 
-      // 1. Get a subset of S&P 500 stocks for analysis (top 10 for speed)
-      const symbols = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX"];
+      // 1. Get stocks based on selected market
+      const symbols = marketStocksConfig[market] || marketStocksConfig.US;
       const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
       const validQuotes = quotes.filter(q => q !== null);
 
-      // 2. Generate 5 recommendations using AI with detailed technical analysis
+      // 2. Generate 5 recommendations using AI with detailed technical analysis and options
+      const marketName = marketNames[market] || "US";
       const prompt = `
-You are an expert technical analyst. Analyze the following S&P 500 stocks: ${JSON.stringify(validQuotes)}.
+You are an expert technical analyst. Analyze the following ${marketName} market stocks: ${JSON.stringify(validQuotes)}.
 
 Trading parameters:
 - Risk per trade: $${riskAmount}
 - Trading style: ${timeframeDescriptions[timeframe] || "day trading"}
+- Market: ${marketName}
 
 Generate exactly 5 high-probability trade setups optimized for ${timeframeDescriptions[timeframe] || "day trading"}.
 
@@ -192,6 +217,8 @@ For each recommendation, provide DETAILED technical analysis including:
 2. Trend type classification (e.g., "Waterfall downtrend", "Roller coaster consolidation", "Tow uptrend", "Channel breakout")
 3. Moving average analysis for 20, 40, 100, 150, and 200-day periods
 4. Calculate position size based on ${riskAmount} risk and the stop loss distance
+5. Support and resistance levels for precise entry/exit points
+6. Options trading recommendation (if the stock has liquid options)
 
 Return a JSON object with this EXACT structure:
 {
@@ -214,6 +241,22 @@ Return a JSON object with this EXACT structure:
         "ma200": "165.80"
       },
       "technicalSummary": "Price is trading above all major MAs indicating bullish trend. 20 MA > 40 MA > 100 MA confirms uptrend. RSI at 58 shows room for upside. Volume increasing on breakout.",
+      "supportResistance": {
+        "support1": "180.00",
+        "support2": "175.50",
+        "resistance1": "190.00",
+        "resistance2": "195.00"
+      },
+      "optionsStrategy": {
+        "strategy": "Bull Call Spread",
+        "description": "Buy 185 Call, Sell 195 Call expiring in 30 days",
+        "strikePrice": "185.00",
+        "targetStrike": "195.00",
+        "expiry": "30 days",
+        "maxProfit": "Difference between strikes minus premium paid",
+        "maxRisk": "Premium paid for the spread",
+        "rationale": "Limited risk bullish play with defined profit potential"
+      },
       "positionSize": "18",
       "riskAmount": "${riskAmount}"
     }
@@ -229,6 +272,9 @@ CRITICAL RULES:
 - candlePattern should describe the specific pattern observed
 - trendType should classify as: Waterfall (sharp decline), Roller coaster (high volatility), Tow (steady trend), Channel, or Breakout
 - Adjust stop loss and take profit distances based on the timeframe (tighter for day trading, wider for swing/long-term)
+- For optionsStrategy: suggest appropriate strategies like Bull Call Spread, Bear Put Spread, Iron Condor, Covered Call, or Protective Put based on the directional bias
+- Support and resistance levels should be realistic based on recent price action
+- For non-US markets, options may not be available - set optionsStrategy to null in that case
       `;
 
       // Use Gemini for AI analysis
@@ -272,7 +318,7 @@ CRITICAL RULES:
       
       await storage.saveTradeRecommendations(cleanedRecommendations);
 
-      res.json({ message: `Scan complete. 5 ${timeframe} trading setups generated with $${riskAmount} risk.` });
+      res.json({ message: `Scan complete. 5 ${marketName} market ${timeframe} trading setups generated with $${riskAmount} risk.` });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Market scan failed" });

@@ -27,9 +27,10 @@ import {
   BarChart3,
   Activity,
   Send,
-  LineChart
+  LineChart,
+  Globe
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -59,17 +60,42 @@ interface Recommendation {
     ma200: string;
   };
   technicalSummary?: string;
+  supportResistance?: {
+    support1: string;
+    support2: string;
+    resistance1: string;
+    resistance2: string;
+  };
+  optionsStrategy?: {
+    strategy: string;
+    description: string;
+    strikePrice: string;
+    targetStrike: string;
+    expiry: string;
+    maxProfit: string;
+    maxRisk: string;
+    rationale: string;
+  } | null;
   positionSize?: string;
   riskAmount?: string;
 }
 
 type Timeframe = "day" | "month" | "swing" | "longterm";
+type MarketType = "US" | "SG" | "HK" | "CN" | "EU";
 
 const timeframeLabels: Record<Timeframe, string> = {
   day: "Day Trading (Intraday)",
   month: "Monthly Trade (1-4 weeks)",
   swing: "Swing Trade (3-9 months)",
   longterm: "Long-term Investment (1+ year)"
+};
+
+const marketLabels: Record<MarketType, string> = {
+  US: "United States",
+  SG: "Singapore",
+  HK: "Hong Kong",
+  CN: "China",
+  EU: "Europe"
 };
 
 export default function MarketScan() {
@@ -79,8 +105,24 @@ export default function MarketScan() {
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [riskAmount, setRiskAmount] = useState<string>("100");
   const [timeframe, setTimeframe] = useState<Timeframe>("day");
+  const [selectedMarket, setSelectedMarket] = useState<MarketType>("US");
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
+
+  // Fetch market preferences to get the selected movers market
+  const { data: marketPrefs } = useQuery<{
+    selectedMoversMarket: string;
+  }>({
+    queryKey: ['/api/market/preferences'],
+  });
+
+  // Sync with user's preferred market on load (in useEffect to avoid render-time state updates)
+  useEffect(() => {
+    const preferredMarket = marketPrefs?.selectedMoversMarket as MarketType;
+    if (preferredMarket && preferredMarket !== selectedMarket) {
+      setSelectedMarket(preferredMarket);
+    }
+  }, [marketPrefs?.selectedMoversMarket]);
 
   const openChart = (symbol: string) => {
     setChartSymbol(symbol);
@@ -136,12 +178,13 @@ export default function MarketScan() {
     try {
       await apiRequest("POST", "/api/sp500/scan", {
         riskAmount: parseFloat(riskAmount),
-        timeframe: timeframe
+        timeframe: timeframe,
+        market: selectedMarket
       });
       queryClient.invalidateQueries({ queryKey: ["/api/sp500/recommendations"] });
       toast({
         title: "Scan Complete",
-        description: `Generated top 5 ${timeframeLabels[timeframe].toLowerCase()} setups with $${riskAmount} risk per trade.`,
+        description: `Generated top 5 ${marketLabels[selectedMarket]} ${timeframeLabels[timeframe].toLowerCase()} setups with $${riskAmount} risk per trade.`,
       });
     } catch (error) {
       toast({
@@ -179,7 +222,29 @@ export default function MarketScan() {
           Scan Configuration
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="market" className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              Market Region
+            </Label>
+            <Select value={selectedMarket} onValueChange={(v) => setSelectedMarket(v as MarketType)}>
+              <SelectTrigger data-testid="select-market">
+                <SelectValue placeholder="Select market" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="US">United States</SelectItem>
+                <SelectItem value="SG">Singapore</SelectItem>
+                <SelectItem value="HK">Hong Kong</SelectItem>
+                <SelectItem value="CN">China</SelectItem>
+                <SelectItem value="EU">Europe</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Aligned with your dashboard preference
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="risk-amount" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-muted-foreground" />
@@ -407,6 +472,76 @@ export default function MarketScan() {
                         </div>
                       )}
 
+                      {/* Support & Resistance Levels */}
+                      {rec.supportResistance && (
+                        <div>
+                          <h4 className="font-bold mb-3 flex items-center gap-2 text-sm">
+                            <Target className="w-4 h-4 text-primary" />
+                            Support & Resistance Levels
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                              <p className="text-xs text-muted-foreground uppercase">Support 1</p>
+                              <p className="font-mono font-bold text-sm mt-1 text-red-500">${rec.supportResistance.support1}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                              <p className="text-xs text-muted-foreground uppercase">Support 2</p>
+                              <p className="font-mono font-bold text-sm mt-1 text-red-500">${rec.supportResistance.support2}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-green-500/10 text-center">
+                              <p className="text-xs text-muted-foreground uppercase">Resistance 1</p>
+                              <p className="font-mono font-bold text-sm mt-1 text-green-500">${rec.supportResistance.resistance1}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-green-500/10 text-center">
+                              <p className="text-xs text-muted-foreground uppercase">Resistance 2</p>
+                              <p className="font-mono font-bold text-sm mt-1 text-green-500">${rec.supportResistance.resistance2}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Options Strategy */}
+                      {rec.optionsStrategy && (
+                        <div>
+                          <h4 className="font-bold mb-3 flex items-center gap-2 text-sm">
+                            <Scale className="w-4 h-4 text-primary" />
+                            Options Trading Strategy
+                          </h4>
+                          <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold px-2 py-1 rounded-full bg-primary/20 text-primary">
+                                {rec.optionsStrategy.strategy}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                Expiry: {rec.optionsStrategy.expiry}
+                              </span>
+                            </div>
+                            <p className="text-sm">{rec.optionsStrategy.description}</p>
+                            <div className="grid grid-cols-2 gap-3 mt-2">
+                              <div className="text-sm">
+                                <span className="text-muted-foreground">Strike Price:</span>{" "}
+                                <span className="font-mono font-bold">${rec.optionsStrategy.strikePrice}</span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-muted-foreground">Target Strike:</span>{" "}
+                                <span className="font-mono font-bold">${rec.optionsStrategy.targetStrike}</span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="text-sm text-green-500">
+                                <span className="text-muted-foreground">Max Profit:</span> {rec.optionsStrategy.maxProfit}
+                              </div>
+                              <div className="text-sm text-red-500">
+                                <span className="text-muted-foreground">Max Risk:</span> {rec.optionsStrategy.maxRisk}
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground italic mt-2">
+                              {rec.optionsStrategy.rationale}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Technical Summary */}
                       {rec.technicalSummary && (
                         <div>
@@ -429,6 +564,19 @@ export default function MarketScan() {
                         <p className="text-sm text-muted-foreground leading-relaxed">
                           {rec.rationale}
                         </p>
+                      </div>
+
+                      {/* Deep Chart Analysis Link */}
+                      <div className="pt-4 border-t">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => openChart(rec.symbol)}
+                          className="w-full"
+                          data-testid={`button-deep-analysis-${rec.symbol}`}
+                        >
+                          <LineChart className="w-4 h-4 mr-2" />
+                          View Full Chart Analysis
+                        </Button>
                       </div>
                     </div>
                   )}

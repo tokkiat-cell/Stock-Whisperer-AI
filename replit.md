@@ -7,7 +7,12 @@ stockwhisperer.AI is an AI-powered stock trading assistant that provides real-ti
 Key features:
 - Real-time stock quotes via Yahoo Finance API
 - AI-powered stock analysis using Gemini AI (gemini-2.5-flash)
-- S&P 500 market scanning with automated trade recommendations
+- **Multi-Market AI Scanner**: Market-aligned scanning for US, Singapore, Hong Kong, China, and Europe
+  - Scanner syncs with dashboard market preference for seamless workflow
+  - Generates trade recommendations for selected market region
+  - Includes options trading strategies (Bull Call Spread, Bear Put Spread, Iron Condor, etc.) for US stocks
+  - Provides support and resistance levels for precise entry/exit points
+  - Options strategies include strike pricing, expiry, max profit/risk
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
 - Portfolio management with holdings tracking, bulk import (Excel/paste/image AI extraction), and watchlist
