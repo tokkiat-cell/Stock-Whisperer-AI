@@ -111,3 +111,20 @@ export const insertWatchlistSchema = createInsertSchema(watchlist).omit({
 
 export type WatchlistItem = typeof watchlist.$inferSelect;
 export type InsertWatchlistItem = z.infer<typeof insertWatchlistSchema>;
+
+// === SAVED PROMPTS ===
+export const savedPrompts = pgTable("saved_prompts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title", { length: 100 }).notNull(),
+  prompt: text("prompt").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSavedPromptSchema = createInsertSchema(savedPrompts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SavedPrompt = typeof savedPrompts.$inferSelect;
+export type InsertSavedPrompt = z.infer<typeof insertSavedPromptSchema>;

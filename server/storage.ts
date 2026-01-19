@@ -1,10 +1,11 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
   type PortfolioHolding, type InsertPortfolioHolding,
-  type WatchlistItem, type InsertWatchlistItem
+  type WatchlistItem, type InsertWatchlistItem,
+  type SavedPrompt, type InsertSavedPrompt
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -41,6 +42,11 @@ export interface IStorage {
   updateWatchlistNote(id: number, userId: string, notes: string): Promise<WatchlistItem | null>;
   removeFromWatchlist(id: number, userId: string): Promise<boolean>;
   bulkAddToWatchlist(items: InsertWatchlistItem[]): Promise<WatchlistItem[]>;
+
+  // Saved Prompts methods
+  getSavedPrompts(userId: string): Promise<SavedPrompt[]>;
+  createSavedPrompt(prompt: InsertSavedPrompt): Promise<SavedPrompt>;
+  deleteSavedPrompt(id: number, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -216,6 +222,25 @@ export class DatabaseStorage implements IStorage {
   async bulkAddToWatchlist(items: InsertWatchlistItem[]): Promise<WatchlistItem[]> {
     if (items.length === 0) return [];
     return await db.insert(watchlist).values(items).returning();
+  }
+
+  // --- Saved Prompts ---
+  async getSavedPrompts(userId: string): Promise<SavedPrompt[]> {
+    return await db
+      .select()
+      .from(savedPrompts)
+      .where(eq(savedPrompts.userId, userId))
+      .orderBy(desc(savedPrompts.createdAt));
+  }
+
+  async createSavedPrompt(prompt: InsertSavedPrompt): Promise<SavedPrompt> {
+    const [newPrompt] = await db.insert(savedPrompts).values(prompt).returning();
+    return newPrompt;
+  }
+
+  async deleteSavedPrompt(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(savedPrompts).where(and(eq(savedPrompts.id, id), eq(savedPrompts.userId, userId))).returning();
+    return result.length > 0;
   }
 }
 

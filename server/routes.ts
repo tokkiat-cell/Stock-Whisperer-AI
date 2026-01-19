@@ -625,5 +625,50 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
+  // --- Saved Prompts Routes ---
+  app.get(api.savedPrompts.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    // @ts-ignore
+    const userId = req.user.claims.sub;
+    const prompts = await storage.getSavedPrompts(userId);
+    res.json(prompts);
+  });
+
+  app.post(api.savedPrompts.create.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.savedPrompts.create.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const prompt = await storage.createSavedPrompt({
+        userId,
+        title: parsed.data.title,
+        prompt: parsed.data.prompt,
+      });
+      res.status(201).json(prompt);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to save prompt" });
+    }
+  });
+
+  app.delete(api.savedPrompts.delete.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteSavedPrompt(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Prompt not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete prompt" });
+    }
+  });
+
   return httpServer;
 }

@@ -290,6 +290,47 @@ export const api = {
       },
     },
   },
+  savedPrompts: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/saved-prompts',
+      responses: {
+        200: z.array(z.object({
+          id: z.number(),
+          userId: z.string(),
+          title: z.string(),
+          prompt: z.string(),
+          createdAt: z.date().nullable(),
+        })),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/saved-prompts',
+      input: z.object({
+        title: z.string().min(1).max(100),
+        prompt: z.string().min(1),
+      }),
+      responses: {
+        201: z.object({
+          id: z.number(),
+          userId: z.string(),
+          title: z.string(),
+          prompt: z.string(),
+          createdAt: z.date().nullable(),
+        }),
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/saved-prompts/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
