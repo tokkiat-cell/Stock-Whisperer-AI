@@ -31,15 +31,15 @@ export interface IStorage {
   // Portfolio Holdings methods
   getPortfolioHoldings(userId: string): Promise<PortfolioHolding[]>;
   createPortfolioHolding(holding: InsertPortfolioHolding): Promise<PortfolioHolding>;
-  updatePortfolioHolding(id: number, shares: string, avgCost: string): Promise<PortfolioHolding>;
-  deletePortfolioHolding(id: number): Promise<void>;
+  updatePortfolioHolding(id: number, userId: string, shares: string, avgCost: string): Promise<PortfolioHolding | null>;
+  deletePortfolioHolding(id: number, userId: string): Promise<boolean>;
   bulkCreatePortfolioHoldings(holdings: InsertPortfolioHolding[]): Promise<PortfolioHolding[]>;
 
   // Watchlist methods
   getWatchlist(userId: string): Promise<WatchlistItem[]>;
   addToWatchlist(item: InsertWatchlistItem): Promise<WatchlistItem>;
-  updateWatchlistNote(id: number, notes: string): Promise<WatchlistItem>;
-  removeFromWatchlist(id: number): Promise<void>;
+  updateWatchlistNote(id: number, userId: string, notes: string): Promise<WatchlistItem | null>;
+  removeFromWatchlist(id: number, userId: string): Promise<boolean>;
   bulkAddToWatchlist(items: InsertWatchlistItem[]): Promise<WatchlistItem[]>;
 }
 
@@ -166,17 +166,18 @@ export class DatabaseStorage implements IStorage {
     return newHolding;
   }
 
-  async updatePortfolioHolding(id: number, shares: string, avgCost: string): Promise<PortfolioHolding> {
+  async updatePortfolioHolding(id: number, userId: string, shares: string, avgCost: string): Promise<PortfolioHolding | null> {
     const [updated] = await db
       .update(portfolioHoldings)
       .set({ shares, avgCost, updatedAt: new Date() })
-      .where(eq(portfolioHoldings.id, id))
+      .where(and(eq(portfolioHoldings.id, id), eq(portfolioHoldings.userId, userId)))
       .returning();
-    return updated;
+    return updated || null;
   }
 
-  async deletePortfolioHolding(id: number): Promise<void> {
-    await db.delete(portfolioHoldings).where(eq(portfolioHoldings.id, id));
+  async deletePortfolioHolding(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(portfolioHoldings).where(and(eq(portfolioHoldings.id, id), eq(portfolioHoldings.userId, userId))).returning();
+    return result.length > 0;
   }
 
   async bulkCreatePortfolioHoldings(holdings: InsertPortfolioHolding[]): Promise<PortfolioHolding[]> {
@@ -198,17 +199,18 @@ export class DatabaseStorage implements IStorage {
     return newItem;
   }
 
-  async updateWatchlistNote(id: number, notes: string): Promise<WatchlistItem> {
+  async updateWatchlistNote(id: number, userId: string, notes: string): Promise<WatchlistItem | null> {
     const [updated] = await db
       .update(watchlist)
       .set({ notes })
-      .where(eq(watchlist.id, id))
+      .where(and(eq(watchlist.id, id), eq(watchlist.userId, userId)))
       .returning();
-    return updated;
+    return updated || null;
   }
 
-  async removeFromWatchlist(id: number): Promise<void> {
-    await db.delete(watchlist).where(eq(watchlist.id, id));
+  async removeFromWatchlist(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(watchlist).where(and(eq(watchlist.id, id), eq(watchlist.userId, userId))).returning();
+    return result.length > 0;
   }
 
   async bulkAddToWatchlist(items: InsertWatchlistItem[]): Promise<WatchlistItem[]> {

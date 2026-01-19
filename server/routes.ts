@@ -311,13 +311,19 @@ CRITICAL RULES:
   });
 
   app.patch(api.portfolio.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
     try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const parsed = api.portfolio.update.input.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.message });
       }
-      const updated = await storage.updatePortfolioHolding(id, parsed.data.shares, parsed.data.avgCost);
+      const updated = await storage.updatePortfolioHolding(id, userId, parsed.data.shares, parsed.data.avgCost);
+      if (!updated) {
+        return res.status(404).json({ message: "Holding not found" });
+      }
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update holding" });
@@ -325,9 +331,15 @@ CRITICAL RULES:
   });
 
   app.delete(api.portfolio.delete.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
     try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      await storage.deletePortfolioHolding(id);
+      const deleted = await storage.deletePortfolioHolding(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Holding not found" });
+      }
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete holding" });
@@ -386,13 +398,19 @@ CRITICAL RULES:
   });
 
   app.patch(api.watchlist.updateNote.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
     try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const parsed = api.watchlist.updateNote.input.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.message });
       }
-      const updated = await storage.updateWatchlistNote(id, parsed.data.notes);
+      const updated = await storage.updateWatchlistNote(id, userId, parsed.data.notes);
+      if (!updated) {
+        return res.status(404).json({ message: "Item not found" });
+      }
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update note" });
@@ -400,9 +418,15 @@ CRITICAL RULES:
   });
 
   app.delete(api.watchlist.remove.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
     try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      await storage.removeFromWatchlist(id);
+      const deleted = await storage.removeFromWatchlist(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Item not found" });
+      }
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to remove from watchlist" });
