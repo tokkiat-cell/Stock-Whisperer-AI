@@ -7,6 +7,7 @@ import {
   LogOut, 
   Menu,
   Wallet,
+  Scan,
   User as UserIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/analysis", label: "Market Analysis", icon: LineChart },
+    { href: "/scan", label: "AI Scanner", icon: Scan },
+    { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/history", label: "Trade History", icon: History },
   ];
 

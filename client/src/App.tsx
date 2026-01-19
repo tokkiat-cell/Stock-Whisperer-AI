@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import AnalysisPage from "@/pages/analysis";
 import TradeHistory from "@/pages/history";
+import MarketScan from "@/pages/scan";
 import AuthPage from "@/pages/auth";
 import LayoutShell from "@/components/layout-shell";
 
@@ -52,6 +53,10 @@ function Router() {
       
       <Route path="/history">
         <ProtectedRoute component={TradeHistory} />
+      </Route>
+      
+      <Route path="/scan">
+        <ProtectedRoute component={MarketScan} />
       </Route>
       
       <Route component={NotFound} />
