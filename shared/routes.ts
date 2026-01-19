@@ -119,12 +119,28 @@ export const api = {
           stopLoss: z.string(),
           riskReward: z.string(),
           rationale: z.string(),
+          candlePattern: z.string().optional(),
+          trendType: z.string().optional(),
+          movingAverages: z.object({
+            ma20: z.string(),
+            ma40: z.string(),
+            ma100: z.string(),
+            ma150: z.string(),
+            ma200: z.string(),
+          }).optional(),
+          technicalSummary: z.string().optional(),
+          positionSize: z.string().optional(),
+          riskAmount: z.string().optional(),
         })),
       },
     },
     scan: {
       method: 'POST' as const,
       path: '/api/sp500/scan',
+      input: z.object({
+        riskAmount: z.number().optional(),
+        timeframe: z.enum(["day", "month", "swing", "longterm"]).optional(),
+      }),
       responses: {
         200: z.object({ message: z.string() }),
       },

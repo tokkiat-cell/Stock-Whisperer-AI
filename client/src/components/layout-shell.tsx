@@ -9,6 +9,7 @@ import {
   Wallet,
   Scan,
   MessageCircle,
+  PieChart,
   User as UserIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/scan", label: "AI Scanner", icon: Scan },
+    { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/chat", label: "TradeMind AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/history", label: "Trade History", icon: History },

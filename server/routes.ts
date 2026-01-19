@@ -126,35 +126,88 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post(api.sp500.scan.path, isAuthenticated, async (req, res) => {
     try {
+      // Validate input parameters
+      const parsed = api.sp500.scan.input?.safeParse(req.body);
+      const validTimeframes = ["day", "month", "swing", "longterm"];
+      
+      let riskAmount = 100;
+      let timeframe = "day";
+      
+      if (req.body.riskAmount !== undefined) {
+        const parsedRisk = parseFloat(req.body.riskAmount);
+        if (!isNaN(parsedRisk) && parsedRisk > 0) {
+          riskAmount = parsedRisk;
+        }
+      }
+      
+      if (req.body.timeframe !== undefined && validTimeframes.includes(req.body.timeframe)) {
+        timeframe = req.body.timeframe;
+      }
+      
+      const timeframeDescriptions: Record<string, string> = {
+        day: "day trading (intraday, holding for minutes to hours)",
+        month: "monthly trading (holding 1-4 weeks)",
+        swing: "swing trading (holding 3-9 months)",
+        longterm: "long-term investing (holding 1+ years)"
+      };
+
       // 1. Get a subset of S&P 500 stocks for analysis (top 10 for speed)
       const symbols = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX"];
       const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
       const validQuotes = quotes.filter(q => q !== null);
 
-      // 2. Generate 5 recommendations using AI
+      // 2. Generate 5 recommendations using AI with detailed technical analysis
       const prompt = `
-        Scan the following S&P 500 stocks and current prices: ${JSON.stringify(validQuotes)}.
-        Generate exactly 5 high-probability trade setups for today's market.
-        
-        Return a JSON object with this exact structure:
-        {
-          "recommendations": [
-            {
-              "symbol": "AAPL",
-              "recommendation": "BUY",
-              "entryPrice": "125.50",
-              "takeProfit": "130.00",
-              "stopLoss": "122.00",
-              "riskReward": "2.5",
-              "rationale": "detailed technical/fundamental explanation"
-            }
-          ]
-        }
-        
-        Important: 
-        - recommendation must be exactly "BUY" or "SELL"
-        - All price values must be numeric strings without currency symbols (e.g., "125.50" not "$125.50")
-        - riskReward must be a single numeric value (e.g., "2.5" not "1:2.5")
+You are an expert technical analyst. Analyze the following S&P 500 stocks: ${JSON.stringify(validQuotes)}.
+
+Trading parameters:
+- Risk per trade: $${riskAmount}
+- Trading style: ${timeframeDescriptions[timeframe] || "day trading"}
+
+Generate exactly 5 high-probability trade setups optimized for ${timeframeDescriptions[timeframe] || "day trading"}.
+
+For each recommendation, provide DETAILED technical analysis including:
+1. Candlestick pattern identification (e.g., "Bullish Engulfing", "Hammer", "Doji", "Waterfall pattern", "Roller coaster", "Tow pattern")
+2. Trend type classification (e.g., "Waterfall downtrend", "Roller coaster consolidation", "Tow uptrend", "Channel breakout")
+3. Moving average analysis for 20, 40, 100, 150, and 200-day periods
+4. Calculate position size based on ${riskAmount} risk and the stop loss distance
+
+Return a JSON object with this EXACT structure:
+{
+  "recommendations": [
+    {
+      "symbol": "AAPL",
+      "recommendation": "BUY",
+      "entryPrice": "185.50",
+      "takeProfit": "195.00",
+      "stopLoss": "180.00",
+      "riskReward": "1.7",
+      "rationale": "Strong bullish momentum with price breaking above 20-day MA...",
+      "candlePattern": "Bullish Engulfing pattern on daily chart, signaling reversal from recent pullback",
+      "trendType": "Tow uptrend - consistent higher highs and higher lows with steady momentum",
+      "movingAverages": {
+        "ma20": "182.30",
+        "ma40": "178.50",
+        "ma100": "172.00",
+        "ma150": "168.25",
+        "ma200": "165.80"
+      },
+      "technicalSummary": "Price is trading above all major MAs indicating bullish trend. 20 MA > 40 MA > 100 MA confirms uptrend. RSI at 58 shows room for upside. Volume increasing on breakout.",
+      "positionSize": "18",
+      "riskAmount": "${riskAmount}"
+    }
+  ]
+}
+
+CRITICAL RULES:
+- recommendation must be exactly "BUY" or "SELL"
+- All price values must be numeric strings WITHOUT currency symbols (e.g., "185.50" not "$185.50")
+- riskReward must be a single numeric value (e.g., "1.7" not "1:1.7")
+- positionSize = Math.floor(riskAmount / (entryPrice - stopLoss)) for BUY, or Math.floor(riskAmount / (stopLoss - entryPrice)) for SELL
+- Include realistic moving average values based on current price levels
+- candlePattern should describe the specific pattern observed
+- trendType should classify as: Waterfall (sharp decline), Roller coaster (high volatility), Tow (steady trend), Channel, or Breakout
+- Adjust stop loss and take profit distances based on the timeframe (tighter for day trading, wider for swing/long-term)
       `;
 
       // Use Gemini for AI analysis
@@ -182,12 +235,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         : (Array.isArray(result.recommendations) ? result.recommendations : []);
       
       if (recommendations.length === 0) {
-        console.log("AI returned no recommendations. Raw response:", aiResponse.choices[0].message.content);
+        console.log("AI returned no recommendations. Raw response:", responseText);
       }
       
-      await storage.saveTradeRecommendations(recommendations);
+      // Validate and clean numeric fields
+      const cleanedRecommendations = recommendations.map((rec: any) => ({
+        ...rec,
+        entryPrice: String(rec.entryPrice).replace(/[^0-9.]/g, ''),
+        takeProfit: String(rec.takeProfit).replace(/[^0-9.]/g, ''),
+        stopLoss: String(rec.stopLoss).replace(/[^0-9.]/g, ''),
+        riskReward: String(rec.riskReward).replace(/[^0-9.]/g, ''),
+        positionSize: rec.positionSize ? String(rec.positionSize).replace(/[^0-9]/g, '') : undefined,
+        riskAmount: rec.riskAmount ? String(rec.riskAmount).replace(/[^0-9.]/g, '') : String(riskAmount),
+      }));
+      
+      await storage.saveTradeRecommendations(cleanedRecommendations);
 
-      res.json({ message: "Scan complete. 5 new setups generated." });
+      res.json({ message: `Scan complete. 5 ${timeframe} trading setups generated with $${riskAmount} risk.` });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Market scan failed" });
@@ -203,7 +267,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       
       const sorted = validQuotes.sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent));
       
-      res.json(sorted.slice(0, 5).map(q => ({
+      res.json(sorted.slice(0, 10).map(q => ({
         symbol: q.symbol,
         name: q.companyName || q.symbol,
         price: q.price,

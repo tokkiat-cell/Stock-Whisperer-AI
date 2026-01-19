@@ -1,6 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Scan, 
   TrendingUp, 
@@ -11,15 +20,24 @@ import {
   ChevronDown, 
   ChevronUp,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  DollarSign,
+  Clock,
+  BarChart3,
+  Activity
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+interface TechnicalIndicator {
+  name: string;
+  value: string;
+  signal: "bullish" | "bearish" | "neutral";
+}
+
 interface Recommendation {
-  id: number;
   symbol: string;
   recommendation: "BUY" | "SELL";
   entryPrice: string;
@@ -27,25 +45,60 @@ interface Recommendation {
   stopLoss: string;
   riskReward: string;
   rationale: string;
+  candlePattern?: string;
+  trendType?: string;
+  movingAverages?: {
+    ma20: string;
+    ma40: string;
+    ma100: string;
+    ma150: string;
+    ma200: string;
+  };
+  technicalSummary?: string;
+  positionSize?: string;
+  riskAmount?: string;
 }
+
+type Timeframe = "day" | "month" | "swing" | "longterm";
+
+const timeframeLabels: Record<Timeframe, string> = {
+  day: "Day Trading (Intraday)",
+  month: "Monthly Trade (1-4 weeks)",
+  swing: "Swing Trade (3-9 months)",
+  longterm: "Long-term Investment (1+ year)"
+};
 
 export default function MarketScan() {
   const { toast } = useToast();
   const [isScanning, setIsScanning] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+  const [riskAmount, setRiskAmount] = useState<string>("100");
+  const [timeframe, setTimeframe] = useState<Timeframe>("day");
 
   const { data: recommendations, isLoading } = useQuery<Recommendation[]>({
     queryKey: ["/api/sp500/recommendations"],
   });
 
   const handleScan = async () => {
+    if (!riskAmount || parseFloat(riskAmount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Risk Amount",
+        description: "Please enter a valid risk amount greater than $0.",
+      });
+      return;
+    }
+
     setIsScanning(true);
     try {
-      await apiRequest("POST", "/api/sp500/scan", {});
+      await apiRequest("POST", "/api/sp500/scan", {
+        riskAmount: parseFloat(riskAmount),
+        timeframe: timeframe
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/sp500/recommendations"] });
       toast({
         title: "Scan Complete",
-        description: "Generated 5 high-probability trade setups for today.",
+        description: `Generated top 5 ${timeframeLabels[timeframe].toLowerCase()} setups with $${riskAmount} risk per trade.`,
       });
     } catch (error) {
       toast({
@@ -58,131 +111,279 @@ export default function MarketScan() {
     }
   };
 
+  const getSignalColor = (signal: string) => {
+    if (signal === "bullish") return "text-green-500";
+    if (signal === "bearish") return "text-red-500";
+    return "text-muted-foreground";
+  };
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-display font-bold text-foreground">AI Market Scanner</h2>
-          <p className="text-muted-foreground mt-1">Daily high-probability trade setups from the S&P 500.</p>
-        </div>
-        <Button 
-          onClick={handleScan} 
-          disabled={isScanning}
-          className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
-        >
-          {isScanning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Scanning Market...
-            </>
-          ) : (
-            <>
-              <Scan className="mr-2 h-4 w-4" />
-              Generate Today's Setups
-            </>
-          )}
-        </Button>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+          <Scan className="w-6 h-6 text-primary" />
+          AI Market Scanner
+        </h2>
+        <p className="text-muted-foreground text-sm mt-1">
+          Get personalized trade recommendations with detailed technical analysis
+        </p>
       </div>
 
+      {/* Scan Configuration */}
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" />
+          Scan Configuration
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="risk-amount" className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
+              Risk Amount Per Trade
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="risk-amount"
+                type="number"
+                min="1"
+                step="10"
+                value={riskAmount}
+                onChange={(e) => setRiskAmount(e.target.value)}
+                className="pl-7"
+                placeholder="100"
+                data-testid="input-risk-amount"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Maximum amount you're willing to risk on each trade
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timeframe" className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              Trading Timeframe
+            </Label>
+            <Select value={timeframe} onValueChange={(v) => setTimeframe(v as Timeframe)}>
+              <SelectTrigger data-testid="select-timeframe">
+                <SelectValue placeholder="Select timeframe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">Day Trading (Intraday)</SelectItem>
+                <SelectItem value="month">Monthly Trade (1-4 weeks)</SelectItem>
+                <SelectItem value="swing">Swing Trade (3-9 months)</SelectItem>
+                <SelectItem value="longterm">Long-term Investment (1+ year)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              How long do you plan to hold these positions?
+            </p>
+          </div>
+
+          <div className="flex items-end">
+            <Button 
+              onClick={handleScan} 
+              disabled={isScanning}
+              className="w-full"
+              size="lg"
+              data-testid="button-run-scan"
+            >
+              {isScanning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing Market...
+                </>
+              ) : (
+                <>
+                  <Scan className="mr-2 h-4 w-4" />
+                  Generate Recommendations
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Results */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6">
-          {[1, 2, 3].map(i => <div key={i} className="h-48 bg-card/50 rounded-2xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-48 bg-card/50 rounded-xl animate-pulse" />)}
         </div>
       ) : recommendations && recommendations.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6">
-          {recommendations.map((rec) => (
-            <Card key={rec.id} className="glass-panel overflow-hidden border-white/5">
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center shadow-inner",
-                      rec.recommendation === "BUY" ? "bg-green-500/10" : "bg-red-500/10"
-                    )}>
-                      {rec.recommendation === "BUY" ? (
-                        <TrendingUp className="w-6 h-6 text-green-500" />
-                      ) : (
-                        <TrendingDown className="w-6 h-6 text-red-500" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold font-display">{rec.symbol}</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Top 5 Trade Recommendations
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Based on technical analysis and market conditions
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4">
+            {recommendations.slice(0, 5).map((rec, idx) => (
+              <Card key={`${rec.symbol}-${idx}`} className="overflow-hidden">
+                <div className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
                       <div className={cn(
-                        "text-xs font-bold px-2 py-0.5 rounded-full inline-block",
-                        rec.recommendation === "BUY" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                        "w-14 h-14 rounded-xl flex items-center justify-center",
+                        rec.recommendation === "BUY" ? "bg-green-500/10" : "bg-red-500/10"
                       )}>
-                        {rec.recommendation}
+                        {rec.recommendation === "BUY" ? (
+                          <TrendingUp className="w-7 h-7 text-green-500" />
+                        ) : (
+                          <TrendingDown className="w-7 h-7 text-red-500" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-2xl font-bold font-mono">{rec.symbol}</h3>
+                          <span className={cn(
+                            "text-xs font-bold px-2 py-1 rounded-full",
+                            rec.recommendation === "BUY" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                          )}>
+                            {rec.recommendation}
+                          </span>
+                        </div>
+                        {rec.trendType && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Pattern: <span className="font-medium text-foreground">{rec.trendType}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-8">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" /> Entry
+                        </p>
+                        <p className="text-lg font-mono font-bold">${rec.entryPrice}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <Target className="w-3 h-3" /> Target
+                        </p>
+                        <p className="text-lg font-mono font-bold text-green-500">${rec.takeProfit}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <ShieldAlert className="w-3 h-3" /> Stop Loss
+                        </p>
+                        <p className="text-lg font-mono font-bold text-red-500">${rec.stopLoss}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <Scale className="w-3 h-3" /> R/R Ratio
+                        </p>
+                        <p className="text-lg font-mono font-bold text-primary">{rec.riskReward}</p>
+                      </div>
+                    </div>
+
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => setExpandedSymbol(expandedSymbol === rec.symbol ? null : rec.symbol)}
+                      data-testid={`button-expand-${rec.symbol}`}
+                    >
+                      {expandedSymbol === rec.symbol ? <ChevronUp /> : <ChevronDown />}
+                    </Button>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" /> Entry
+                  {/* Position Sizing */}
+                  {rec.positionSize && (
+                    <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <p className="text-sm">
+                        <span className="font-medium">Suggested Position:</span>{" "}
+                        <span className="font-mono font-bold">{rec.positionSize} shares</span>
+                        {rec.riskAmount && (
+                          <span className="text-muted-foreground"> (${rec.riskAmount} risk)</span>
+                        )}
                       </p>
-                      <p className="text-lg font-mono font-bold">${rec.entryPrice}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <Target className="w-3 h-3" /> Target
-                      </p>
-                      <p className="text-lg font-mono font-bold text-green-500">${rec.takeProfit}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <ShieldAlert className="w-3 h-3" /> Stop Loss
-                      </p>
-                      <p className="text-lg font-mono font-bold text-red-500">${rec.stopLoss}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <Scale className="w-3 h-3" /> R/R Ratio
-                      </p>
-                      <p className="text-lg font-mono font-bold text-primary">{rec.riskReward}</p>
-                    </div>
-                  </div>
+                  )}
 
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => setExpandedId(expandedId === rec.id ? null : rec.id)}
-                    className="self-end md:self-center"
-                  >
-                    {expandedId === rec.id ? <ChevronUp /> : <ChevronDown />}
-                  </Button>
+                  {/* Expanded Technical Analysis */}
+                  {expandedSymbol === rec.symbol && (
+                    <div className="mt-6 pt-6 border-t space-y-4 animate-in fade-in slide-in-from-top-2">
+                      {/* Moving Averages */}
+                      {rec.movingAverages && (
+                        <div>
+                          <h4 className="font-bold mb-3 flex items-center gap-2 text-sm">
+                            <BarChart3 className="w-4 h-4 text-primary" />
+                            Moving Averages Analysis
+                          </h4>
+                          <div className="grid grid-cols-5 gap-3">
+                            {Object.entries(rec.movingAverages).map(([key, value]) => (
+                              <div key={key} className="p-3 rounded-lg bg-secondary/50 text-center">
+                                <p className="text-xs text-muted-foreground uppercase">{key.toUpperCase()}</p>
+                                <p className="font-mono font-bold text-sm mt-1">${value}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Candle Pattern */}
+                      {rec.candlePattern && (
+                        <div>
+                          <h4 className="font-bold mb-2 flex items-center gap-2 text-sm">
+                            <Activity className="w-4 h-4 text-primary" />
+                            Candlestick Pattern
+                          </h4>
+                          <p className="text-sm text-muted-foreground p-3 rounded-lg bg-secondary/50">
+                            {rec.candlePattern}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Technical Summary */}
+                      {rec.technicalSummary && (
+                        <div>
+                          <h4 className="font-bold mb-2 flex items-center gap-2 text-sm">
+                            <Target className="w-4 h-4 text-primary" />
+                            Technical Summary
+                          </h4>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {rec.technicalSummary}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Rationale */}
+                      <div>
+                        <h4 className="font-bold mb-2 flex items-center gap-2 text-sm">
+                          <Scan className="w-4 h-4 text-primary" />
+                          AI Analysis & Rationale
+                        </h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {rec.rationale}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {expandedId === rec.id && (
-                  <div className="mt-6 pt-6 border-t border-white/5 animate-in fade-in slide-in-from-top-2">
-                    <h4 className="font-bold mb-3 flex items-center gap-2 text-sm text-foreground">
-                      <Activity className="w-4 h-4 text-primary" />
-                      AI Analysis & Rationale
-                    </h4>
-                    <div className="prose prose-sm prose-invert max-w-none text-muted-foreground leading-relaxed">
-                      {rec.rationale}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
-          ))}
+              </Card>
+            ))}
+          </div>
         </div>
       ) : (
-        <Card className="glass-panel p-12 text-center">
+        <Card className="p-12 text-center">
           <div className="w-16 h-16 rounded-full bg-muted/50 mx-auto flex items-center justify-center mb-4">
             <Scan className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="font-display font-semibold text-lg mb-2">No active setups</h3>
+          <h3 className="font-semibold text-lg mb-2">No recommendations yet</h3>
           <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-            Our AI hasn't scanned the market for today yet. Start a scan to generate the latest high-probability setups.
+            Configure your risk amount and trading timeframe, then run a scan to generate personalized recommendations.
           </p>
-          <Button onClick={handleScan} className="bg-primary hover:bg-primary/90">
-            Start Market Scan
-          </Button>
         </Card>
       )}
 
+      {/* Disclaimer */}
       <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-3">
         <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
         <p className="text-xs text-yellow-500/80 leading-relaxed">
