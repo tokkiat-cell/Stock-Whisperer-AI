@@ -1,4 +1,8 @@
-import yahooFinance from 'yahoo-finance2';
+import finnhub from 'finnhub';
+
+const api_key = finnhub.ApiClient.instance.authentications['api_key'];
+api_key.apiKey = process.env.FINNHUB_API_KEY;
+const finnhubClient = new finnhub.DefaultApi();
 
 export interface MarketData {
   symbol: string;
@@ -8,51 +12,50 @@ export interface MarketData {
   companyName?: string;
 }
 
-export async function searchStocks(query: string) {
-  try {
-    const results = await yahooFinance.search(query.toUpperCase());
-    return results.quotes.map(quote => ({
-      symbol: quote.symbol,
-      name: (quote as any).shortname || (quote as any).longname || quote.symbol
-    })).slice(0, 10);
-  } catch (error) {
-    console.error("Yahoo Finance Search Error:", error);
-    return [];
-  }
+export async function searchStocks(query: string): Promise<{ symbol: string; name: string }[]> {
+  return new Promise((resolve) => {
+    finnhubClient.symbolSearch(query.toUpperCase(), (error: any, data: any) => {
+      if (error || !data?.result) {
+        console.error("Finnhub Search Error:", error);
+        resolve([]);
+        return;
+      }
+      const results = data.result.slice(0, 10).map((item: any) => ({
+        symbol: item.symbol,
+        name: item.description || item.symbol
+      }));
+      resolve(results);
+    });
+  });
 }
 
 export async function getStockQuote(symbol: string): Promise<MarketData | null> {
-  try {
-    const quote = await yahooFinance.quote(symbol.toUpperCase());
-    
-    if (!quote) return null;
-
-    return {
-      symbol: quote.symbol,
-      price: quote.regularMarketPrice || 0,
-      change: quote.regularMarketChange || 0,
-      changePercent: quote.regularMarketChangePercent || 0,
-      companyName: quote.shortName || quote.longName
-    };
-  } catch (error) {
-    console.error(`Yahoo Finance Quote Error for ${symbol}:`, error);
-    
-    try {
-      const searchResult = await yahooFinance.search(symbol.toUpperCase());
-      const firstQuote = searchResult.quotes.find(q => q.symbol === symbol.toUpperCase());
-      if (firstQuote) {
-        return {
-          symbol: firstQuote.symbol,
-          price: (firstQuote as any).regularMarketPrice || 0,
-          change: (firstQuote as any).regularMarketChange || 0,
-          changePercent: (firstQuote as any).regularMarketChangePercent || 0,
-          companyName: (firstQuote as any).shortname || (firstQuote as any).longname
-        };
+  return new Promise((resolve) => {
+    finnhubClient.quote(symbol.toUpperCase(), (error: any, data: any) => {
+      if (error || !data || data.c === 0) {
+        console.error(`Finnhub Quote Error for ${symbol}:`, error);
+        resolve(null);
+        return;
       }
-    } catch (searchError) {
-      console.error(`Yahoo Finance Fallback Search Error for ${symbol}:`, searchError);
-    }
-    
-    return null;
-  }
+      resolve({
+        symbol: symbol.toUpperCase(),
+        price: data.c || 0,
+        change: data.d || 0,
+        changePercent: data.dp || 0,
+        companyName: symbol.toUpperCase()
+      });
+    });
+  });
+}
+
+export async function getCompanyProfile(symbol: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    finnhubClient.companyProfile2({ symbol: symbol.toUpperCase() }, (error: any, data: any) => {
+      if (error || !data) {
+        resolve(null);
+        return;
+      }
+      resolve(data.name || symbol);
+    });
+  });
 }
