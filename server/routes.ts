@@ -670,5 +670,197 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
+  // --- Price Alerts Routes ---
+  app.get(api.priceAlerts.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    // @ts-ignore
+    const userId = req.user.claims.sub;
+    const alerts = await storage.getPriceAlerts(userId);
+    res.json(alerts);
+  });
+
+  app.get(api.priceAlerts.listBySymbol.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    // @ts-ignore
+    const userId = req.user.claims.sub;
+    const symbol = req.params.symbol;
+    const alerts = await storage.getPriceAlertsBySymbol(userId, symbol);
+    res.json(alerts);
+  });
+
+  app.get(api.priceAlerts.triggered.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    // @ts-ignore
+    const userId = req.user.claims.sub;
+    const alerts = await storage.getTriggeredPriceAlerts(userId);
+    res.json(alerts);
+  });
+
+  app.post(api.priceAlerts.create.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.priceAlerts.create.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const alert = await storage.createPriceAlert({
+        userId,
+        symbol: parsed.data.symbol.toUpperCase(),
+        targetPrice: parsed.data.targetPrice,
+        direction: parsed.data.direction,
+        alertType: parsed.data.alertType,
+        isActive: parsed.data.isActive ?? true,
+      });
+      res.status(201).json(alert);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create price alert" });
+    }
+  });
+
+  app.patch(api.priceAlerts.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const parsed = api.priceAlerts.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const updated = await storage.updatePriceAlert(id, userId, parsed.data);
+      if (!updated) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update alert" });
+    }
+  });
+
+  app.delete(api.priceAlerts.delete.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deletePriceAlert(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete alert" });
+    }
+  });
+
+  app.post(api.priceAlerts.dismissTriggered.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const updated = await storage.updatePriceAlert(id, userId, { isActive: false });
+      if (!updated) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to dismiss alert" });
+    }
+  });
+
+  // Check all active alerts against current prices
+  app.post(api.priceAlerts.checkAlerts.path, isAuthenticated, async (req, res) => {
+    try {
+      const activeAlerts = await storage.getActivePriceAlerts();
+      const triggeredAlerts: any[] = [];
+      
+      // Group alerts by symbol to minimize API calls
+      const alertsBySymbol = new Map<string, typeof activeAlerts>();
+      for (const alert of activeAlerts) {
+        const existing = alertsBySymbol.get(alert.symbol) || [];
+        existing.push(alert);
+        alertsBySymbol.set(alert.symbol, existing);
+      }
+      
+      for (const [symbol, alerts] of alertsBySymbol) {
+        try {
+          const quote = await yahooFinance.quote(symbol);
+          if (!quote || !quote.regularMarketPrice) continue;
+          
+          const currentPrice = quote.regularMarketPrice;
+          
+          for (const alert of alerts) {
+            const targetPrice = parseFloat(alert.targetPrice);
+            let shouldTrigger = false;
+            
+            if (alert.direction === 'ABOVE' && currentPrice >= targetPrice) {
+              shouldTrigger = true;
+            } else if (alert.direction === 'BELOW' && currentPrice <= targetPrice) {
+              shouldTrigger = true;
+            }
+            
+            if (shouldTrigger) {
+              let aiAnalysis: string | undefined;
+              
+              // If alert type is AI_MODEL, run AI analysis
+              if (alert.alertType === 'AI_MODEL') {
+                try {
+                  const { GoogleGenAI } = await import("@google/genai");
+                  const ai = new GoogleGenAI({
+                    apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
+                    httpOptions: {
+                      apiVersion: "",
+                      baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+                    },
+                  });
+                  
+                  const prompt = `Analyze ${symbol} stock which just hit price $${currentPrice}. 
+                  The user had an alert set for when price went ${alert.direction === 'ABOVE' ? 'above' : 'below'} $${targetPrice}.
+                  Provide a brief analysis:
+                  1. What this price movement means
+                  2. Whether to BUY, SELL, or HOLD
+                  3. Key levels to watch
+                  Keep response under 200 words.`;
+                  
+                  const aiResponse = await ai.models.generateContent({
+                    model: "gemini-2.5-flash",
+                    contents: prompt,
+                  });
+                  
+                  aiAnalysis = aiResponse.text || undefined;
+                } catch (aiError) {
+                  console.error("AI analysis error:", aiError);
+                }
+              }
+              
+              const triggered = await storage.triggerPriceAlert(
+                alert.id,
+                currentPrice.toString(),
+                aiAnalysis
+              );
+              if (triggered) {
+                triggeredAlerts.push(triggered);
+              }
+            }
+          }
+        } catch (quoteError) {
+          console.error(`Error fetching quote for ${symbol}:`, quoteError);
+        }
+      }
+      
+      res.json({
+        checked: activeAlerts.length,
+        triggered: triggeredAlerts.length,
+        alerts: triggeredAlerts,
+      });
+    } catch (error) {
+      console.error("Check alerts error:", error);
+      res.status(500).json({ message: "Failed to check alerts" });
+    }
+  });
+
   return httpServer;
 }
