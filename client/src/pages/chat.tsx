@@ -294,7 +294,7 @@ export default function ChatPage() {
                       key={i}
                       onClick={() => {
                         setMessages([{ role: "user", content: prompt }]);
-                        chatMutation.mutate(prompt);
+                        chatMutation.mutate({ message: prompt });
                       }}
                       className="text-xs px-3 py-2 rounded-full bg-secondary hover-elevate text-muted-foreground"
                       data-testid={`button-quick-prompt-${i}`}
@@ -425,7 +425,7 @@ export default function ChatPage() {
                   onClick={() => {
                     if (!chatMutation.isPending) {
                       setMessages(prev => [...prev, { role: "user", content: prompt }]);
-                      chatMutation.mutate(prompt);
+                      chatMutation.mutate({ message: prompt });
                     }
                   }}
                   disabled={chatMutation.isPending}
