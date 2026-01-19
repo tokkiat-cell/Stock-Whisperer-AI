@@ -243,8 +243,7 @@ export default function ChatPage() {
 
   const handleUseSavedPrompt = (prompt: string) => {
     if (chatMutation.isPending) return;
-    setMessages(prev => [...prev, { role: "user", content: prompt }]);
-    chatMutation.mutate({ message: prompt });
+    setChatInput(prompt);
   };
 
   return (
@@ -279,124 +278,124 @@ export default function ChatPage() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <Sparkles className="w-8 h-8 text-primary" />
+            <div className="space-y-3 pb-2 border-b mb-4">
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <h4 className="font-semibold text-xs mb-2 flex items-center gap-2">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  Quick Prompts
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {quickPrompts.map((prompt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (!chatMutation.isPending) {
+                          setMessages(prev => [...prev, { role: "user", content: prompt }]);
+                          chatMutation.mutate({ message: prompt });
+                        }
+                      }}
+                      disabled={chatMutation.isPending}
+                      className="text-xs px-3 py-1.5 rounded-full bg-secondary hover-elevate text-muted-foreground disabled:opacity-50"
+                      data-testid={`button-quick-prompt-${i}`}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
                 </div>
-                <h3 className="font-semibold text-lg mb-2">How can I help you today?</h3>
-                <p className="text-sm text-muted-foreground max-w-md mb-4">
+              </div>
+              
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-xs flex items-center gap-2">
+                    <Bookmark className="w-3 h-3 text-primary" />
+                    Saved Prompts
+                  </h4>
+                  <Dialog open={savePromptOpen} onOpenChange={setSavePromptOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" data-testid="button-open-save-prompt-main">
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Save New Prompt</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Title</label>
+                          <Input
+                            placeholder="e.g., Weekly NVDA Analysis"
+                            value={newPromptTitle}
+                            onChange={(e) => setNewPromptTitle(e.target.value)}
+                            data-testid="input-prompt-title-main"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Prompt</label>
+                          <Textarea
+                            placeholder="Enter your prompt..."
+                            value={newPromptText}
+                            onChange={(e) => setNewPromptText(e.target.value)}
+                            rows={4}
+                            data-testid="textarea-prompt-text-main"
+                          />
+                        </div>
+                        <Button 
+                          onClick={handleSavePrompt} 
+                          className="w-full"
+                          disabled={createPromptMutation.isPending}
+                          data-testid="button-save-prompt-main"
+                        >
+                          {createPromptMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Prompt"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                {promptsLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : savedPrompts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-1">
+                    No saved prompts yet. Click + to create one.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {savedPrompts.map((sp) => (
+                      <div key={sp.id} className="flex items-center gap-1 group">
+                        <button
+                          onClick={() => handleUseSavedPrompt(sp.prompt)}
+                          disabled={chatMutation.isPending}
+                          className="text-xs px-3 py-1.5 rounded-full bg-secondary hover-elevate text-muted-foreground disabled:opacity-50"
+                          title={`Click to edit: ${sp.prompt}`}
+                          data-testid={`button-saved-prompt-main-${sp.id}`}
+                        >
+                          {sp.title}
+                        </button>
+                        <button
+                          onClick={() => deletePromptMutation.mutate(sp.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive"
+                          data-testid={`button-delete-prompt-main-${sp.id}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center flex-1 text-center py-8">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <Sparkles className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-base mb-1">How can I help you today?</h3>
+                <p className="text-sm text-muted-foreground max-w-md">
                   I can help you analyze stocks, explain market trends, suggest trading strategies, and answer your investment questions.
                 </p>
-                
-                <div className="w-full max-w-2xl space-y-4">
-                  <div className="bg-secondary/30 rounded-lg p-4">
-                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      Quick Prompts
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {quickPrompts.map((prompt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => {
-                            if (!chatMutation.isPending) {
-                              setMessages([{ role: "user", content: prompt }]);
-                              chatMutation.mutate({ message: prompt });
-                            }
-                          }}
-                          disabled={chatMutation.isPending}
-                          className="text-xs px-3 py-2 rounded-full bg-secondary hover-elevate text-muted-foreground disabled:opacity-50"
-                          data-testid={`button-quick-prompt-${i}`}
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-secondary/30 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-sm flex items-center gap-2">
-                        <Bookmark className="w-4 h-4 text-primary" />
-                        Saved Prompts
-                      </h4>
-                      <Dialog open={savePromptOpen} onOpenChange={setSavePromptOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="button-open-save-prompt-main">
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Save New Prompt</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div>
-                              <label className="text-sm font-medium mb-2 block">Title</label>
-                              <Input
-                                placeholder="e.g., Weekly NVDA Analysis"
-                                value={newPromptTitle}
-                                onChange={(e) => setNewPromptTitle(e.target.value)}
-                                data-testid="input-prompt-title-main"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium mb-2 block">Prompt</label>
-                              <Textarea
-                                placeholder="Enter your prompt..."
-                                value={newPromptText}
-                                onChange={(e) => setNewPromptText(e.target.value)}
-                                rows={4}
-                                data-testid="textarea-prompt-text-main"
-                              />
-                            </div>
-                            <Button 
-                              onClick={handleSavePrompt} 
-                              className="w-full"
-                              disabled={createPromptMutation.isPending}
-                              data-testid="button-save-prompt-main"
-                            >
-                              {createPromptMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Prompt"}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                    {promptsLoading ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : savedPrompts.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        No saved prompts yet. Click + to create one.
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {savedPrompts.map((sp) => (
-                          <div key={sp.id} className="flex items-center gap-1 group">
-                            <button
-                              onClick={() => handleUseSavedPrompt(sp.prompt)}
-                              disabled={chatMutation.isPending}
-                              className="text-xs px-3 py-2 rounded-full bg-secondary hover-elevate text-muted-foreground disabled:opacity-50"
-                              title={sp.prompt}
-                              data-testid={`button-saved-prompt-main-${sp.id}`}
-                            >
-                              {sp.title}
-                            </button>
-                            <button
-                              onClick={() => deletePromptMutation.mutate(sp.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive"
-                              data-testid={`button-delete-prompt-main-${sp.id}`}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             )}
             
