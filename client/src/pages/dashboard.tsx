@@ -7,6 +7,7 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { StockChart } from "@/components/stock-chart";
+import { MarketOverview } from "@/components/market-overview";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -63,6 +64,9 @@ export default function Dashboard() {
           </Button>
         </form>
       </div>
+
+      {/* Market Overview - US and Singapore indices */}
+      <MarketOverview />
 
       {/* Top 10 Premarket Movers */}
       <Card className="p-6">
