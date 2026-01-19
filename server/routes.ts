@@ -280,9 +280,24 @@ CRITICAL RULES:
   });
 
   // --- Market Routes ---
+  
+  // Popular stocks for each market (for movers) - declared before use
+  const marketMoversConfigForMovers: Record<string, string[]> = {
+    US: ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "AMD", "NFLX"],
+    SG: ["D05.SI", "O39.SI", "U11.SI", "C09.SI", "Z74.SI", "G13.SI", "BN4.SI", "C38U.SI", "A17U.SI", "Y92.SI"],
+    HK: ["0700.HK", "9988.HK", "1299.HK", "0005.HK", "0941.HK", "2318.HK", "0388.HK", "0001.HK", "3690.HK", "1810.HK"],
+    CN: ["600519.SS", "601398.SS", "601288.SS", "600036.SS", "601318.SS", "600900.SS", "601857.SS", "600276.SS", "000858.SZ", "002594.SZ"],
+    EU: ["ASML.AS", "MC.PA", "SAP.DE", "SIE.DE", "OR.PA", "AIR.PA", "BNP.PA", "DTE.DE", "ALV.DE", "SAN.MC"],
+  };
+  
   app.get(api.market.premarketMovers.path, isAuthenticated, async (req, res) => {
     try {
-      const symbols = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "AMD", "NFLX"];
+      // Get market from query parameter, default to US
+      const market = (req.query.market as string) || 'US';
+      const validMarkets = ['US', 'SG', 'HK', 'CN', 'EU'];
+      const selectedMarket = validMarkets.includes(market) ? market : 'US';
+      
+      const symbols = marketMoversConfigForMovers[selectedMarket] || marketMoversConfigForMovers.US;
       const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
       const validQuotes = quotes.filter(q => q !== null) as any[];
       
@@ -294,15 +309,16 @@ CRITICAL RULES:
         price: q.price,
         change: q.change,
         changePercent: q.changePercent,
+        market: selectedMarket,
       })));
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Failed to fetch premarket movers" });
+      res.status(500).json({ message: "Failed to fetch market movers" });
     }
   });
 
-  // Market Indices - US and Singapore
-  const marketIndicesConfig = {
+  // Market Indices - US, Singapore, Hong Kong, China, Europe
+  const marketIndicesConfig: Record<string, { symbol: string; name: string }[]> = {
     US: [
       { symbol: '^GSPC', name: 'S&P 500' },
       { symbol: '^DJI', name: 'Dow Jones' },
@@ -316,6 +332,25 @@ CRITICAL RULES:
       { symbol: 'O39.SI', name: 'OCBC Bank' },
       { symbol: 'U11.SI', name: 'UOB' },
     ],
+    HK: [
+      { symbol: '^HSI', name: 'Hang Seng Index' },
+      { symbol: '^HSCE', name: 'Hang Seng China Enterprises' },
+      { symbol: '0700.HK', name: 'Tencent' },
+      { symbol: '9988.HK', name: 'Alibaba HK' },
+      { symbol: '1299.HK', name: 'AIA Group' },
+    ],
+    CN: [
+      { symbol: '000001.SS', name: 'Shanghai Composite' },
+      { symbol: '399001.SZ', name: 'Shenzhen Component' },
+      { symbol: '000300.SS', name: 'CSI 300' },
+      { symbol: '000016.SS', name: 'SSE 50' },
+    ],
+    EU: [
+      { symbol: '^STOXX50E', name: 'Euro Stoxx 50' },
+      { symbol: '^FTSE', name: 'FTSE 100' },
+      { symbol: '^GDAXI', name: 'DAX' },
+      { symbol: '^FCHI', name: 'CAC 40' },
+    ],
   };
 
   app.get(api.market.indices.path, isAuthenticated, async (req, res) => {
@@ -325,15 +360,28 @@ CRITICAL RULES:
       const prefs = userId ? await storage.getMarketPreferences(userId) : null;
       
       const showUS = prefs?.showUSMarket ?? true;
-      const showSG = prefs?.showSGMarket ?? true;
+      const showSG = prefs?.showSGMarket ?? false;
+      const showHK = prefs?.showHKMarket ?? false;
+      const showCN = prefs?.showCNMarket ?? false;
+      const showEU = prefs?.showEUMarket ?? false;
       
-      const indicesToFetch: { symbol: string; name: string; market: 'US' | 'SG' }[] = [];
+      type MarketKey = 'US' | 'SG' | 'HK' | 'CN' | 'EU';
+      const indicesToFetch: { symbol: string; name: string; market: MarketKey }[] = [];
       
-      if (showUS) {
+      if (showUS && marketIndicesConfig.US) {
         marketIndicesConfig.US.forEach(idx => indicesToFetch.push({ ...idx, market: 'US' }));
       }
-      if (showSG) {
+      if (showSG && marketIndicesConfig.SG) {
         marketIndicesConfig.SG.forEach(idx => indicesToFetch.push({ ...idx, market: 'SG' }));
+      }
+      if (showHK && marketIndicesConfig.HK) {
+        marketIndicesConfig.HK.forEach(idx => indicesToFetch.push({ ...idx, market: 'HK' }));
+      }
+      if (showCN && marketIndicesConfig.CN) {
+        marketIndicesConfig.CN.forEach(idx => indicesToFetch.push({ ...idx, market: 'CN' }));
+      }
+      if (showEU && marketIndicesConfig.EU) {
+        marketIndicesConfig.EU.forEach(idx => indicesToFetch.push({ ...idx, market: 'EU' }));
       }
       
       // Also add any custom selected indices
@@ -385,7 +433,11 @@ CRITICAL RULES:
         selectedIndices: prefs?.selectedIndices ?? [],
         selectedStocks: prefs?.selectedStocks ?? [],
         showUSMarket: prefs?.showUSMarket ?? true,
-        showSGMarket: prefs?.showSGMarket ?? true,
+        showSGMarket: prefs?.showSGMarket ?? false,
+        showHKMarket: prefs?.showHKMarket ?? false,
+        showCNMarket: prefs?.showCNMarket ?? false,
+        showEUMarket: prefs?.showEUMarket ?? false,
+        selectedMoversMarket: prefs?.selectedMoversMarket ?? 'US',
       });
     } catch (error) {
       console.error("Failed to get market preferences:", error);
@@ -407,6 +459,10 @@ CRITICAL RULES:
         selectedStocks: prefs.selectedStocks,
         showUSMarket: prefs.showUSMarket,
         showSGMarket: prefs.showSGMarket,
+        showHKMarket: prefs.showHKMarket,
+        showCNMarket: prefs.showCNMarket,
+        showEUMarket: prefs.showEUMarket,
+        selectedMoversMarket: prefs.selectedMoversMarket,
       });
     } catch (error) {
       console.error("Failed to update market preferences:", error);
