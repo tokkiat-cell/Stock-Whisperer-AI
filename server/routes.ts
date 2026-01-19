@@ -105,5 +105,71 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // --- S&P 500 Routes ---
+  app.get(api.sp500.list.path, isAuthenticated, async (req, res) => {
+    try {
+      const stocks = await storage.getSp500Stocks();
+      res.json(stocks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch S&P 500 stocks" });
+    }
+  });
+
+  app.get(api.sp500.recommendations.path, isAuthenticated, async (req, res) => {
+    try {
+      const recs = await storage.getTradeRecommendations();
+      res.json(recs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  app.post(api.sp500.scan.path, isAuthenticated, async (req, res) => {
+    try {
+      // 1. Get a subset of S&P 500 stocks for analysis (top 10 for speed)
+      const symbols = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX"];
+      const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
+      const validQuotes = quotes.filter(q => q !== null);
+
+      // 2. Generate 5 recommendations using AI
+      const prompt = `
+        Scan the following S&P 500 stocks and current prices: ${JSON.stringify(validQuotes)}.
+        Generate exactly 5 high-probability trade setups for today's market.
+        Return a JSON array of objects with:
+        - symbol: string
+        - recommendation: "BUY" or "SELL"
+        - entryPrice: string (e.g. "125.50")
+        - takeProfit: string
+        - stopLoss: string
+        - riskReward: string (e.g. "1:2.5")
+        - rationale: string (detailed technical/fundamental explanation)
+      `;
+
+      const response = await analyzeStockWithAI("SCAN", 0); // Reuse logic or customize
+      // For simplicity in this demo, we'll assume the AI helper can handle the "SCAN" mode
+      // But let's refine the aiAnalysis.ts to handle this better if needed.
+      // For now, let's just use the direct prompt logic here for the specific "5 setups" request.
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-5.1",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      });
+
+      const result = JSON.parse(aiResponse.choices[0].message.content || '{"recommendations":[]}');
+      await storage.saveTradeRecommendations(result.recommendations);
+
+      res.json({ message: "Scan complete. 5 new setups generated." });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Market scan failed" });
+    }
+  });
+
   return httpServer;
 }

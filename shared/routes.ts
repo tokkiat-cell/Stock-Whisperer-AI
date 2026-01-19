@@ -95,6 +95,41 @@ export const api = {
       },
     },
   },
+  sp500: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/sp500',
+      responses: {
+        200: z.array(z.object({
+          symbol: z.string(),
+          name: z.string(),
+          lastPrice: z.string().nullable(),
+        })),
+      },
+    },
+    recommendations: {
+      method: 'GET' as const,
+      path: '/api/sp500/recommendations',
+      responses: {
+        200: z.array(z.object({
+          symbol: z.string(),
+          recommendation: z.string(),
+          entryPrice: z.string(),
+          takeProfit: z.string(),
+          stopLoss: z.string(),
+          riskReward: z.string(),
+          rationale: z.string(),
+        })),
+      },
+    },
+    scan: {
+      method: 'POST' as const,
+      path: '/api/sp500/scan',
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

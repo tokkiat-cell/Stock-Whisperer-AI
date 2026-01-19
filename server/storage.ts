@@ -19,6 +19,12 @@ export interface IStorage {
   createTradeSetup(trade: InsertTradeSetup): Promise<TradeSetup>;
   updateTradeStatus(id: number, status: string): Promise<TradeSetup>;
   deleteTradeSetup(id: number): Promise<void>;
+
+  // S&P 500 methods
+  getSp500Stocks(): Promise<any[]>;
+  upsertSp500Stock(symbol: string, name: string, price?: string): Promise<void>;
+  getTradeRecommendations(): Promise<any[]>;
+  saveTradeRecommendations(recommendations: any[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -73,6 +79,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTradeSetup(id: number): Promise<void> {
     await db.delete(tradeSetups).where(eq(tradeSetups.id, id));
+  }
+
+  // --- S&P 500 ---
+  async getSp500Stocks(): Promise<any[]> {
+    return await db.select().from(sp500Stocks);
+  }
+
+  async upsertSp500Stock(symbol: string, name: string, price?: string): Promise<void> {
+    await db
+      .insert(sp500Stocks)
+      .values({ symbol, name, lastPrice: price })
+      .onConflictDoUpdate({
+        target: sp500Stocks.symbol,
+        set: { name, lastPrice: price, updatedAt: new Date() },
+      });
+  }
+
+  async getTradeRecommendations(): Promise<any[]> {
+    return await db.select().from(tradeRecommendations).orderBy(desc(tradeRecommendations.createdAt));
+  }
+
+  async saveTradeRecommendations(recommendations: any[]): Promise<void> {
+    // Clear old recommendations first (optional, based on "today's market")
+    await db.delete(tradeRecommendations);
+    await db.insert(tradeRecommendations).values(recommendations);
   }
 }
 

@@ -24,6 +24,25 @@ export const tradeSetups = pgTable("trade_setups", {
   executedAt: timestamp("executed_at"),
 });
 
+export const sp500Stocks = pgTable("sp500_stocks", {
+  symbol: varchar("symbol", { length: 10 }).primaryKey(),
+  name: text("name").notNull(),
+  lastPrice: numeric("last_price"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const tradeRecommendations = pgTable("trade_recommendations", {
+  id: serial("id").primaryKey(),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  recommendation: text("recommendation").notNull(),
+  entryPrice: numeric("entry_price").notNull(),
+  takeProfit: numeric("take_profit").notNull(),
+  stopLoss: numeric("stop_loss").notNull(),
+  riskReward: numeric("risk_reward").notNull(),
+  rationale: text("rationale").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertTradeSetupSchema = createInsertSchema(tradeSetups).omit({ 
   id: true, 
   createdAt: true, 
