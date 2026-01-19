@@ -1,29 +1,19 @@
 import { useTrades } from "@/hooks/use-stocks";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { StockCard } from "@/components/stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Plus, Search, TrendingUp, TrendingDown, Activity, DollarSign, MessageCircle, Send, Sparkles, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { Plus, Search, TrendingUp, TrendingDown, Activity, DollarSign, MessageCircle, Sparkles, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
 
 export default function Dashboard() {
   const { data: trades, isLoading } = useTrades();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [, setLocation] = useLocation();
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,29 +29,6 @@ export default function Dashboard() {
   const { data: premarketMovers, isLoading: moversLoading } = useQuery<any[]>({
     queryKey: ["/api/market/premarket-movers"],
   });
-
-  const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const res = await apiRequest("POST", "/api/dashboard/chat", { message });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setMessages(prev => [...prev, { role: "assistant", content: data.response }]);
-    },
-  });
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || chatMutation.isPending) return;
-    
-    setMessages(prev => [...prev, { role: "user", content: chatInput }]);
-    chatMutation.mutate(chatInput);
-    setChatInput("");
-  };
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   if (isLoading) {
     return (
@@ -148,8 +115,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6">
+        <div className="space-y-6">
           {/* Premarket Movers */}
           <Card className="p-4">
             <div className="flex items-center justify-between mb-4">
@@ -295,79 +262,24 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Right Sidebar - AI Chat */}
-        <div className="space-y-4">
-          <Card className="flex flex-col h-[600px]">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-primary" />
-                TradeMind AI
-              </h3>
-              <span className="text-xs px-2 py-1 rounded bg-green-500/10 text-green-500 font-medium">Online</span>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 && (
-                <div className="text-center py-8">
-                  <Sparkles className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">Ask me anything about the market</p>
-                  <div className="space-y-2">
-                    {["What stocks should I buy today?", "Explain the current market trend", "Analyze NVDA for me"].map((prompt, i) => (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          setMessages([{ role: "user", content: prompt }]);
-                          chatMutation.mutate(prompt);
-                        }}
-                        className="block w-full text-left text-xs p-2 rounded-lg bg-secondary/50 hover-elevate text-muted-foreground"
-                        data-testid={`button-prompt-${i}`}
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
+          {/* Quick Access to AI Chat */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <MessageCircle className="w-6 h-6 text-primary" />
                 </div>
-              )}
-              
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-lg text-sm ${
-                    msg.role === 'user' 
-                      ? 'bg-primary text-primary-foreground rounded-br-sm' 
-                      : 'bg-secondary rounded-bl-sm'
-                  }`}>
-                    {msg.content}
-                  </div>
+                <div>
+                  <h3 className="font-semibold">TradeMind AI Assistant</h3>
+                  <p className="text-sm text-muted-foreground">Get instant market insights and trading advice</p>
                 </div>
-              ))}
-              
-              {chatMutation.isPending && (
-                <div className="flex justify-start">
-                  <div className="bg-secondary p-3 rounded-lg rounded-bl-sm">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </div>
-                </div>
-              )}
-              
-              <div ref={chatEndRef} />
-            </div>
-            
-            <form onSubmit={handleSendMessage} className="p-4 border-t">
-              <div className="flex gap-2">
-                <Input
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  placeholder="Ask TradeMind..."
-                  disabled={chatMutation.isPending}
-                  data-testid="input-chat"
-                />
-                <Button type="submit" size="icon" disabled={chatMutation.isPending} data-testid="button-send-chat">
-                  <Send className="w-4 h-4" />
-                </Button>
               </div>
-            </form>
+              <Button onClick={() => setLocation("/chat")} data-testid="button-go-chat">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Open Chat
+              </Button>
+            </div>
           </Card>
         </div>
       </div>

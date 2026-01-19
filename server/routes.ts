@@ -244,7 +244,16 @@ Current market context:
 - Top recommendations: ${JSON.stringify(recommendations.slice(0, 5))}
 - Tracked S&P 500 stocks: ${sp500.map(s => s.symbol).join(', ')}
 
-Respond concisely and professionally. If asked about specific stocks, provide actionable insights. Use bullet points for clarity when appropriate.`;
+Response formatting rules (MUST follow):
+1. Structure your response with clear sections using headers (##) when covering multiple topics
+2. Use bullet points (-) for listing items, recommendations, or key points
+3. Use numbered lists (1. 2. 3.) for step-by-step instructions or ranked items
+4. Add blank lines between sections for readability
+5. Keep paragraphs short (2-3 sentences max)
+6. Use **bold** for important terms, stock symbols, and key numbers
+7. Be concise but thorough - aim for clarity over brevity
+
+Respond professionally. If asked about specific stocks, provide actionable insights with clear entry/exit points when applicable.`;
 
       const aiResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
