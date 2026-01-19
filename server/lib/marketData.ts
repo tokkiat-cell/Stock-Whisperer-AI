@@ -10,7 +10,6 @@ export interface MarketData {
 
 export async function searchStocks(query: string) {
   try {
-    // Some symbols might need uppercase
     const results = await yahooFinance.search(query.toUpperCase());
     return results.quotes.map(quote => ({
       symbol: quote.symbol,
@@ -24,7 +23,7 @@ export async function searchStocks(query: string) {
 
 export async function getStockQuote(symbol: string): Promise<MarketData | null> {
   try {
-    // yahoo-finance2 quote() can sometimes fail if the symbol is not found or not in the right format
+    // yahoo-finance2 v2+ doesn't use setGlobalConfig, it's already instantiated or can be used via the default export
     const quote = await yahooFinance.quote(symbol.toUpperCase());
     
     if (!quote) return null;
@@ -39,7 +38,6 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
   } catch (error) {
     console.error(`Yahoo Finance Quote Error for ${symbol}:`, error);
     
-    // Fallback: try searching if quote fails directly
     try {
       const searchResult = await yahooFinance.search(symbol.toUpperCase());
       const firstQuote = searchResult.quotes.find(q => q.symbol === symbol.toUpperCase());

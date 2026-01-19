@@ -1,5 +1,5 @@
 import { 
-  users, tradeSetups, 
+  users, tradeSetups, sp500Stocks, tradeRecommendations,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser 
@@ -9,7 +9,7 @@ import { eq, desc } from "drizzle-orm";
 import { authStorage } from "./replit_integrations/auth/storage";
 
 export interface IStorage {
-  // Auth methods (delegated or re-implemented if needed, but we use authStorage for Auth)
+  // Auth methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -34,19 +34,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    // Replit Auth uses email/id, but if we needed username lookup:
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    // This is mostly for local dev if not using Replit Auth, 
-    // but with Replit Auth we use upsertUser from authStorage.
-    // We'll just implement it to satisfy the interface or delegate.
-    // Since Replit Auth uses upsert, we can just call that if the types matched perfectly,
-    // but InsertUser (username/password) is different from UpsertUser (email/replit_id).
-    // For this app, we rely on Replit Auth, so this might be unused or we can adapt.
-    // Let's just implement a basic insert for the 'users' table if it was used directly.
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
@@ -101,9 +93,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async saveTradeRecommendations(recommendations: any[]): Promise<void> {
-    // Clear old recommendations first (optional, based on "today's market")
     await db.delete(tradeRecommendations);
-    await db.insert(tradeRecommendations).values(recommendations);
+    if (recommendations.length > 0) {
+      await db.insert(tradeRecommendations).values(recommendations);
+    }
   }
 }
 
