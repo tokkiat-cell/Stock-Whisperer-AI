@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart, RefreshCw } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,10 +11,12 @@ import { MarketOverview } from "@/components/market-overview";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [, setLocation] = useLocation();
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const openChart = (symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -26,6 +28,15 @@ export default function Dashboard() {
     e.preventDefault();
     if (search.trim()) {
       setLocation(`/analysis?symbol=${search.trim().toUpperCase()}`);
+    }
+  };
+
+  const handleRefreshMovers = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({ queryKey: ["/api/market/premarket-movers"] });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -67,64 +78,6 @@ export default function Dashboard() {
 
       {/* Market Overview - US and Singapore indices */}
       <MarketOverview />
-
-      {/* Top 10 Premarket Movers */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            Top 10 Premarket Movers
-          </h3>
-          <span className="text-xs text-muted-foreground">Highest % change today</span>
-        </div>
-        
-        {moversLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {premarketMovers?.slice(0, 10).map((stock, idx) => (
-              <div 
-                key={stock.symbol} 
-                className="relative p-4 rounded-xl bg-secondary/50 hover-elevate cursor-pointer transition-all"
-                onClick={() => setLocation(`/analysis?symbol=${stock.symbol}`)}
-                data-testid={`card-mover-${stock.symbol}`}
-              >
-                <div className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/50">
-                  #{idx + 1}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 h-6 w-6"
-                  onClick={(e) => openChart(stock.symbol, e)}
-                  data-testid={`button-chart-${stock.symbol}`}
-                >
-                  <LineChart className="w-4 h-4" />
-                </Button>
-                <div className="flex flex-col items-center text-center pt-2">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${stock.changePercent >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                    {stock.changePercent >= 0 ? (
-                      <ArrowUpRight className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <ArrowDownRight className="w-5 h-5 text-red-500" />
-                    )}
-                  </div>
-                  <span className="font-mono font-bold text-lg">{stock.symbol}</span>
-                  <p className="text-xs text-muted-foreground truncate w-full mt-1">{stock.name}</p>
-                  <div className="mt-2 space-y-1">
-                    <p className="font-mono text-sm">${stock.price.toFixed(2)}</p>
-                    <span className={`text-sm font-bold ${stock.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -177,6 +130,76 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Top 10 Market Movers */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+            <Activity className="w-5 h-5 text-primary" />
+            Top 10 Market Movers
+          </h3>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">Highest % change today</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshMovers}
+              disabled={isRefreshing || moversLoading}
+              data-testid="button-refresh-movers"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+        
+        {moversLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {premarketMovers?.slice(0, 10).map((stock, idx) => (
+              <div 
+                key={stock.symbol} 
+                className="relative p-4 rounded-xl bg-secondary/50 hover-elevate cursor-pointer transition-all"
+                onClick={() => setLocation(`/analysis?symbol=${stock.symbol}`)}
+                data-testid={`card-mover-${stock.symbol}`}
+              >
+                <div className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/50">
+                  #{idx + 1}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 h-6 w-6"
+                  onClick={(e) => openChart(stock.symbol, e)}
+                  data-testid={`button-chart-${stock.symbol}`}
+                >
+                  <LineChart className="w-4 h-4" />
+                </Button>
+                <div className="flex flex-col items-center text-center pt-2">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${stock.changePercent >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                    {stock.changePercent >= 0 ? (
+                      <ArrowUpRight className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <ArrowDownRight className="w-5 h-5 text-red-500" />
+                    )}
+                  </div>
+                  <span className="font-mono font-bold text-lg">{stock.symbol}</span>
+                  <p className="text-xs text-muted-foreground truncate w-full mt-1">{stock.name}</p>
+                  <div className="mt-2 space-y-1">
+                    <p className="font-mono text-sm">${stock.price.toFixed(2)}</p>
+                    <span className={`text-sm font-bold ${stock.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <StockChart
         symbol={chartSymbol}
