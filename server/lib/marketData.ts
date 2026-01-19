@@ -1,3 +1,7 @@
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance();
+
 export interface MarketData {
   symbol: string;
   price: number;
@@ -6,68 +10,51 @@ export interface MarketData {
   companyName?: string;
 }
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-
 export async function searchStocks(query: string): Promise<{ symbol: string; name: string }[]> {
   try {
-    const response = await fetch(
-      `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${FINNHUB_API_KEY}`
-    );
-    const data = await response.json();
+    const result = await yahooFinance.search(query, { quotesCount: 10 });
     
-    if (!data?.result) return [];
+    if (!result?.quotes) return [];
     
-    return data.result.slice(0, 10).map((item: any) => ({
-      symbol: item.symbol,
-      name: item.description || item.symbol
-    }));
+    return result.quotes
+      .filter((item: any) => item.symbol && item.quoteType === "EQUITY")
+      .slice(0, 10)
+      .map((item: any) => ({
+        symbol: item.symbol,
+        name: item.shortname || item.longname || item.symbol
+      }));
   } catch (error) {
-    console.error("Finnhub Search Error:", error);
+    console.error("Yahoo Finance Search Error:", error);
     return [];
   }
 }
 
 export async function getStockQuote(symbol: string): Promise<MarketData | null> {
   try {
-    const response = await fetch(
-      `https://finnhub.io/api/v1/quote?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`
-    );
-    const data = await response.json();
+    const quote = await yahooFinance.quote(symbol.toUpperCase());
     
-    if (!data) {
-      console.error(`Finnhub: No data for ${symbol}`);
-      return null;
-    }
-    
-    // Use current price if available, otherwise use previous close price
-    // c = current price, pc = previous close price
-    const price = data.c > 0 ? data.c : (data.pc || 0);
-    
-    if (price === 0) {
-      console.error(`Finnhub: No price data for ${symbol}`);
+    if (!quote || !quote.regularMarketPrice) {
+      console.error(`Yahoo Finance: No data for ${symbol}`);
       return null;
     }
     
     return {
-      symbol: symbol.toUpperCase(),
-      price: price,
-      change: data.d || 0,
-      changePercent: data.dp || 0,
-      companyName: symbol.toUpperCase()
+      symbol: quote.symbol || symbol.toUpperCase(),
+      price: quote.regularMarketPrice,
+      change: quote.regularMarketChange || 0,
+      changePercent: quote.regularMarketChangePercent || 0,
+      companyName: quote.shortName || quote.longName || symbol.toUpperCase()
     };
   } catch (error) {
-    console.error(`Finnhub Quote Error for ${symbol}:`, error);
+    console.error(`Yahoo Finance Quote Error for ${symbol}:`, error);
     return null;
   }
 }
 
 export async function getCompanyProfile(symbol: string): Promise<string | null> {
   try {
-    const response = await fetch(
-      `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`
-    );
-    const data = await response.json();
-    return data?.name || symbol;
+    const quote = await yahooFinance.quote(symbol.toUpperCase());
+    return quote?.shortName || quote?.longName || symbol;
   } catch (error) {
     return null;
   }
