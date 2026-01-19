@@ -1,6 +1,4 @@
-import { YahooFinance } from 'yahoo-finance2';
-
-const yahooFinance = new YahooFinance();
+import yahooFinance from 'yahoo-finance2';
 
 export interface MarketData {
   symbol: string;

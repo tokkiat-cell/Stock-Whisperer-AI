@@ -95,7 +95,14 @@ export class DatabaseStorage implements IStorage {
   async saveTradeRecommendations(recommendations: any[]): Promise<void> {
     await db.delete(tradeRecommendations);
     if (recommendations && recommendations.length > 0) {
-      await db.insert(tradeRecommendations).values(recommendations);
+      const formattedRecs = recommendations.map(rec => ({
+        ...rec,
+        entryPrice: String(rec.entryPrice),
+        takeProfit: String(rec.takeProfit),
+        stopLoss: String(rec.stopLoss),
+        riskReward: String(rec.riskReward)
+      }));
+      await db.insert(tradeRecommendations).values(formattedRecs);
     }
   }
 }

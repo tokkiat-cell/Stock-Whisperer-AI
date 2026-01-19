@@ -156,7 +156,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
 
       const aiResponse = await openai.chat.completions.create({
-        model: "gpt-5.1",
+        model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
