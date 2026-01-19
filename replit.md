@@ -10,7 +10,7 @@ Key features:
 - S&P 500 market scanning with automated trade recommendations
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
-- Portfolio & P&L tracking page
+- Portfolio management with holdings tracking, bulk import (Excel/paste), and watchlist
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
 
@@ -52,6 +52,8 @@ Key tables:
 - `sp500_stocks` - Cached S&P 500 stock data
 - `trade_recommendations` - AI-generated recommendations
 - `conversations/messages` - Chat history (for potential voice/chat features)
+- `portfolio_holdings` - User portfolio holdings with shares and average cost
+- `watchlist` - User watchlist items with optional notes
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
@@ -94,3 +96,4 @@ Key tables:
 - `openai` - AI API client
 - `passport` / `openid-client` - Authentication
 - `zod` - Schema validation
+- `xlsx` - Excel file parsing for portfolio import
