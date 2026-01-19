@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
-  DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet
+  DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
+  Image, X, Sparkles
 } from "lucide-react";
 import type { PortfolioHolding, WatchlistItem } from "@shared/schema";
 
@@ -29,8 +30,11 @@ export default function PortfolioPage() {
   const [watchNotes, setWatchNotes] = useState("");
   const [pasteData, setPasteData] = useState("");
   const [watchPasteData, setWatchPasteData] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [extractedSymbols, setExtractedSymbols] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { data: holdings = [], isLoading: holdingsLoading } = useQuery<PortfolioHolding[]>({
     queryKey: ["/api/portfolio"],
@@ -120,6 +124,24 @@ export default function PortfolioPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
       toast({ title: "Removed from watchlist" });
+    },
+  });
+
+  const extractFromImageMutation = useMutation({
+    mutationFn: async (imageBase64: string) => {
+      const res = await apiRequest("POST", "/api/portfolio/extract-from-image", { imageBase64 });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.symbols && data.symbols.length > 0) {
+        setExtractedSymbols(data.symbols);
+        toast({ title: `Found ${data.symbols.length} stock symbols` });
+      } else {
+        toast({ title: "No stock symbols found in image", variant: "destructive" });
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to analyze image", variant: "destructive" });
     },
   });
 
@@ -220,6 +242,38 @@ export default function PortfolioPage() {
       return;
     }
     bulkAddWatchlistMutation.mutate(lines);
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setImagePreview(base64);
+      extractFromImageMutation.mutate(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddExtractedSymbols = () => {
+    if (extractedSymbols.length === 0) return;
+    const holdingsToAdd = extractedSymbols.map(symbol => ({
+      symbol: symbol.toUpperCase(),
+      shares: "0",
+      avgCost: "0",
+    }));
+    bulkCreateHoldingsMutation.mutate(holdingsToAdd);
+    setExtractedSymbols([]);
+    setImagePreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const clearImageExtraction = () => {
+    setImagePreview(null);
+    setExtractedSymbols([]);
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const totalValue = holdings.reduce((acc, h) => acc + (parseFloat(h.shares) * parseFloat(h.avgCost)), 0);
@@ -364,18 +418,87 @@ export default function PortfolioPage() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={importOpen} onOpenChange={setImportOpen}>
+            <Dialog open={importOpen} onOpenChange={(open) => {
+              setImportOpen(open);
+              if (!open) clearImageExtraction();
+            }}>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="button-import-holdings">
                   <Upload className="w-4 h-4 mr-2" />
                   Import
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Import Portfolio Holdings</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                  <div>
+                    <label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <Image className="w-4 h-4 text-primary" />
+                      <Sparkles className="w-3 h-3 text-primary" />
+                      Upload Screenshot (AI Extraction)
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Upload a screenshot of your portfolio and AI will extract stock symbols
+                    </p>
+                    <Input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      disabled={extractFromImageMutation.isPending}
+                      data-testid="input-image-upload"
+                    />
+                    {extractFromImageMutation.isPending && (
+                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analyzing image...
+                      </div>
+                    )}
+                    {imagePreview && extractedSymbols.length > 0 && (
+                      <div className="mt-3 p-3 bg-secondary rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Extracted Symbols:</span>
+                          <button
+                            onClick={clearImageExtraction}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {extractedSymbols.map((symbol) => (
+                            <span key={symbol} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full font-medium">
+                              {symbol}
+                            </span>
+                          ))}
+                        </div>
+                        <Button
+                          onClick={handleAddExtractedSymbols}
+                          size="sm"
+                          className="w-full"
+                          disabled={bulkCreateHoldingsMutation.isPending}
+                          data-testid="button-add-extracted"
+                        >
+                          {bulkCreateHoldingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : `Add ${extractedSymbols.length} Symbols to Holdings`}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2 text-center">
+                          Shares and cost will be set to 0. You can edit them later.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or</span>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium flex items-center gap-2 mb-2">
                       <FileSpreadsheet className="w-4 h-4" />

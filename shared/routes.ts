@@ -165,13 +165,24 @@ export const api = {
     chat: {
       method: 'POST' as const,
       path: '/api/dashboard/chat',
-      input: z.object({ message: z.string() }),
+      input: z.object({ 
+        message: z.string(),
+        imageBase64: z.string().optional(),
+      }),
       responses: {
         200: z.object({ response: z.string() }),
       },
     },
   },
   portfolio: {
+    extractFromImage: {
+      method: 'POST' as const,
+      path: '/api/portfolio/extract-from-image',
+      input: z.object({ imageBase64: z.string() }),
+      responses: {
+        200: z.object({ symbols: z.array(z.string()) }),
+      },
+    },
     list: {
       method: 'GET' as const,
       path: '/api/portfolio',

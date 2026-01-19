@@ -281,6 +281,77 @@ CRITICAL RULES:
   });
 
   // --- Portfolio Holdings Routes ---
+  
+  // Image extraction endpoint using Gemini vision
+  app.post(api.portfolio.extractFromImage.path, isAuthenticated, async (req, res) => {
+    try {
+      const parsed = api.portfolio.extractFromImage.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request: image is required" });
+      }
+      const { imageBase64 } = parsed.data;
+      
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+      });
+
+      // Extract base64 data and mime type from data URL
+      const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        return res.status(400).json({ message: "Invalid image format" });
+      }
+      const mimeType = matches[1];
+      const base64Data = matches[2];
+
+      const prompt = `Analyze this image and extract all stock ticker symbols you can find.
+      Look for:
+      - Stock symbols/tickers (like AAPL, MSFT, GOOGL, NVDA, etc.)
+      - Company names that you can map to their ticker symbols
+      - Any portfolio or trading related stock listings
+
+      Return ONLY a JSON object with a "symbols" array containing the ticker symbols found.
+      Example: {"symbols": ["AAPL", "MSFT", "GOOGL"]}
+      
+      If no stock symbols are found, return: {"symbols": []}
+      Do not include any markdown formatting, just the raw JSON.`;
+
+      const aiResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data,
+            },
+          },
+        ],
+      });
+
+      const responseText = aiResponse.text || '{"symbols": []}';
+      
+      // Parse the response to extract symbols
+      try {
+        const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        const symbols = (parsed.symbols || []).filter((s: string) => 
+          typeof s === 'string' && s.length > 0 && s.length <= 5 && /^[A-Z]+$/.test(s.toUpperCase())
+        ).map((s: string) => s.toUpperCase());
+        res.json({ symbols });
+      } catch {
+        res.json({ symbols: [] });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Failed to extract from image" });
+    }
+  });
+
   app.get(api.portfolio.list.path, isAuthenticated, async (req, res) => {
     if (!req.user) return res.status(401).send();
     // @ts-ignore
@@ -461,7 +532,7 @@ CRITICAL RULES:
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid request: message is required" });
       }
-      const { message } = parsed.data;
+      const { message, imageBase64 } = parsed.data;
       
       const recommendations = await storage.getTradeRecommendations();
       const sp500 = await storage.getSp500Stocks();
@@ -491,11 +562,41 @@ Response formatting rules (MUST follow):
 6. Use **bold** for important terms, stock symbols, and key numbers
 7. Be concise but thorough - aim for clarity over brevity
 
+If an image is provided:
+- If it contains a list of stocks, symbols, or a portfolio screenshot, extract and list all the stock symbols you can identify
+- If it's a chart, analyze the technical patterns you see
+- Provide actionable insights based on the image content
+
 Respond professionally. If asked about specific stocks, provide actionable insights with clear entry/exit points when applicable.`;
+
+      let contents: any;
+      
+      if (imageBase64) {
+        // Extract base64 data and mime type from data URL
+        const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const base64Data = matches[2];
+          
+          contents = [
+            { text: `${systemPrompt}\n\nUser: ${message}` },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+              },
+            },
+          ];
+        } else {
+          contents = `${systemPrompt}\n\nUser: ${message}`;
+        }
+      } else {
+        contents = `${systemPrompt}\n\nUser: ${message}`;
+      }
 
       const aiResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `${systemPrompt}\n\nUser: ${message}`,
+        contents: contents,
       });
 
       const response = aiResponse.text || "I couldn't process your request. Please try again.";

@@ -2,9 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
-import { MessageCircle, Send, Sparkles, Loader2, Bot, User } from "lucide-react";
+import { Link } from "wouter";
+import { 
+  MessageCircle, Send, Sparkles, Loader2, Bot, User, 
+  Image, X, Search, Wallet, TrendingUp, BarChart3
+} from "lucide-react";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -107,29 +111,74 @@ function formatAIResponse(content: string) {
 export default function ChatPage() {
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: recommendations } = useQuery<any[]>({
     queryKey: ["/api/sp500/recommendations"],
   });
 
   const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const res = await apiRequest("POST", "/api/dashboard/chat", { message });
+    mutationFn: async ({ message, imageBase64 }: { message: string; imageBase64?: string }) => {
+      const res = await apiRequest("POST", "/api/dashboard/chat", { message, imageBase64 });
       return res.json();
     },
     onSuccess: (data) => {
       setMessages(prev => [...prev, { role: "assistant", content: data.response }]);
+      setSelectedImage(null);
+      setImagePreview(null);
     },
   });
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || chatMutation.isPending) return;
+    if ((!chatInput.trim() && !selectedImage) || chatMutation.isPending) return;
     
-    setMessages(prev => [...prev, { role: "user", content: chatInput }]);
-    chatMutation.mutate(chatInput);
+    let imageBase64: string | undefined;
+    if (selectedImage) {
+      const reader = new FileReader();
+      imageBase64 = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(selectedImage);
+      });
+    }
+    
+    const displayMessage = selectedImage 
+      ? `${chatInput || "Analyze this image"} [Image attached]` 
+      : chatInput;
+    
+    setMessages(prev => [...prev, { role: "user", content: displayMessage }]);
+    chatMutation.mutate({ message: chatInput || "Analyze this image and extract any relevant information", imageBase64 });
     setChatInput("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e as any);
+    }
   };
 
   useEffect(() => {
@@ -249,20 +298,63 @@ export default function ChatPage() {
           </div>
           
           <form onSubmit={handleSendMessage} className="p-4 border-t">
-            <div className="flex gap-2">
-              <Input
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                placeholder="Ask TradeMind anything..."
-                disabled={chatMutation.isPending}
-                className="flex-1"
-                data-testid="input-chat-message"
-              />
-              <Button type="submit" disabled={chatMutation.isPending} data-testid="button-send-message">
-                <Send className="w-4 h-4 mr-2" />
-                Send
-              </Button>
+            {imagePreview && (
+              <div className="mb-3 relative inline-block">
+                <img 
+                  src={imagePreview} 
+                  alt="Selected" 
+                  className="max-h-24 rounded-lg border"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                  data-testid="button-remove-image"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2 items-end">
+              <div className="flex-1 relative">
+                <Textarea
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask TradeMind anything... (Shift+Enter for new line)"
+                  disabled={chatMutation.isPending}
+                  className="min-h-[80px] max-h-[200px] resize-none pr-12"
+                  rows={3}
+                  data-testid="input-chat-message"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  data-testid="input-image-upload"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={chatMutation.isPending}
+                  data-testid="button-attach-image"
+                >
+                  <Image className="w-4 h-4" />
+                </Button>
+                <Button type="submit" disabled={chatMutation.isPending} data-testid="button-send-message">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Press Enter to send, Shift+Enter for new line. Click the image icon to attach a screenshot.
+            </p>
           </form>
         </Card>
 
@@ -293,19 +385,46 @@ export default function ChatPage() {
           </Card>
 
           <Card className="p-4">
+            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              Quick Actions
+            </h3>
+            <div className="space-y-2">
+              <Link href="/scan">
+                <Button variant="outline" className="w-full justify-start" size="sm" data-testid="link-scan">
+                  <Search className="w-4 h-4 mr-2" />
+                  Market Scanner
+                </Button>
+              </Link>
+              <Link href="/portfolio">
+                <Button variant="outline" className="w-full justify-start" size="sm" data-testid="link-portfolio">
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Portfolio
+                </Button>
+              </Link>
+              <Link href="/">
+                <Button variant="outline" className="w-full justify-start" size="sm" data-testid="link-dashboard">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              </Link>
+            </div>
+          </Card>
+
+          <Card className="p-4">
             <h3 className="font-semibold text-sm mb-3">Tips</h3>
             <ul className="text-xs text-muted-foreground space-y-2">
               <li className="flex items-start gap-2">
                 <span className="text-primary">1.</span>
-                Be specific with stock symbols (e.g., AAPL, NVDA)
+                Attach screenshots for AI analysis
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary">2.</span>
-                Ask about market trends and sectors
+                Use stock symbols (e.g., AAPL, NVDA)
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary">3.</span>
-                Request trading strategy explanations
+                Ask about market trends & sectors
               </li>
             </ul>
           </Card>
