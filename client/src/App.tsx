@@ -11,6 +11,7 @@ import AnalysisPage from "@/pages/analysis";
 import MarketScan from "@/pages/scan";
 import ChatPage from "@/pages/chat";
 import PortfolioPage from "@/pages/portfolio";
+import TradingPage from "@/pages/trading";
 import AuthPage from "@/pages/auth";
 import LayoutShell from "@/components/layout-shell";
 
@@ -62,6 +63,10 @@ function Router() {
       
       <Route path="/portfolio">
         <ProtectedRoute component={PortfolioPage} />
+      </Route>
+      
+      <Route path="/trading">
+        <ProtectedRoute component={TradingPage} />
       </Route>
       
       <Route component={NotFound} />

@@ -9,7 +9,8 @@ import {
   Scan,
   MessageCircle,
   PieChart,
-  User as UserIcon
+  User as UserIcon,
+  Server
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -25,6 +26,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/scan", label: "AI Scanner", icon: Scan },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
+    { href: "/trading", label: "IBKR Trading", icon: Server },
     { href: "/chat", label: "TradeMind AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
   ];
