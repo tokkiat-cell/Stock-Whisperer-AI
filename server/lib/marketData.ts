@@ -10,10 +10,11 @@ export interface MarketData {
 
 export async function searchStocks(query: string) {
   try {
-    const results = await yahooFinance.search(query);
+    // Some symbols might need uppercase
+    const results = await yahooFinance.search(query.toUpperCase());
     return results.quotes.map(quote => ({
       symbol: quote.symbol,
-      name: quote.shortname || quote.longname || quote.symbol
+      name: (quote as any).shortname || (quote as any).longname || quote.symbol
     })).slice(0, 10);
   } catch (error) {
     console.error("Yahoo Finance Search Error:", error);
@@ -23,7 +24,11 @@ export async function searchStocks(query: string) {
 
 export async function getStockQuote(symbol: string): Promise<MarketData | null> {
   try {
-    const quote = await yahooFinance.quote(symbol);
+    // yahoo-finance2 quote() can sometimes fail if the symbol is not found or not in the right format
+    const quote = await yahooFinance.quote(symbol.toUpperCase());
+    
+    if (!quote) return null;
+
     return {
       symbol: quote.symbol,
       price: quote.regularMarketPrice || 0,
@@ -33,6 +38,24 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
     };
   } catch (error) {
     console.error(`Yahoo Finance Quote Error for ${symbol}:`, error);
+    
+    // Fallback: try searching if quote fails directly
+    try {
+      const searchResult = await yahooFinance.search(symbol.toUpperCase());
+      const firstQuote = searchResult.quotes.find(q => q.symbol === symbol.toUpperCase());
+      if (firstQuote) {
+        return {
+          symbol: firstQuote.symbol,
+          price: (firstQuote as any).regularMarketPrice || 0,
+          change: (firstQuote as any).regularMarketChange || 0,
+          changePercent: (firstQuote as any).regularMarketChangePercent || 0,
+          companyName: (firstQuote as any).shortname || (firstQuote as any).longname
+        };
+      }
+    } catch (searchError) {
+      console.error(`Yahoo Finance Fallback Search Error for ${symbol}:`, searchError);
+    }
+    
     return null;
   }
 }
