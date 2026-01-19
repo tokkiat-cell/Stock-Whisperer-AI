@@ -156,7 +156,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
 
       const aiResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -169,6 +169,71 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Market scan failed" });
+    }
+  });
+
+  // --- Market Routes ---
+  app.get(api.market.premarketMovers.path, isAuthenticated, async (req, res) => {
+    try {
+      const symbols = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "AMD", "NFLX"];
+      const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
+      const validQuotes = quotes.filter(q => q !== null) as any[];
+      
+      const sorted = validQuotes.sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent));
+      
+      res.json(sorted.slice(0, 5).map(q => ({
+        symbol: q.symbol,
+        name: q.companyName || q.symbol,
+        price: q.price,
+        change: q.change,
+        changePercent: q.changePercent,
+      })));
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Failed to fetch premarket movers" });
+    }
+  });
+
+  // --- Dashboard Chat ---
+  app.post(api.dashboard.chat.path, isAuthenticated, async (req, res) => {
+    try {
+      const parsed = api.dashboard.chat.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request: message is required" });
+      }
+      const { message } = parsed.data;
+      
+      const recommendations = await storage.getTradeRecommendations();
+      const sp500 = await storage.getSp500Stocks();
+      
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const systemPrompt = `You are TradeMind, an AI trading assistant. You help users with stock market questions, trading strategies, and portfolio analysis.
+
+Current market context:
+- Top recommendations: ${JSON.stringify(recommendations.slice(0, 5))}
+- Tracked S&P 500 stocks: ${sp500.map(s => s.symbol).join(', ')}
+
+Respond concisely and professionally. If asked about specific stocks, provide actionable insights. Use bullet points for clarity when appropriate.`;
+
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        max_completion_tokens: 500,
+      });
+
+      const response = aiResponse.choices[0].message.content || "I couldn't process your request. Please try again.";
+      res.json({ response });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Chat failed" });
     }
   });
 

@@ -130,6 +130,31 @@ export const api = {
       },
     },
   },
+  market: {
+    premarketMovers: {
+      method: 'GET' as const,
+      path: '/api/market/premarket-movers',
+      responses: {
+        200: z.array(z.object({
+          symbol: z.string(),
+          name: z.string(),
+          price: z.number(),
+          change: z.number(),
+          changePercent: z.number(),
+        })),
+      },
+    },
+  },
+  dashboard: {
+    chat: {
+      method: 'POST' as const,
+      path: '/api/dashboard/chat',
+      input: z.object({ message: z.string() }),
+      responses: {
+        200: z.object({ response: z.string() }),
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
