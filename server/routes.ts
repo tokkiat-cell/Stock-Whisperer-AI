@@ -157,23 +157,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         - riskReward must be a single numeric value (e.g., "2.5" not "1:2.5")
       `;
 
-      const response = await analyzeStockWithAI("SCAN", 0); // Reuse logic or customize
-      // For simplicity in this demo, we'll assume the AI helper can handle the "SCAN" mode
-      // But let's refine the aiAnalysis.ts to handle this better if needed.
-      // For now, let's just use the direct prompt logic here for the specific "5 setups" request.
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      // Use Gemini for AI analysis
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
       });
 
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
+      const aiResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
       });
 
-      const result = JSON.parse(aiResponse.choices[0].message.content || '[]');
+      const responseText = aiResponse.text || '{}';
+      // Extract JSON from response (may be wrapped in markdown code blocks)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const result = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
       // Handle both array format and object with recommendations key
       const recommendations = Array.isArray(result) 
         ? result 
@@ -226,10 +228,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const recommendations = await storage.getTradeRecommendations();
       const sp500 = await storage.getSp500Stocks();
       
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      // Use Gemini for AI chat
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
       });
 
       const systemPrompt = `You are TradeMind, an AI trading assistant. You help users with stock market questions, trading strategies, and portfolio analysis.
@@ -240,16 +246,12 @@ Current market context:
 
 Respond concisely and professionally. If asked about specific stocks, provide actionable insights. Use bullet points for clarity when appropriate.`;
 
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ],
-        max_completion_tokens: 500,
+      const aiResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `${systemPrompt}\n\nUser: ${message}`,
       });
 
-      const response = aiResponse.choices[0].message.content || "I couldn't process your request. Please try again.";
+      const response = aiResponse.text || "I couldn't process your request. Please try again.";
       res.json({ response });
     } catch (error) {
       console.error(error);
