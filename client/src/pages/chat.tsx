@@ -3,12 +3,17 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { apiRequest } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { 
   MessageCircle, Send, Sparkles, Loader2, Bot, User, 
-  Image, X, Search, Wallet, TrendingUp, BarChart3
+  Image, X, Search, Wallet, TrendingUp, BarChart3,
+  Bookmark, Plus, Trash2
 } from "lucide-react";
+import type { SavedPrompt } from "@shared/schema";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -109,15 +114,50 @@ function formatAIResponse(content: string) {
 }
 
 export default function ChatPage() {
+  const { toast } = useToast();
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [savePromptOpen, setSavePromptOpen] = useState(false);
+  const [newPromptTitle, setNewPromptTitle] = useState("");
+  const [newPromptText, setNewPromptText] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: recommendations } = useQuery<any[]>({
     queryKey: ["/api/sp500/recommendations"],
+  });
+
+  const { data: savedPrompts = [], isLoading: promptsLoading } = useQuery<SavedPrompt[]>({
+    queryKey: ["/api/saved-prompts"],
+  });
+
+  const createPromptMutation = useMutation({
+    mutationFn: async (data: { title: string; prompt: string }) => {
+      const res = await apiRequest("POST", "/api/saved-prompts", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-prompts"] });
+      setSavePromptOpen(false);
+      setNewPromptTitle("");
+      setNewPromptText("");
+      toast({ title: "Prompt saved" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save prompt", variant: "destructive" });
+    },
+  });
+
+  const deletePromptMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/saved-prompts/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-prompts"] });
+      toast({ title: "Prompt deleted" });
+    },
   });
 
   const chatMutation = useMutation({
@@ -192,6 +232,20 @@ export default function ChatPage() {
     "What are the risks of day trading?",
     "Analyze the tech sector outlook"
   ];
+
+  const handleSavePrompt = () => {
+    if (!newPromptTitle.trim() || !newPromptText.trim()) {
+      toast({ title: "Please fill in both title and prompt", variant: "destructive" });
+      return;
+    }
+    createPromptMutation.mutate({ title: newPromptTitle, prompt: newPromptText });
+  };
+
+  const handleUseSavedPrompt = (prompt: string) => {
+    if (chatMutation.isPending) return;
+    setMessages(prev => [...prev, { role: "user", content: prompt }]);
+    chatMutation.mutate({ message: prompt });
+  };
 
   return (
     <div className="space-y-6 h-[calc(100vh-8rem)]">
@@ -381,6 +435,91 @@ export default function ChatPage() {
                   {prompt}
                 </button>
               ))}
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <Bookmark className="w-4 h-4 text-primary" />
+                Saved Prompts
+              </h3>
+              <Dialog open={savePromptOpen} onOpenChange={setSavePromptOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="button-open-save-prompt">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save New Prompt</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Title</label>
+                      <Input
+                        placeholder="e.g., Weekly NVDA Analysis"
+                        value={newPromptTitle}
+                        onChange={(e) => setNewPromptTitle(e.target.value)}
+                        data-testid="input-prompt-title"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Prompt</label>
+                      <Textarea
+                        placeholder="Enter your prompt..."
+                        value={newPromptText}
+                        onChange={(e) => setNewPromptText(e.target.value)}
+                        rows={4}
+                        data-testid="textarea-prompt-text"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleSavePrompt} 
+                      className="w-full"
+                      disabled={createPromptMutation.isPending}
+                      data-testid="button-save-prompt"
+                    >
+                      {createPromptMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Prompt"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {promptsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : savedPrompts.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No saved prompts yet. Click + to create one.
+                </p>
+              ) : (
+                savedPrompts.map((sp) => (
+                  <div
+                    key={sp.id}
+                    className="flex items-center gap-2 group"
+                  >
+                    <button
+                      onClick={() => handleUseSavedPrompt(sp.prompt)}
+                      disabled={chatMutation.isPending}
+                      className="flex-1 text-left text-xs p-2 rounded-lg bg-secondary/50 hover-elevate text-muted-foreground disabled:opacity-50 truncate"
+                      title={sp.prompt}
+                      data-testid={`button-saved-prompt-${sp.id}`}
+                    >
+                      {sp.title}
+                    </button>
+                    <button
+                      onClick={() => deletePromptMutation.mutate(sp.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive"
+                      data-testid={`button-delete-prompt-${sp.id}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 
