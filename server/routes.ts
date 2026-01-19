@@ -3,8 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { searchStocks, getStockQuote } from "./lib/marketData";
+import { searchStocks, getStockQuote, getStockHistory } from "./lib/marketData";
 import { analyzeStockWithAI } from "./lib/aiAnalysis";
+import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
 import { z } from "zod";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -32,6 +33,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(quote);
     } catch (error) {
       res.status(500).json({ message: "Quote failed" });
+    }
+  });
+
+  app.get(api.stocks.history.path, isAuthenticated, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const history = await getStockHistory(symbol);
+      
+      if (!history) {
+        return res.status(404).json({ message: "No historical data found" });
+      }
+      
+      res.json(history);
+    } catch (error) {
+      console.error("History fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch history" });
     }
   });
 
@@ -711,6 +728,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         targetPrice: parsed.data.targetPrice,
         direction: parsed.data.direction,
         alertType: parsed.data.alertType,
+        notifyChannels: parsed.data.notifyChannels || ['APP'],
         isActive: parsed.data.isActive ?? true,
       });
       res.status(201).json(alert);
@@ -843,6 +861,11 @@ Respond professionally. If asked about specific stocks, provide actionable insig
               );
               if (triggered) {
                 triggeredAlerts.push(triggered);
+                // Send notifications to external channels
+                const message = formatAlertMessage(triggered);
+                sendAlertNotifications(triggered, message).catch(err => {
+                  console.error("Notification error:", err);
+                });
               }
             }
           }
@@ -859,6 +882,41 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error("Check alerts error:", error);
       res.status(500).json({ message: "Failed to check alerts" });
+    }
+  });
+
+  // --- Notification Settings Routes ---
+  app.get(api.notificationSettings.get.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const settings = await storage.getUserNotificationSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get notification settings" });
+    }
+  });
+
+  app.post(api.notificationSettings.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.notificationSettings.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const settings = await storage.upsertUserNotificationSettings({
+        userId,
+        telegramChatId: parsed.data.telegramChatId ?? null,
+        telegramEnabled: parsed.data.telegramEnabled ?? false,
+        whatsappNumber: parsed.data.whatsappNumber ?? null,
+        whatsappEnabled: parsed.data.whatsappEnabled ?? false,
+      });
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update notification settings" });
     }
   });
 

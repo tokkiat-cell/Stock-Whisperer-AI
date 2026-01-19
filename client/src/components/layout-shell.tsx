@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { 
   LayoutDashboard, 
   LineChart, 
-  History, 
   LogOut, 
   Menu,
   Wallet,
@@ -28,7 +27,6 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/chat", label: "TradeMind AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
-    { href: "/history", label: "Trade History", icon: History },
   ];
 
   const NavContent = () => (

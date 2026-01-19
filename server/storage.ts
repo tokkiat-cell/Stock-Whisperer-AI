@@ -1,12 +1,13 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
   type PortfolioHolding, type InsertPortfolioHolding,
   type WatchlistItem, type InsertWatchlistItem,
   type SavedPrompt, type InsertSavedPrompt,
-  type PriceAlert, type InsertPriceAlert
+  type PriceAlert, type InsertPriceAlert,
+  type UserNotificationSettings, type InsertUserNotificationSettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -58,6 +59,10 @@ export interface IStorage {
   updatePriceAlert(id: number, userId: string, updates: Partial<PriceAlert>): Promise<PriceAlert | null>;
   triggerPriceAlert(id: number, triggeredPrice: string, aiAnalysis?: string): Promise<PriceAlert | null>;
   deletePriceAlert(id: number, userId: string): Promise<boolean>;
+
+  // User Notification Settings methods
+  getUserNotificationSettings(userId: string): Promise<UserNotificationSettings | null>;
+  upsertUserNotificationSettings(settings: InsertUserNotificationSettings): Promise<UserNotificationSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -320,6 +325,33 @@ export class DatabaseStorage implements IStorage {
   async deletePriceAlert(id: number, userId: string): Promise<boolean> {
     const result = await db.delete(priceAlerts).where(and(eq(priceAlerts.id, id), eq(priceAlerts.userId, userId))).returning();
     return result.length > 0;
+  }
+
+  // --- User Notification Settings ---
+  async getUserNotificationSettings(userId: string): Promise<UserNotificationSettings | null> {
+    const [settings] = await db
+      .select()
+      .from(userNotificationSettings)
+      .where(eq(userNotificationSettings.userId, userId));
+    return settings || null;
+  }
+
+  async upsertUserNotificationSettings(settings: InsertUserNotificationSettings): Promise<UserNotificationSettings> {
+    const [result] = await db
+      .insert(userNotificationSettings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: userNotificationSettings.userId,
+        set: {
+          telegramChatId: settings.telegramChatId,
+          telegramEnabled: settings.telegramEnabled,
+          whatsappNumber: settings.whatsappNumber,
+          whatsappEnabled: settings.whatsappEnabled,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
   }
 }
 

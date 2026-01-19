@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTradeSetupSchema, tradeSetups, insertPortfolioHoldingSchema, portfolioHoldings, insertWatchlistSchema, watchlist, priceAlerts } from './schema';
+import { insertTradeSetupSchema, tradeSetups, insertPortfolioHoldingSchema, portfolioHoldings, insertWatchlistSchema, watchlist, priceAlerts, userNotificationSettings } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -37,6 +37,29 @@ export const api = {
           change: z.number(),
           changePercent: z.number(),
           companyName: z.string().optional(),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
+    history: {
+      method: 'GET' as const,
+      path: '/api/stocks/:symbol/history',
+      responses: {
+        200: z.object({
+          candles: z.array(z.object({
+            time: z.number(),
+            open: z.number(),
+            high: z.number(),
+            low: z.number(),
+            close: z.number(),
+            volume: z.number().optional(),
+          })),
+          movingAverages: z.object({
+            ma20: z.array(z.object({ time: z.number(), value: z.number() })),
+            ma40: z.array(z.object({ time: z.number(), value: z.number() })),
+            ma100: z.array(z.object({ time: z.number(), value: z.number() })),
+            ma200: z.array(z.object({ time: z.number(), value: z.number() })),
+          }),
         }),
         404: errorSchemas.notFound,
       },
@@ -354,6 +377,7 @@ export const api = {
         targetPrice: z.string(),
         direction: z.enum(['ABOVE', 'BELOW']),
         alertType: z.enum(['PRICE', 'AI_MODEL']),
+        notifyChannels: z.array(z.enum(['APP', 'TELEGRAM', 'WHATSAPP'])).optional(),
         isActive: z.boolean().optional(),
       }),
       responses: {
@@ -406,6 +430,29 @@ export const api = {
       responses: {
         200: z.custom<typeof priceAlerts.$inferSelect>(),
         404: errorSchemas.notFound,
+      },
+    },
+  },
+  notificationSettings: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/notification-settings',
+      responses: {
+        200: z.custom<typeof userNotificationSettings.$inferSelect>().nullable(),
+      },
+    },
+    update: {
+      method: 'POST' as const,
+      path: '/api/notification-settings',
+      input: z.object({
+        telegramChatId: z.string().optional().nullable(),
+        telegramEnabled: z.boolean().optional(),
+        whatsappNumber: z.string().optional().nullable(),
+        whatsappEnabled: z.boolean().optional(),
+      }),
+      responses: {
+        200: z.custom<typeof userNotificationSettings.$inferSelect>(),
+        400: errorSchemas.validation,
       },
     },
   },

@@ -12,6 +12,12 @@ Key features:
 - User authentication via Replit Auth (OpenID Connect)
 - Portfolio management with holdings tracking, bulk import (Excel/paste/image AI extraction), and watchlist
 - **Price Alerts**: Set price alerts on watchlist stocks to monitor when they hit a target price (above/below) with optional AI model analysis
+  - Multi-channel notifications: App (in-app), Telegram Bot, WhatsApp (via Twilio)
+  - Notification settings configuration for Telegram chat ID and WhatsApp phone number
+- **Candlestick Charts**: Click any stock symbol in holdings or watchlist to view interactive candlestick chart
+  - 1 year of daily price data
+  - Toggleable moving averages (20, 40, 100, 200 days)
+  - Uses lightweight-charts v5 library
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
@@ -56,7 +62,8 @@ Key tables:
 - `conversations/messages` - Chat history (for potential voice/chat features)
 - `portfolio_holdings` - User portfolio holdings with shares and average cost
 - `watchlist` - User watchlist items with optional notes
-- `price_alerts` - User price alerts with target price, direction (ABOVE/BELOW), and alert type (PRICE/AI_MODEL)
+- `price_alerts` - User price alerts with target price, direction (ABOVE/BELOW), alert type (PRICE/AI_MODEL), and notification channels (APP/TELEGRAM/WHATSAPP)
+- `user_notification_settings` - User notification preferences for Telegram and WhatsApp
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
@@ -94,6 +101,12 @@ Key tables:
 - `ISSUER_URL` - Replit OIDC issuer (defaults to `https://replit.com/oidc`)
 - `REPL_ID` - Replit environment identifier
 
+### Optional Environment Variables (for notifications)
+- `TELEGRAM_BOT_TOKEN` - Telegram Bot API token for sending alerts via Telegram
+- `TWILIO_ACCOUNT_SID` - Twilio Account SID for WhatsApp notifications
+- `TWILIO_AUTH_TOKEN` - Twilio Auth Token
+- `TWILIO_WHATSAPP_FROM` - Twilio WhatsApp sender number (e.g., whatsapp:+14155238886)
+
 ### Key NPM Packages
 - `drizzle-orm` / `drizzle-kit` - Database ORM and migrations
 - `express` / `express-session` - Web server and sessions
@@ -102,3 +115,4 @@ Key tables:
 - `passport` / `openid-client` - Authentication
 - `zod` - Schema validation
 - `xlsx` - Excel file parsing for portfolio import
+- `lightweight-charts` - Candlestick charting library (v5)

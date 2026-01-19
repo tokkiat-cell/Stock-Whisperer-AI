@@ -51,6 +51,83 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
   }
 }
 
+export interface CandleData {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+}
+
+export interface MovingAverageData {
+  time: number;
+  value: number;
+}
+
+export async function getStockHistory(symbol: string): Promise<{
+  candles: CandleData[];
+  movingAverages: {
+    ma20: MovingAverageData[];
+    ma40: MovingAverageData[];
+    ma100: MovingAverageData[];
+    ma200: MovingAverageData[];
+  };
+} | null> {
+  try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 1);
+    
+    const historical = await yahooFinance.chart(symbol.toUpperCase(), {
+      period1: startDate,
+      period2: endDate,
+      interval: "1d",
+    });
+    
+    if (!historical || !historical.quotes || historical.quotes.length === 0) {
+      return null;
+    }
+    
+    const candles = historical.quotes.map((q: any) => ({
+      time: Math.floor(new Date(q.date).getTime() / 1000),
+      open: q.open,
+      high: q.high,
+      low: q.low,
+      close: q.close,
+      volume: q.volume,
+    })).filter((c: CandleData) => c.open && c.high && c.low && c.close);
+    
+    const calculateMA = (period: number): MovingAverageData[] => {
+      const result: MovingAverageData[] = [];
+      for (let i = period - 1; i < candles.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+          sum += candles[i - j].close;
+        }
+        result.push({
+          time: candles[i].time,
+          value: sum / period,
+        });
+      }
+      return result;
+    };
+    
+    return {
+      candles,
+      movingAverages: {
+        ma20: calculateMA(20),
+        ma40: calculateMA(40),
+        ma100: calculateMA(100),
+        ma200: calculateMA(200),
+      },
+    };
+  } catch (error) {
+    console.error(`Yahoo Finance History Error for ${symbol}:`, error);
+    return null;
+  }
+}
+
 export async function getCompanyProfile(symbol: string): Promise<string | null> {
   try {
     const quote = await yahooFinance.quote(symbol.toUpperCase());

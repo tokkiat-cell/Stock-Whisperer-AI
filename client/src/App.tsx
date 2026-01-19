@@ -8,7 +8,6 @@ import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import AnalysisPage from "@/pages/analysis";
-import TradeHistory from "@/pages/history";
 import MarketScan from "@/pages/scan";
 import ChatPage from "@/pages/chat";
 import PortfolioPage from "@/pages/portfolio";
@@ -51,10 +50,6 @@ function Router() {
       
       <Route path="/analysis">
         <ProtectedRoute component={AnalysisPage} />
-      </Route>
-      
-      <Route path="/history">
-        <ProtectedRoute component={TradeHistory} />
       </Route>
       
       <Route path="/scan">

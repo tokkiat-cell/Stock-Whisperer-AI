@@ -137,6 +137,7 @@ export const priceAlerts = pgTable("price_alerts", {
   targetPrice: numeric("target_price").notNull(),
   direction: text("direction").notNull(), // 'ABOVE' or 'BELOW'
   alertType: text("alert_type").notNull(), // 'PRICE' or 'AI_MODEL'
+  notifyChannels: text("notify_channels").array().default([]).notNull(), // ['APP', 'TELEGRAM', 'WHATSAPP']
   isActive: boolean("is_active").default(true).notNull(),
   isTriggered: boolean("is_triggered").default(false).notNull(),
   triggeredAt: timestamp("triggered_at"),
@@ -156,3 +157,24 @@ export const insertPriceAlertSchema = createInsertSchema(priceAlerts).omit({
 
 export type PriceAlert = typeof priceAlerts.$inferSelect;
 export type InsertPriceAlert = z.infer<typeof insertPriceAlertSchema>;
+
+// === USER NOTIFICATION SETTINGS ===
+export const userNotificationSettings = pgTable("user_notification_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  telegramChatId: varchar("telegram_chat_id", { length: 50 }),
+  telegramEnabled: boolean("telegram_enabled").default(false).notNull(),
+  whatsappNumber: varchar("whatsapp_number", { length: 20 }),
+  whatsappEnabled: boolean("whatsapp_enabled").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserNotificationSettingsSchema = createInsertSchema(userNotificationSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserNotificationSettings = typeof userNotificationSettings.$inferSelect;
+export type InsertUserNotificationSettings = z.infer<typeof insertUserNotificationSettingsSchema>;

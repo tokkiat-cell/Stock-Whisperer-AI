@@ -13,9 +13,14 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
   DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
-  Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain
+  Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain, LineChart
 } from "lucide-react";
-import type { PortfolioHolding, WatchlistItem, PriceAlert } from "@shared/schema";
+import type { PortfolioHolding, WatchlistItem, PriceAlert, UserNotificationSettings } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { SiTelegram, SiWhatsapp } from "react-icons/si";
+import { Settings } from "lucide-react";
+import { StockChart } from "@/components/stock-chart";
 
 export default function PortfolioPage() {
   const { toast } = useToast();
@@ -41,6 +46,19 @@ export default function PortfolioPage() {
   const [alertPrice, setAlertPrice] = useState("");
   const [alertDirection, setAlertDirection] = useState<"ABOVE" | "BELOW">("ABOVE");
   const [alertType, setAlertType] = useState<"PRICE" | "AI_MODEL">("PRICE");
+  const [alertChannels, setAlertChannels] = useState<string[]>(["APP"]);
+  
+  // Notification Settings State
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  // Stock Chart State
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartSymbol, setChartSymbol] = useState("");
+  
+  const openChart = (symbol: string) => {
+    setChartSymbol(symbol);
+    setChartOpen(true);
+  };
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +77,10 @@ export default function PortfolioPage() {
 
   const { data: triggeredAlerts = [], refetch: refetchTriggered } = useQuery<PriceAlert[]>({
     queryKey: ["/api/price-alerts/triggered"],
+  });
+
+  const { data: notificationSettings } = useQuery<UserNotificationSettings | null>({
+    queryKey: ["/api/notification-settings"],
   });
 
   // Check alerts periodically (every 60 seconds when tab is active and on watchlist tab)
@@ -103,7 +125,7 @@ export default function PortfolioPage() {
   }, [activeTab]);
 
   const createAlertMutation = useMutation({
-    mutationFn: async (data: { symbol: string; targetPrice: string; direction: string; alertType: string }) => {
+    mutationFn: async (data: { symbol: string; targetPrice: string; direction: string; alertType: string; notifyChannels: string[] }) => {
       return apiRequest("POST", "/api/price-alerts", data);
     },
     onSuccess: () => {
@@ -111,10 +133,24 @@ export default function PortfolioPage() {
       setAlertDialogOpen(false);
       setAlertPrice("");
       setAlertSymbol("");
+      setAlertChannels(["APP"]);
       toast({ title: "Price alert created" });
     },
     onError: () => {
       toast({ title: "Failed to create alert", variant: "destructive" });
+    },
+  });
+
+  const updateNotificationSettingsMutation = useMutation({
+    mutationFn: async (data: Partial<UserNotificationSettings>) => {
+      return apiRequest("POST", "/api/notification-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
+      toast({ title: "Notification settings updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update settings", variant: "destructive" });
     },
   });
 
@@ -153,11 +189,16 @@ export default function PortfolioPage() {
       toast({ title: "Please enter a valid positive price", variant: "destructive" });
       return;
     }
+    if (alertChannels.length === 0) {
+      toast({ title: "Please select at least one notification channel", variant: "destructive" });
+      return;
+    }
     createAlertMutation.mutate({
       symbol: alertSymbol.toUpperCase(),
       targetPrice: alertPrice,
       direction: alertDirection,
       alertType: alertType,
+      notifyChannels: alertChannels,
     });
   };
 
@@ -166,7 +207,16 @@ export default function PortfolioPage() {
     setAlertPrice("");
     setAlertDirection("ABOVE");
     setAlertType("PRICE");
+    setAlertChannels(["APP"]);
     setAlertDialogOpen(true);
+  };
+
+  const toggleChannel = (channel: string) => {
+    setAlertChannels(prev => 
+      prev.includes(channel) 
+        ? prev.filter(c => c !== channel)
+        : [...prev, channel]
+    );
   };
 
   const createHoldingMutation = useMutation({
@@ -700,7 +750,14 @@ export default function PortfolioPage() {
               {holdings.map((holding) => (
                 <Card key={holding.id} className="p-4" data-testid={`holding-${holding.symbol}`}>
                   <div className="grid grid-cols-5 gap-4 items-center">
-                    <div className="font-semibold text-primary">{holding.symbol}</div>
+                    <button 
+                      onClick={() => openChart(holding.symbol)}
+                      className="font-semibold text-primary hover:underline cursor-pointer text-left flex items-center gap-1 group"
+                      data-testid={`button-chart-holding-${holding.symbol}`}
+                    >
+                      {holding.symbol}
+                      <LineChart className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
                     <div className="text-right font-mono">{parseFloat(holding.shares).toLocaleString()}</div>
                     <div className="text-right font-mono">${parseFloat(holding.avgCost).toFixed(2)}</div>
                     <div className="text-right font-mono font-semibold">
@@ -869,7 +926,14 @@ export default function PortfolioPage() {
                   <Card key={item.id} className="p-4" data-testid={`watchlist-${item.symbol}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-lg text-primary">{item.symbol}</h4>
+                        <button 
+                          onClick={() => openChart(item.symbol)}
+                          className="font-semibold text-lg text-primary hover:underline cursor-pointer text-left flex items-center gap-1 group"
+                          data-testid={`button-chart-watch-${item.symbol}`}
+                        >
+                          {item.symbol}
+                          <LineChart className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
                         {item.notes && (
                           <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
                         )}
@@ -993,6 +1057,68 @@ export default function PortfolioPage() {
                     AI Model will analyze the stock when the price alert triggers
                   </p>
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Send Alert To</label>
+                  <div className="flex flex-col gap-3 mt-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id="channel-app" 
+                        checked={alertChannels.includes("APP")}
+                        onCheckedChange={() => toggleChannel("APP")}
+                        data-testid="checkbox-channel-app"
+                      />
+                      <Label htmlFor="channel-app" className="flex items-center gap-2 cursor-pointer">
+                        <Bell className="w-4 h-4" />
+                        In-App Notification
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id="channel-telegram" 
+                        checked={alertChannels.includes("TELEGRAM")}
+                        onCheckedChange={() => toggleChannel("TELEGRAM")}
+                        disabled={!notificationSettings?.telegramEnabled}
+                        data-testid="checkbox-channel-telegram"
+                      />
+                      <Label htmlFor="channel-telegram" className="flex items-center gap-2 cursor-pointer">
+                        <SiTelegram className="w-4 h-4 text-[#0088cc]" />
+                        Telegram
+                        {!notificationSettings?.telegramEnabled && (
+                          <span className="text-xs text-muted-foreground">(Not configured)</span>
+                        )}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id="channel-whatsapp" 
+                        checked={alertChannels.includes("WHATSAPP")}
+                        onCheckedChange={() => toggleChannel("WHATSAPP")}
+                        disabled={!notificationSettings?.whatsappEnabled}
+                        data-testid="checkbox-channel-whatsapp"
+                      />
+                      <Label htmlFor="channel-whatsapp" className="flex items-center gap-2 cursor-pointer">
+                        <SiWhatsapp className="w-4 h-4 text-[#25D366]" />
+                        WhatsApp
+                        {!notificationSettings?.whatsappEnabled && (
+                          <span className="text-xs text-muted-foreground">(Not configured)</span>
+                        )}
+                      </Label>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="mt-2 text-xs text-primary"
+                    onClick={() => {
+                      setAlertDialogOpen(false);
+                      setSettingsOpen(true);
+                    }}
+                    data-testid="button-configure-notifications"
+                  >
+                    <Settings className="w-3 h-3 mr-1" />
+                    Configure notification channels
+                  </Button>
+                </div>
                 <Button 
                   onClick={handleCreateAlert} 
                   className="w-full"
@@ -1004,8 +1130,110 @@ export default function PortfolioPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Notification Settings Dialog */}
+          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Notification Settings</DialogTitle>
+                <DialogDescription>
+                  Configure Telegram and WhatsApp to receive price alerts on your phone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <SiTelegram className="w-6 h-6 text-[#0088cc]" />
+                    <div className="flex-1">
+                      <h4 className="font-medium">Telegram</h4>
+                      <p className="text-xs text-muted-foreground">Receive alerts via Telegram bot</p>
+                    </div>
+                    <Checkbox 
+                      checked={notificationSettings?.telegramEnabled ?? false}
+                      onCheckedChange={(checked) => {
+                        updateNotificationSettingsMutation.mutate({
+                          telegramEnabled: checked as boolean,
+                          telegramChatId: notificationSettings?.telegramChatId,
+                        });
+                      }}
+                      data-testid="toggle-telegram"
+                    />
+                  </div>
+                  {notificationSettings?.telegramEnabled && (
+                    <div className="pl-9">
+                      <label className="text-sm font-medium">Telegram Chat ID</label>
+                      <Input
+                        placeholder="Your chat ID from @userinfobot"
+                        defaultValue={notificationSettings?.telegramChatId || ""}
+                        onBlur={(e) => {
+                          if (e.target.value !== notificationSettings?.telegramChatId) {
+                            updateNotificationSettingsMutation.mutate({
+                              telegramEnabled: true,
+                              telegramChatId: e.target.value,
+                            });
+                          }
+                        }}
+                        data-testid="input-telegram-chat-id"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Message @userinfobot on Telegram to get your Chat ID
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <SiWhatsapp className="w-6 h-6 text-[#25D366]" />
+                    <div className="flex-1">
+                      <h4 className="font-medium">WhatsApp</h4>
+                      <p className="text-xs text-muted-foreground">Receive alerts via WhatsApp (requires Twilio)</p>
+                    </div>
+                    <Checkbox 
+                      checked={notificationSettings?.whatsappEnabled ?? false}
+                      onCheckedChange={(checked) => {
+                        updateNotificationSettingsMutation.mutate({
+                          whatsappEnabled: checked as boolean,
+                          whatsappNumber: notificationSettings?.whatsappNumber,
+                        });
+                      }}
+                      data-testid="toggle-whatsapp"
+                    />
+                  </div>
+                  {notificationSettings?.whatsappEnabled && (
+                    <div className="pl-9">
+                      <label className="text-sm font-medium">WhatsApp Phone Number</label>
+                      <Input
+                        placeholder="+1234567890"
+                        defaultValue={notificationSettings?.whatsappNumber || ""}
+                        onBlur={(e) => {
+                          if (e.target.value !== notificationSettings?.whatsappNumber) {
+                            updateNotificationSettingsMutation.mutate({
+                              whatsappEnabled: true,
+                              whatsappNumber: e.target.value,
+                            });
+                          }
+                        }}
+                        data-testid="input-whatsapp-number"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Include country code (e.g., +1 for US)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
+
+      {/* Stock Chart Dialog */}
+      <StockChart 
+        symbol={chartSymbol} 
+        open={chartOpen} 
+        onOpenChange={setChartOpen} 
+      />
     </div>
   );
 }
