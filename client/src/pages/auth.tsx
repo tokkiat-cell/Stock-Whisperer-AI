@@ -20,7 +20,7 @@ export default function AuthPage() {
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
               <Wallet className="text-primary-foreground w-6 h-6" />
             </div>
-            <h1 className="font-display font-bold text-2xl tracking-tight">TradeMind</h1>
+            <h1 className="font-display font-bold text-2xl tracking-tight">stockwhisperer.AI</h1>
           </div>
 
           <div className="space-y-6 max-w-lg">

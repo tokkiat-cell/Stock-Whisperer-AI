@@ -1,8 +1,8 @@
-# TradeMind - AI Trading Assistant
+# stockwhisperer.AI - AI Trading Assistant
 
 ## Overview
 
-TradeMind is an AI-powered stock trading assistant that provides real-time analysis, automated risk management, and institutional-grade insights. The application enables users to analyze stocks, receive AI-generated trade recommendations, manage trade setups, and track their trading history.
+stockwhisperer.AI is an AI-powered stock trading assistant that provides real-time analysis, automated risk management, and institutional-grade insights. The application enables users to analyze stocks, receive AI-generated trade recommendations, manage trade setups, and track their trading history.
 
 Key features:
 - Real-time stock quotes via Yahoo Finance API
@@ -32,8 +32,8 @@ Key features:
   - Customizable settings to toggle US/Singapore market visibility
   - Auto-refresh every 60 seconds
 - **Stripe Subscription Billing**: Subscription-based access with two plans
-  - TradeMind Basic ($19.99/month or $199.90/year)
-  - TradeMind Pro ($49.99/month or $499.90/year)
+  - stockwhisperer Basic ($19.99/month or $199.90/year)
+  - stockwhisperer Pro ($49.99/month or $499.90/year)
   - Secure checkout via Stripe-hosted payment pages
   - Customer portal for subscription management
   - Uses stripe-replit-sync for automatic schema management

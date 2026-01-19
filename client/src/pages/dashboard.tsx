@@ -113,14 +113,14 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* TradeMind AI CTA */}
+        {/* stockwhisperer AI CTA */}
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
               <MessageCircle className="w-7 h-7 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg">TradeMind AI</h3>
+              <h3 className="font-semibold text-lg">stockwhisperer AI</h3>
               <p className="text-sm text-muted-foreground">Ask questions about stocks & strategies</p>
             </div>
             <Button onClick={() => setLocation("/chat")} variant="outline" data-testid="button-go-chat">

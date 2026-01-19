@@ -1241,7 +1241,7 @@ export default function PortfolioPage() {
                       <h4 className="font-medium">Two-Factor Authentication (2FA)</h4>
                       <p className="text-sm text-muted-foreground mt-1">
                         Protect your account by enabling 2FA on your login provider (Google, GitHub, etc.). 
-                        This adds an extra layer of security to your TradeMind account.
+                        This adds an extra layer of security to your stockwhisperer.AI account.
                       </p>
                       <div className="flex flex-wrap gap-2 mt-3">
                         <a 

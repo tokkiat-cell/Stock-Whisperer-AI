@@ -28,7 +28,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/scan", label: "AI Scanner", icon: Scan },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/trading", label: "IBKR Trading", icon: Server },
-    { href: "/chat", label: "TradeMind AI", icon: MessageCircle },
+    { href: "/chat", label: "stockwhisperer AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
   ];
@@ -41,7 +41,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             <Wallet className="text-primary-foreground w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-xl tracking-tight">TradeMind.AI</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight">stockwhisperer.AI</h1>
             <p className="text-xs text-muted-foreground font-medium">AI Trading Assistant</p>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Wallet className="text-primary-foreground w-4 h-4" />
           </div>
-          <span className="font-display font-bold text-lg">TradeMind.AI</span>
+          <span className="font-display font-bold text-lg">stockwhisperer.AI</span>
         </div>
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>

@@ -91,7 +91,7 @@ export default function Pricing() {
       <div className="text-center space-y-4">
         <h1 className="text-3xl font-bold">Choose Your Plan</h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Unlock the full power of AI-driven trading analysis with TradeMind Pro
+          Unlock the full power of AI-driven trading analysis with stockwhisperer Pro
         </p>
       </div>
 

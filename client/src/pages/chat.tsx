@@ -251,7 +251,7 @@ export default function ChatPage() {
       <div>
         <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
           <MessageCircle className="w-6 h-6 text-primary" />
-          TradeMind AI Assistant
+          stockwhisperer AI Assistant
         </h2>
         <p className="text-muted-foreground text-sm mt-1">
           Ask me anything about stocks, trading strategies, or market analysis
@@ -266,7 +266,7 @@ export default function ChatPage() {
                 <Bot className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">TradeMind AI</h3>
+                <h3 className="font-semibold text-sm">stockwhisperer AI</h3>
                 <span className="text-xs text-green-500">Online</span>
               </div>
             </div>
@@ -468,7 +468,7 @@ export default function ChatPage() {
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask TradeMind anything... (Shift+Enter for new line)"
+                  placeholder="Ask stockwhisperer anything... (Shift+Enter for new line)"
                   disabled={chatMutation.isPending}
                   className="min-h-[80px] max-h-[200px] resize-none pr-12"
                   rows={3}

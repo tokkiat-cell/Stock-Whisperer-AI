@@ -78,7 +78,7 @@ function Router() {
         <ProtectedRoute component={() => (
           <div className="flex flex-col items-center justify-center h-96 space-y-4">
             <h1 className="text-2xl font-bold text-green-500">Payment Successful!</h1>
-            <p className="text-muted-foreground">Thank you for subscribing to TradeMind.</p>
+            <p className="text-muted-foreground">Thank you for subscribing to stockwhisperer.AI.</p>
             <a href="/" className="text-primary hover:underline">Go to Dashboard</a>
           </div>
         )} />
