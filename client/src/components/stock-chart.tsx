@@ -221,7 +221,7 @@ export function StockChart({ symbol, open, onOpenChange }: StockChartProps) {
             Failed to load chart data
           </div>
         ) : (
-          <div ref={chartContainerRef} className="w-full" data-testid="chart-container" />
+          <div ref={chartContainerRef} className="w-full h-[400px] relative" data-testid="chart-container" />
         )}
 
         <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
