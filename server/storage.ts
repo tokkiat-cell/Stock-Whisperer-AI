@@ -1,5 +1,5 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
@@ -7,7 +7,9 @@ import {
   type WatchlistItem, type InsertWatchlistItem,
   type SavedPrompt, type InsertSavedPrompt,
   type PriceAlert, type InsertPriceAlert,
-  type UserNotificationSettings, type InsertUserNotificationSettings
+  type UserNotificationSettings, type InsertUserNotificationSettings,
+  type IbkrSettings, type InsertIbkrSettings,
+  type TradingOrder, type InsertTradingOrder
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -63,6 +65,18 @@ export interface IStorage {
   // User Notification Settings methods
   getUserNotificationSettings(userId: string): Promise<UserNotificationSettings | null>;
   upsertUserNotificationSettings(settings: InsertUserNotificationSettings): Promise<UserNotificationSettings>;
+
+  // IBKR Settings methods
+  getIbkrSettings(userId: string): Promise<IbkrSettings | null>;
+  upsertIbkrSettings(settings: InsertIbkrSettings): Promise<IbkrSettings>;
+  updateIbkrConnectionStatus(userId: string, isConnected: boolean): Promise<IbkrSettings | null>;
+
+  // Trading Orders methods
+  getTradingOrders(userId: string): Promise<TradingOrder[]>;
+  getTradingOrderById(id: number, userId: string): Promise<TradingOrder | null>;
+  createTradingOrder(order: InsertTradingOrder): Promise<TradingOrder>;
+  updateTradingOrder(id: number, userId: string, updates: Partial<TradingOrder>): Promise<TradingOrder | null>;
+  deleteTradingOrder(id: number, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -352,6 +366,84 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  // --- IBKR Settings ---
+  async getIbkrSettings(userId: string): Promise<IbkrSettings | null> {
+    const [settings] = await db
+      .select()
+      .from(ibkrSettings)
+      .where(eq(ibkrSettings.userId, userId));
+    return settings || null;
+  }
+
+  async upsertIbkrSettings(settings: InsertIbkrSettings): Promise<IbkrSettings> {
+    const [result] = await db
+      .insert(ibkrSettings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: ibkrSettings.userId,
+        set: {
+          host: settings.host,
+          port: settings.port,
+          clientId: settings.clientId,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async updateIbkrConnectionStatus(userId: string, isConnected: boolean): Promise<IbkrSettings | null> {
+    const [updated] = await db
+      .update(ibkrSettings)
+      .set({
+        isConnected,
+        lastConnectedAt: isConnected ? new Date() : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(ibkrSettings.userId, userId))
+      .returning();
+    return updated || null;
+  }
+
+  // --- Trading Orders ---
+  async getTradingOrders(userId: string): Promise<TradingOrder[]> {
+    return await db
+      .select()
+      .from(tradingOrders)
+      .where(eq(tradingOrders.userId, userId))
+      .orderBy(desc(tradingOrders.createdAt));
+  }
+
+  async getTradingOrderById(id: number, userId: string): Promise<TradingOrder | null> {
+    const [order] = await db
+      .select()
+      .from(tradingOrders)
+      .where(and(eq(tradingOrders.id, id), eq(tradingOrders.userId, userId)));
+    return order || null;
+  }
+
+  async createTradingOrder(order: InsertTradingOrder): Promise<TradingOrder> {
+    const [newOrder] = await db.insert(tradingOrders).values({
+      ...order,
+      symbol: order.symbol.toUpperCase(),
+    }).returning();
+    return newOrder;
+  }
+
+  async updateTradingOrder(id: number, userId: string, updates: Partial<TradingOrder>): Promise<TradingOrder | null> {
+    const [updated] = await db
+      .update(tradingOrders)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(tradingOrders.id, id), eq(tradingOrders.userId, userId)))
+      .returning();
+    return updated || null;
+  }
+
+  async deleteTradingOrder(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(tradingOrders).where(and(eq(tradingOrders.id, id), eq(tradingOrders.userId, userId))).returning();
+    return result.length > 0;
   }
 }
 

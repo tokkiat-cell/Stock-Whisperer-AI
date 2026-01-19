@@ -178,3 +178,65 @@ export const insertUserNotificationSettingsSchema = createInsertSchema(userNotif
 
 export type UserNotificationSettings = typeof userNotificationSettings.$inferSelect;
 export type InsertUserNotificationSettings = z.infer<typeof insertUserNotificationSettingsSchema>;
+
+// === IBKR BROKER SETTINGS ===
+export const ibkrSettings = pgTable("ibkr_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  host: varchar("host", { length: 100 }).default("127.0.0.1").notNull(),
+  port: integer("port").default(4002).notNull(), // 4002 = IB Gateway paper, 4001 = live
+  clientId: integer("client_id").default(1).notNull(),
+  isConnected: boolean("is_connected").default(false).notNull(),
+  lastConnectedAt: timestamp("last_connected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertIbkrSettingsSchema = createInsertSchema(ibkrSettings).omit({
+  id: true,
+  isConnected: true,
+  lastConnectedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type IbkrSettings = typeof ibkrSettings.$inferSelect;
+export type InsertIbkrSettings = z.infer<typeof insertIbkrSettingsSchema>;
+
+// === TRADING ORDERS ===
+export const tradingOrders = pgTable("trading_orders", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  action: text("action").notNull(), // 'BUY' or 'SELL'
+  orderType: text("order_type").notNull(), // 'LIMIT', 'MARKET', 'STOP'
+  quantity: integer("quantity").notNull(),
+  entryPrice: numeric("entry_price").notNull(),
+  stopLoss: numeric("stop_loss"),
+  takeProfit: numeric("take_profit"),
+  status: text("status").default("DRAFT").notNull(), // 'DRAFT', 'PENDING', 'SUBMITTED', 'FILLED', 'CANCELLED', 'REJECTED'
+  ibkrOrderId: integer("ibkr_order_id"), // Order ID from IBKR
+  filledQuantity: integer("filled_quantity").default(0),
+  avgFillPrice: numeric("avg_fill_price"),
+  sourceRecommendationId: integer("source_recommendation_id"), // Link to trade recommendation
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  submittedAt: timestamp("submitted_at"),
+  filledAt: timestamp("filled_at"),
+});
+
+export const insertTradingOrderSchema = createInsertSchema(tradingOrders).omit({
+  id: true,
+  status: true,
+  ibkrOrderId: true,
+  filledQuantity: true,
+  avgFillPrice: true,
+  createdAt: true,
+  updatedAt: true,
+  submittedAt: true,
+  filledAt: true,
+});
+
+export type TradingOrder = typeof tradingOrders.$inferSelect;
+export type InsertTradingOrder = z.infer<typeof insertTradingOrderSchema>;
