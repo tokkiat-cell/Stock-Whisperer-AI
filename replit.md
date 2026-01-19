@@ -25,6 +25,12 @@ Key features:
   - Submit orders to IBKR for execution
   - "Trade" button on AI Scanner recommendations creates pre-filled draft orders
   - Order status tracking (Draft, Submitted, Filled, Cancelled)
+- **Market Overview Dashboard**: Real-time display of US and Singapore market indices
+  - US Markets: S&P 500, Dow Jones, Nasdaq, Russell 2000
+  - Singapore Markets: STI, STI ETF, DBS, OCBC, UOB
+  - Daily performance with day-over-day comparison
+  - Customizable settings to toggle US/Singapore market visibility
+  - Auto-refresh every 60 seconds
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
@@ -73,6 +79,7 @@ Key tables:
 - `user_notification_settings` - User notification preferences for Telegram and WhatsApp
 - `ibkr_settings` - IBKR connection settings (host, port, clientId) per user
 - `trading_orders` - Trading orders with symbol, action, entry/SL/TP, status, and IBKR order ID
+- `market_preferences` - User preferences for market index visibility (US/Singapore toggle, custom indices)
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
