@@ -34,14 +34,23 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
     );
     const data = await response.json();
     
-    if (!data || data.c === 0 || data.c === undefined) {
+    if (!data) {
       console.error(`Finnhub: No data for ${symbol}`);
+      return null;
+    }
+    
+    // Use current price if available, otherwise use previous close price
+    // c = current price, pc = previous close price
+    const price = data.c > 0 ? data.c : (data.pc || 0);
+    
+    if (price === 0) {
+      console.error(`Finnhub: No price data for ${symbol}`);
       return null;
     }
     
     return {
       symbol: symbol.toUpperCase(),
-      price: data.c || 0,
+      price: price,
       change: data.d || 0,
       changePercent: data.dp || 0,
       companyName: symbol.toUpperCase()
