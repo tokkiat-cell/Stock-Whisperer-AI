@@ -67,7 +67,7 @@ export default function AuthPage() {
                 className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all duration-200"
                 onClick={handleLogin}
               >
-                Sign In with Replit <ArrowRight className="ml-2 w-5 h-5" />
+                Sign In to stockwhisperer.AI <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               
               <div className="relative">
