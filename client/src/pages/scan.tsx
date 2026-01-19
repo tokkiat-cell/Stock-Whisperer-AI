@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,8 @@ import {
   DollarSign,
   Clock,
   BarChart3,
-  Activity
+  Activity,
+  Send
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -70,10 +72,42 @@ const timeframeLabels: Record<Timeframe, string> = {
 
 export default function MarketScan() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isScanning, setIsScanning] = useState(false);
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [riskAmount, setRiskAmount] = useState<string>("100");
   const [timeframe, setTimeframe] = useState<Timeframe>("day");
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (rec: Recommendation) => {
+      const quantity = rec.positionSize ? parseInt(rec.positionSize) : 10;
+      return apiRequest("POST", "/api/trading-orders", {
+        symbol: rec.symbol,
+        action: rec.recommendation === "BUY" ? "BUY" : "SELL",
+        orderType: "LIMIT",
+        quantity,
+        entryPrice: rec.entryPrice,
+        stopLoss: rec.stopLoss,
+        takeProfit: rec.takeProfit,
+        notes: `From AI Scanner: ${rec.rationale?.substring(0, 200)}...`,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trading-orders"] });
+      toast({ 
+        title: "Order Created", 
+        description: "Draft order created. Go to Trading to review and submit." 
+      });
+      setLocation("/trading");
+    },
+    onError: () => {
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "Failed to create order." 
+      });
+    },
+  });
 
   const { data: recommendations, isLoading } = useQuery<Recommendation[]>({
     queryKey: ["/api/sp500/recommendations"],
@@ -284,14 +318,29 @@ export default function MarketScan() {
                       </div>
                     </div>
 
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => setExpandedSymbol(expandedSymbol === rec.symbol ? null : rec.symbol)}
-                      data-testid={`button-expand-${rec.symbol}`}
-                    >
-                      {expandedSymbol === rec.symbol ? <ChevronUp /> : <ChevronDown />}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        size="sm"
+                        onClick={() => createOrderMutation.mutate(rec)}
+                        disabled={createOrderMutation.isPending}
+                        data-testid={`button-trade-${rec.symbol}`}
+                      >
+                        {createOrderMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-1" />
+                        )}
+                        Trade
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => setExpandedSymbol(expandedSymbol === rec.symbol ? null : rec.symbol)}
+                        data-testid={`button-expand-${rec.symbol}`}
+                      >
+                        {expandedSymbol === rec.symbol ? <ChevronUp /> : <ChevronDown />}
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Position Sizing */}

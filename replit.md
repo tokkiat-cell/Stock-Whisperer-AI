@@ -18,6 +18,13 @@ Key features:
   - 1 year of daily price data
   - Toggleable moving averages (20, 40, 100, 200 days)
   - Uses lightweight-charts v5 library
+- **IBKR Trading Integration**: Create and manage orders for Interactive Brokers
+  - Configure IB Gateway connection settings (host, port, client ID)
+  - Create draft orders with entry price, stop loss, and take profit
+  - Modify prices before submission
+  - Submit orders to IBKR for execution
+  - "Trade" button on AI Scanner recommendations creates pre-filled draft orders
+  - Order status tracking (Draft, Submitted, Filled, Cancelled)
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
@@ -64,6 +71,8 @@ Key tables:
 - `watchlist` - User watchlist items with optional notes
 - `price_alerts` - User price alerts with target price, direction (ABOVE/BELOW), alert type (PRICE/AI_MODEL), and notification channels (APP/TELEGRAM/WHATSAPP)
 - `user_notification_settings` - User notification preferences for Telegram and WhatsApp
+- `ibkr_settings` - IBKR connection settings (host, port, clientId) per user
+- `trading_orders` - Trading orders with symbol, action, entry/SL/TP, status, and IBKR order ID
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
