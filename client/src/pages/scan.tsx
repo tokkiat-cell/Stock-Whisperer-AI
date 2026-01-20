@@ -99,6 +99,15 @@ const marketLabels: Record<MarketType, string> = {
   EU: "Europe"
 };
 
+// Currency configuration for each market
+const marketCurrency: Record<MarketType, { symbol: string; code: string; toUSD: number }> = {
+  US: { symbol: "$", code: "USD", toUSD: 1 },
+  SG: { symbol: "S$", code: "SGD", toUSD: 0.74 },
+  HK: { symbol: "HK$", code: "HKD", toUSD: 0.128 },
+  CN: { symbol: "¥", code: "CNY", toUSD: 0.14 },
+  EU: { symbol: "€", code: "EUR", toUSD: 1.08 }
+};
+
 export default function MarketScan() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -285,10 +294,12 @@ export default function MarketScan() {
           <div className="space-y-2">
             <Label htmlFor="risk-amount" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-muted-foreground" />
-              Risk Amount Per Trade
+              Risk Amount ({marketCurrency[selectedMarket].code})
             </Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {marketCurrency[selectedMarket].symbol}
+              </span>
               <Input
                 id="risk-amount"
                 type="number"
@@ -296,11 +307,16 @@ export default function MarketScan() {
                 step="10"
                 value={riskAmount}
                 onChange={(e) => setRiskAmount(e.target.value)}
-                className="pl-7"
+                className="pl-8"
                 placeholder="100"
                 data-testid="input-risk-amount"
               />
             </div>
+            {selectedMarket !== "US" && riskAmount && parseFloat(riskAmount) > 0 && (
+              <p className="text-xs text-primary font-mono">
+                ≈ ${(parseFloat(riskAmount) * marketCurrency[selectedMarket].toUSD).toFixed(2)} USD
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Maximum amount you're willing to risk on each trade
             </p>
@@ -415,19 +431,40 @@ export default function MarketScan() {
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" /> Entry
                         </p>
-                        <p className="text-lg font-mono font-bold">${rec.entryPrice}</p>
+                        <p className="text-lg font-mono font-bold">
+                          {marketCurrency[selectedMarket].symbol}{rec.entryPrice}
+                        </p>
+                        {selectedMarket !== "US" && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            ≈ ${(parseFloat(rec.entryPrice) * marketCurrency[selectedMarket].toUSD).toFixed(2)}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                           <Target className="w-3 h-3" /> Target
                         </p>
-                        <p className="text-lg font-mono font-bold text-green-500">${rec.takeProfit}</p>
+                        <p className="text-lg font-mono font-bold text-green-500">
+                          {marketCurrency[selectedMarket].symbol}{rec.takeProfit}
+                        </p>
+                        {selectedMarket !== "US" && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            ≈ ${(parseFloat(rec.takeProfit) * marketCurrency[selectedMarket].toUSD).toFixed(2)}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                           <ShieldAlert className="w-3 h-3" /> Stop Loss
                         </p>
-                        <p className="text-lg font-mono font-bold text-red-500">${rec.stopLoss}</p>
+                        <p className="text-lg font-mono font-bold text-red-500">
+                          {marketCurrency[selectedMarket].symbol}{rec.stopLoss}
+                        </p>
+                        {selectedMarket !== "US" && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            ≈ ${(parseFloat(rec.stopLoss) * marketCurrency[selectedMarket].toUSD).toFixed(2)}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
@@ -469,7 +506,12 @@ export default function MarketScan() {
                         <span className="font-medium">Suggested Position:</span>{" "}
                         <span className="font-mono font-bold">{rec.positionSize} shares</span>
                         {rec.riskAmount && (
-                          <span className="text-muted-foreground"> (${rec.riskAmount} risk)</span>
+                          <span className="text-muted-foreground">
+                            {" "}({marketCurrency[selectedMarket].symbol}{rec.riskAmount} risk
+                            {selectedMarket !== "US" && (
+                              <span> ≈ ${(parseFloat(rec.riskAmount) * marketCurrency[selectedMarket].toUSD).toFixed(2)} USD</span>
+                            )})
+                          </span>
                         )}
                       </p>
                     </div>
