@@ -50,6 +50,14 @@ Key features:
   - Secure checkout via Stripe-hosted payment pages
   - Customer portal for subscription management
   - Uses stripe-replit-sync for automatic schema management
+- **AI Usage Limits (Free Tier)**: Monthly usage limits to control costs
+  - Chat Analysis: 10 messages/month
+  - Image Generation: 3 images/month
+  - Voice Chat: 5 sessions/month
+  - Stock Analysis: 10 analyses/month
+  - Limits reset on the 1st of each month
+  - Subscribers bypass all limits (unlimited usage)
+  - UpgradeModal prompts users to subscribe when limits are reached
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
 - Detailed technical analysis with candle patterns and moving averages (20/40/100/150/200 days)
@@ -99,6 +107,7 @@ Key tables:
 - `ibkr_settings` - IBKR connection settings (host, port, clientId) per user
 - `trading_orders` - Trading orders with symbol, action, entry/SL/TP, status, and IBKR order ID
 - `market_preferences` - User preferences for market index visibility (US/Singapore/HK/CN/EU toggle, selected movers market)
+- `user_usage` - Monthly usage tracking per user (chatCount, imageCount, voiceCount, stockAnalysisCount, usagePeriodStart)
 
 ### Authentication
 - **Provider**: Replit Auth (OpenID Connect)
