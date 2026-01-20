@@ -1462,7 +1462,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       const userId = req.user.claims.sub;
       // @ts-ignore
       const userEmail = req.user.claims.email || '';
-      const { priceId, mode } = req.body;
+      const { priceId, mode, autoRenew = true } = req.body;
 
       if (!priceId) {
         return res.status(400).json({ message: "priceId is required" });
@@ -1488,11 +1488,14 @@ Respond professionally. If asked about specific stocks, provide actionable insig
           `${baseUrl}/checkout/cancel`
         );
       } else {
+        // If autoRenew is false, pass cancelAtPeriodEnd=true to set metadata
+        const cancelAtPeriodEnd = autoRenew === false;
         session = await stripeService.createCheckoutSession(
           customerId,
           priceId,
-          `${baseUrl}/checkout/success`,
-          `${baseUrl}/checkout/cancel`
+          `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          `${baseUrl}/checkout/cancel`,
+          cancelAtPeriodEnd
         );
       }
 
@@ -1524,6 +1527,75 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error("Failed to create portal session:", error);
       res.status(500).json({ message: "Failed to create customer portal session" });
+    }
+  });
+
+  // Apply cancel_at_period_end after checkout based on subscription metadata
+  app.post('/api/stripe/apply-auto-renew', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.body;
+      const user = await storage.getUser(userId);
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+      
+      let subscriptionId: string | null = null;
+      let subscriptionMetadata: Record<string, string> = {};
+      
+      // If we have a checkout session ID, use it to get the subscription
+      if (sessionId) {
+        try {
+          const session = await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ['subscription'],
+          });
+          
+          if (session.subscription) {
+            const sub = typeof session.subscription === 'string' 
+              ? await stripe.subscriptions.retrieve(session.subscription)
+              : session.subscription;
+            subscriptionId = sub.id;
+            subscriptionMetadata = (sub.metadata || {}) as Record<string, string>;
+            
+            // Also update user's subscription ID if not set
+            if (!user?.stripeSubscriptionId) {
+              await storage.updateUserStripeInfo(userId, { stripeSubscriptionId: sub.id });
+            }
+          }
+        } catch (sessionError) {
+          console.log("Could not retrieve checkout session:", sessionError);
+        }
+      }
+      
+      // Fallback to user's stored subscription ID
+      if (!subscriptionId && user?.stripeSubscriptionId) {
+        subscriptionId = user.stripeSubscriptionId;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        subscriptionMetadata = (subscription.metadata || {}) as Record<string, string>;
+      }
+      
+      if (!subscriptionId) {
+        return res.json({ applied: false, message: "No subscription found" });
+      }
+
+      // Check if metadata indicates cancel_at_period_end should be true
+      if (subscriptionMetadata.cancel_at_period_end === 'true') {
+        const currentSub = await stripe.subscriptions.retrieve(subscriptionId);
+        if (!currentSub.cancel_at_period_end) {
+          await stripe.subscriptions.update(subscriptionId, {
+            cancel_at_period_end: true,
+          });
+          console.log(`Applied cancel_at_period_end for subscription ${subscriptionId}`);
+          return res.json({ applied: true, cancelAtPeriodEnd: true });
+        }
+      }
+      
+      res.json({ applied: false, cancelAtPeriodEnd: false });
+    } catch (error) {
+      console.error("Failed to apply auto-renew setting:", error);
+      res.status(500).json({ message: "Failed to apply auto-renew setting" });
     }
   });
 

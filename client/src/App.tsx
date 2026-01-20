@@ -16,6 +16,7 @@ import PricingPage from "@/pages/pricing";
 import SubscriptionPage from "@/pages/subscription";
 import UserManualPage from "@/pages/user-manual";
 import FeedbackPage from "@/pages/feedback";
+import CheckoutSuccessPage from "@/pages/checkout-success";
 import AuthPage from "@/pages/auth";
 import LayoutShell from "@/components/layout-shell";
 
@@ -90,13 +91,7 @@ function Router() {
       </Route>
       
       <Route path="/checkout/success">
-        <ProtectedRoute component={() => (
-          <div className="flex flex-col items-center justify-center h-96 space-y-4">
-            <h1 className="text-2xl font-bold text-green-500">Payment Successful!</h1>
-            <p className="text-muted-foreground">Thank you for subscribing to stockwhisperer.AI.</p>
-            <a href="/" className="text-primary hover:underline">Go to Dashboard</a>
-          </div>
-        )} />
+        <ProtectedRoute component={CheckoutSuccessPage} />
       </Route>
       
       <Route path="/checkout/cancel">

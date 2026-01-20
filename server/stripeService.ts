@@ -10,7 +10,7 @@ export class StripeService {
     });
   }
 
-  async createCheckoutSession(customerId: string, priceId: string, successUrl: string, cancelUrl: string) {
+  async createCheckoutSession(customerId: string, priceId: string, successUrl: string, cancelUrl: string, cancelAtPeriodEnd: boolean = false) {
     const stripe = await getUncachableStripeClient();
     return await stripe.checkout.sessions.create({
       customer: customerId,
@@ -19,6 +19,11 @@ export class StripeService {
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
+      subscription_data: {
+        metadata: {
+          cancel_at_period_end: cancelAtPeriodEnd ? 'true' : 'false',
+        },
+      },
     });
   }
 
@@ -48,6 +53,13 @@ export class StripeService {
 
   async getSubscription(subscriptionId: string) {
     return await stripeStorage.getSubscription(subscriptionId);
+  }
+
+  async updateSubscriptionCancelAtPeriodEnd(subscriptionId: string, cancelAtPeriodEnd: boolean) {
+    const stripe = await getUncachableStripeClient();
+    return await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: cancelAtPeriodEnd,
+    });
   }
 }
 

@@ -40,8 +40,8 @@ export default function Pricing() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const response = await apiRequest('POST', '/api/stripe/checkout', { priceId });
+    mutationFn: async ({ priceId, autoRenew }: { priceId: string; autoRenew: boolean }) => {
+      const response = await apiRequest('POST', '/api/stripe/checkout', { priceId, autoRenew });
       return response.json();
     },
     onSuccess: (data) => {
@@ -214,10 +214,10 @@ export default function Pricing() {
               "Email support",
             ]}
             limitedFeatures={[
-              "S&P 500 market scanner",
-              "Trading integration",
+              "Multi-market AI scanner",
+              "IBKR trading integration",
             ]}
-            onSelectPrice={(priceId) => checkoutMutation.mutate(priceId)}
+            onSelectPrice={(priceId, autoRenew) => checkoutMutation.mutate({ priceId, autoRenew })}
             isLoading={checkoutMutation.isPending}
             formatPrice={formatPrice}
             getMonthlyPrice={getMonthlyPrice}
@@ -233,13 +233,13 @@ export default function Pricing() {
             featured
             features={[
               "Everything in Basic",
-              "S&P 500 market scanner",
-              "Trading integration",
+              "Multi-market AI scanner",
+              "IBKR trading integration",
               "Unlimited price alerts",
               "Advanced AI models",
               "Priority support",
             ]}
-            onSelectPrice={(priceId) => checkoutMutation.mutate(priceId)}
+            onSelectPrice={(priceId, autoRenew) => checkoutMutation.mutate({ priceId, autoRenew })}
             isLoading={checkoutMutation.isPending}
             formatPrice={formatPrice}
             getMonthlyPrice={getMonthlyPrice}
@@ -258,7 +258,7 @@ interface PlanCardProps {
   features: string[];
   limitedFeatures?: string[];
   featured?: boolean;
-  onSelectPrice: (priceId: string) => void;
+  onSelectPrice: (priceId: string, autoRenew: boolean) => void;
   isLoading: boolean;
   formatPrice: (amount: number, interval?: string) => string;
   getMonthlyPrice: (product: Product) => Price | undefined;
@@ -406,7 +406,7 @@ function PlanCard({
               variant={featured ? "default" : "outline"}
               onClick={() => {
                 const priceId = billingPeriod === "monthly" ? monthlyPrice?.id : yearlyPrice?.id;
-                if (priceId) onSelectPrice(priceId);
+                if (priceId) onSelectPrice(priceId, autoRenew);
               }}
               disabled={isLoading || (!monthlyPrice && !yearlyPrice)}
               data-testid={`button-subscribe-${product.metadata?.tier}`}
