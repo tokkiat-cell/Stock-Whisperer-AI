@@ -370,15 +370,12 @@ export default function PortfolioPage() {
     if (!file) return;
 
     try {
-      const XLSX = await import("xlsx");
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
+      const readXlsxFile = (await import("read-excel-file")).default;
+      const rows = await readXlsxFile(file);
       
       const holdings: Array<{ symbol: string; shares: string; avgCost: string }> = [];
-      for (let i = 0; i < json.length; i++) {
-        const row = json[i];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
         if (row.length >= 3) {
           const symbol = String(row[0] || '').toUpperCase().replace(/[^A-Z]/g, '');
           const shares = String(row[1] || '').replace(/[^0-9.]/g, '');
