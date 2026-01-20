@@ -26,7 +26,9 @@ import {
   XCircle,
   RefreshCw,
   Server,
-  Edit3
+  Edit3,
+  ShieldCheck,
+  LogIn
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -73,6 +75,12 @@ export default function TradingPage() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<TradingOrder | null>(null);
+  
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [pendingSubmitOrder, setPendingSubmitOrder] = useState<TradingOrder | null>(null);
+  const [moomooCredentials, setMoomooCredentials] = useState({ username: "", password: "" });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const [settingsForm, setSettingsForm] = useState({
     host: "127.0.0.1",
@@ -246,6 +254,40 @@ export default function TradingPage() {
     const reward = Math.abs(tp - entry);
     if (risk === 0) return "N/A";
     return (reward / risk).toFixed(2);
+  };
+
+  const handleRequestSubmit = (order: TradingOrder) => {
+    setPendingSubmitOrder(order);
+    if (!isLoggedIn) {
+      setShowLoginDialog(true);
+    } else {
+      setShowApprovalDialog(true);
+    }
+  };
+
+  const handleMoomooLogin = () => {
+    if (!moomooCredentials.username || !moomooCredentials.password) {
+      toast({ variant: "destructive", title: "Login Required", description: "Please enter your Moomoo credentials." });
+      return;
+    }
+    setIsLoggedIn(true);
+    setShowLoginDialog(false);
+    setMoomooCredentials({ username: "", password: "" });
+    toast({ title: "Logged In", description: "Successfully connected to Moomoo." });
+    setShowApprovalDialog(true);
+  };
+
+  const handleApproveAndSubmit = () => {
+    if (pendingSubmitOrder) {
+      submitOrderMutation.mutate(pendingSubmitOrder.id);
+    }
+    setShowApprovalDialog(false);
+    setPendingSubmitOrder(null);
+  };
+
+  const handleCancelApproval = () => {
+    setShowApprovalDialog(false);
+    setPendingSubmitOrder(null);
   };
 
   const draftOrders = orders?.filter(o => o.status === "DRAFT") || [];
@@ -543,9 +585,9 @@ export default function TradingPage() {
                 key={order.id} 
                 order={order}
                 onEdit={() => setEditingOrder(order)}
-                onSubmit={() => submitOrderMutation.mutate(order.id)}
+                onSubmit={() => handleRequestSubmit(order)}
                 onDelete={() => deleteOrderMutation.mutate(order.id)}
-                isSubmitting={submitOrderMutation.isPending}
+                isSubmitting={submitOrderMutation.isPending && pendingSubmitOrder?.id === order.id}
               />
             ))
           )}
@@ -654,6 +696,136 @@ export default function TradingPage() {
             >
               {updateOrderMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLoginDialog} onOpenChange={(open) => {
+        setShowLoginDialog(open);
+        if (!open) setPendingSubmitOrder(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="w-5 h-5 text-primary" />
+              Login to Moomoo
+            </DialogTitle>
+            <DialogDescription>
+              Please enter your Moomoo credentials to submit orders. Your login session will persist for this browser session.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Username / Email</Label>
+              <Input
+                type="text"
+                value={moomooCredentials.username}
+                onChange={(e) => setMoomooCredentials(prev => ({ ...prev, username: e.target.value }))}
+                placeholder="Enter your Moomoo username"
+                data-testid="input-moomoo-username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={moomooCredentials.password}
+                onChange={(e) => setMoomooCredentials(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Enter your password"
+                data-testid="input-moomoo-password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowLoginDialog(false);
+              setPendingSubmitOrder(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleMoomooLogin} data-testid="button-moomoo-login">
+              <LogIn className="w-4 h-4 mr-2" />
+              Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showApprovalDialog} onOpenChange={(open) => {
+        setShowApprovalDialog(open);
+        if (!open) setPendingSubmitOrder(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-yellow-500" />
+              Confirm Order Submission
+            </DialogTitle>
+            <DialogDescription>
+              Please review and approve this order before it is submitted to Moomoo for execution.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingSubmitOrder && (
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Symbol</span>
+                  <span className="font-bold text-lg">{pendingSubmitOrder.symbol}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Action</span>
+                  <Badge className={pendingSubmitOrder.action === "BUY" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"}>
+                    {pendingSubmitOrder.action}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Order Type</span>
+                  <span className="font-medium">{pendingSubmitOrder.orderType}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Quantity</span>
+                  <span className="font-medium">{pendingSubmitOrder.quantity} shares</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Entry Price</span>
+                  <span className="font-medium">${pendingSubmitOrder.entryPrice}</span>
+                </div>
+                {pendingSubmitOrder.stopLoss && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Stop Loss</span>
+                    <span className="font-medium text-red-500">${pendingSubmitOrder.stopLoss}</span>
+                  </div>
+                )}
+                {pendingSubmitOrder.takeProfit && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Take Profit</span>
+                    <span className="font-medium text-green-500">${pendingSubmitOrder.takeProfit}</span>
+                  </div>
+                )}
+              </div>
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                  By approving, this order will be submitted to Moomoo for execution. This action cannot be undone once the order is filled.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelApproval}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleApproveAndSubmit} 
+              disabled={submitOrderMutation.isPending}
+              data-testid="button-approve-submit"
+            >
+              {submitOrderMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <ShieldCheck className="w-4 h-4 mr-2" />
+              )}
+              Approve & Submit
             </Button>
           </DialogFooter>
         </DialogContent>
