@@ -65,6 +65,37 @@ export type AnalysisResponse = {
   stopLoss: number;
   rationale: string;
   confidence: number;
+  // Enhanced analysis fields
+  technicalAnalysis?: {
+    trend: string;
+    candlePattern: string;
+    movingAverages: {
+      ma20: number;
+      ma50: number;
+      ma200: number;
+    };
+    rsi: number;
+    macd: string;
+  };
+  supportResistance?: {
+    support1: number;
+    support2: number;
+    resistance1: number;
+    resistance2: number;
+  };
+  optionsStrategy?: {
+    strategy: string;
+    description: string;
+    strikePrice: number;
+    targetStrike: number;
+    expiry: string;
+    maxProfit: string;
+    maxRisk: string;
+    breakeven: number;
+    rationale: string;
+  } | null;
+  riskReward?: number;
+  positionSize?: string;
 };
 
 export type StockQuote = {
