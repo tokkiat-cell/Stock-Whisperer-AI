@@ -1411,6 +1411,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       // If synced data is empty or unavailable, fetch directly from Stripe
       if (!rows || rows.length === 0) {
         try {
+          const { getUncachableStripeClient } = await import('./stripeClient');
           const stripe = await getUncachableStripeClient();
           const products = await stripe.products.list({ active: true, limit: 10 });
           
