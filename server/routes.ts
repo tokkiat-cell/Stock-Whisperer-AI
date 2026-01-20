@@ -1417,11 +1417,38 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       const user = await storage.getUser(userId);
       
       if (!user?.stripeSubscriptionId) {
-        return res.json({ subscription: null });
+        return res.json({ subscription: null, planTier: 'free' });
       }
 
       const subscription = await stripeStorage.getSubscription(user.stripeSubscriptionId);
-      res.json({ subscription });
+      
+      // Determine plan tier from price metadata or product info
+      let planTier = 'subscriber';
+      if (subscription) {
+        // Try to get price info to determine tier
+        const priceId = (subscription as any).plan?.id || (subscription as any).items?.data?.[0]?.price?.id;
+        if (priceId) {
+          const price = await stripeStorage.getPrice(priceId);
+          if (price?.metadata?.tier) {
+            planTier = (price.metadata as any).tier;
+          } else if (price?.product) {
+            // Get product to check its metadata
+            const productId = typeof price.product === 'string' ? price.product : (price.product as any)?.id;
+            if (productId) {
+              const product = await stripeStorage.getProduct(productId);
+              if ((product?.metadata as any)?.tier) {
+                planTier = (product.metadata as any).tier;
+              } else if (product?.name?.toLowerCase().includes('pro')) {
+                planTier = 'pro';
+              } else if (product?.name?.toLowerCase().includes('basic')) {
+                planTier = 'basic';
+              }
+            }
+          }
+        }
+      }
+      
+      res.json({ subscription, planTier });
     } catch (error) {
       console.error("Failed to get subscription:", error);
       res.status(500).json({ message: "Failed to get subscription" });

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { 
   LayoutDashboard, 
   LineChart, 
@@ -13,9 +14,14 @@ import {
   Server,
   CreditCard,
   BookOpen,
-  MessageSquare
+  MessageSquare,
+  Settings,
+  Crown,
+  Zap,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -25,6 +31,21 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const { data: subscriptionData } = useQuery<{ subscription: any; planTier: string }>({
+    queryKey: ['/api/stripe/subscription'],
+  });
+
+  const planTier = subscriptionData?.planTier || 'free';
+  
+  const getPlanInfo = () => {
+    if (planTier === 'pro') return { name: 'Pro', icon: Crown, color: 'text-yellow-500' };
+    if (planTier === 'basic') return { name: 'Basic', icon: Zap, color: 'text-primary' };
+    if (planTier === 'subscriber') return { name: 'Subscriber', icon: Crown, color: 'text-primary' };
+    return { name: 'Free', icon: Sparkles, color: 'text-muted-foreground' };
+  };
+
+  const planInfo = getPlanInfo();
+
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/scan", label: "AI Scanner", icon: Scan },
@@ -33,6 +54,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/chat", label: "stockwhisperer AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
+    { href: "/subscription", label: "Subscription", icon: Settings },
     { href: "/user-manual", label: "User Manual", icon: BookOpen },
     { href: "/feedback", label: "Q&A / Feedback", icon: MessageSquare },
   ];
@@ -77,7 +99,17 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             <UserIcon className="w-4 h-4 text-muted-foreground" />
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate">{user?.firstName || 'Trader'}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium truncate">{user?.firstName || 'Trader'}</p>
+              <Badge 
+                variant={planInfo.name === 'Free' ? 'secondary' : 'default'} 
+                className="text-xs px-1.5 py-0"
+                data-testid="badge-plan-status"
+              >
+                <planInfo.icon className={cn("w-3 h-3 mr-1", planInfo.color)} />
+                {planInfo.name}
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
         </div>
