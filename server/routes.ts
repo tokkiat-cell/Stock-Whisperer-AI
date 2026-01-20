@@ -1554,15 +1554,27 @@ Respond professionally. If asked about specific stocks, provide actionable insig
           
           if (session.subscription) {
             const sub = typeof session.subscription === 'string' 
-              ? await stripe.subscriptions.retrieve(session.subscription)
+              ? await stripe.subscriptions.retrieve(session.subscription, { expand: ['items.data.price.product'] })
               : session.subscription;
             subscriptionId = sub.id;
             subscriptionMetadata = (sub.metadata || {}) as Record<string, string>;
             
-            // Also update user's subscription ID if not set
-            if (!user?.stripeSubscriptionId) {
-              await storage.updateUserStripeInfo(userId, { stripeSubscriptionId: sub.id });
+            // Get plan tier from the product metadata
+            let planTier = 'basic';
+            const items = (sub as any).items?.data || [];
+            if (items.length > 0) {
+              const price = items[0].price;
+              const product = price?.product;
+              if (product && typeof product === 'object' && product.metadata?.tier) {
+                planTier = product.metadata.tier;
+              }
             }
+            
+            // Update user's subscription ID and plan tier
+            await storage.updateUserStripeInfo(userId, { 
+              stripeSubscriptionId: sub.id,
+              planTier,
+            });
           }
         } catch (sessionError) {
           console.log("Could not retrieve checkout session:", sessionError);

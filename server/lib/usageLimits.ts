@@ -3,6 +3,7 @@ import { userUsage, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export type UsageType = "chat" | "image" | "voice" | "stockAnalysis";
+export type PlanTier = "free" | "basic" | "pro";
 
 export const FREE_TIER_LIMITS = {
   chat: 10,
@@ -11,12 +12,34 @@ export const FREE_TIER_LIMITS = {
   stockAnalysis: 10,
 } as const;
 
+export const BASIC_TIER_LIMITS = {
+  chat: 50,
+  image: 20,
+  voice: 20,
+  stockAnalysis: 60,
+} as const;
+
+// Pro tier has unlimited usage (represented by Infinity)
+export const PRO_TIER_LIMITS = {
+  chat: Infinity,
+  image: Infinity,
+  voice: Infinity,
+  stockAnalysis: Infinity,
+} as const;
+
 export interface UsageCheckResult {
   allowed: boolean;
   currentCount: number;
   limit: number;
   usageType: UsageType;
-  isSubscribed: boolean;
+  planTier: PlanTier;
+}
+
+export interface UsageLimits {
+  chat: number;
+  image: number;
+  voice: number;
+  stockAnalysis: number;
 }
 
 export interface UserUsageData {
@@ -24,8 +47,8 @@ export interface UserUsageData {
   imageCount: number;
   voiceCount: number;
   stockAnalysisCount: number;
-  limits: typeof FREE_TIER_LIMITS;
-  isSubscribed: boolean;
+  limits: UsageLimits;
+  planTier: PlanTier;
   periodStart: Date | null;
 }
 
@@ -76,33 +99,54 @@ async function getOrCreateUserUsage(userId: string) {
   return existing;
 }
 
-async function isUserSubscribed(userId: string): Promise<boolean> {
+async function getUserPlanTier(userId: string): Promise<PlanTier> {
   const [user] = await db
-    .select({ stripeSubscriptionId: users.stripeSubscriptionId })
+    .select({ 
+      stripeSubscriptionId: users.stripeSubscriptionId,
+      planTier: users.planTier 
+    })
     .from(users)
     .where(eq(users.id, userId));
   
-  return !!user?.stripeSubscriptionId;
+  if (!user?.stripeSubscriptionId) {
+    return "free";
+  }
+  
+  // Return the stored plan tier, defaulting to "basic" for backwards compatibility
+  return (user.planTier as PlanTier) || "basic";
+}
+
+function getLimitsForTier(tier: PlanTier) {
+  switch (tier) {
+    case "pro":
+      return PRO_TIER_LIMITS;
+    case "basic":
+      return BASIC_TIER_LIMITS;
+    default:
+      return FREE_TIER_LIMITS;
+  }
 }
 
 export async function checkUsageLimit(
   userId: string,
   usageType: UsageType
 ): Promise<UsageCheckResult> {
-  const isSubscribed = await isUserSubscribed(userId);
+  const planTier = await getUserPlanTier(userId);
+  const limits = getLimitsForTier(planTier);
   
-  if (isSubscribed) {
+  // Pro tier has unlimited usage
+  if (planTier === "pro") {
     return {
       allowed: true,
       currentCount: 0,
       limit: Infinity,
       usageType,
-      isSubscribed: true,
+      planTier,
     };
   }
 
   const usage = await getOrCreateUserUsage(userId);
-  const limit = FREE_TIER_LIMITS[usageType];
+  const limit = limits[usageType];
   
   const countMap: Record<UsageType, number> = {
     chat: usage.chatCount,
@@ -118,7 +162,7 @@ export async function checkUsageLimit(
     currentCount,
     limit,
     usageType,
-    isSubscribed: false,
+    planTier,
   };
 }
 
@@ -126,8 +170,9 @@ export async function incrementUsage(
   userId: string,
   usageType: UsageType
 ): Promise<void> {
-  const isSubscribed = await isUserSubscribed(userId);
-  if (isSubscribed) return;
+  const planTier = await getUserPlanTier(userId);
+  // Pro tier doesn't need usage tracking
+  if (planTier === "pro") return;
 
   await getOrCreateUserUsage(userId);
 
@@ -157,16 +202,17 @@ export async function incrementUsage(
 }
 
 export async function getUserUsageData(userId: string): Promise<UserUsageData> {
-  const isSubscribed = await isUserSubscribed(userId);
+  const planTier = await getUserPlanTier(userId);
   const usage = await getOrCreateUserUsage(userId);
+  const limits = getLimitsForTier(planTier);
 
   return {
     chatCount: usage.chatCount,
     imageCount: usage.imageCount,
     voiceCount: usage.voiceCount,
     stockAnalysisCount: usage.stockAnalysisCount,
-    limits: FREE_TIER_LIMITS,
-    isSubscribed,
+    limits: planTier === "pro" ? BASIC_TIER_LIMITS : limits, // Return finite limits for display
+    planTier,
     periodStart: usage.periodStart,
   };
 }

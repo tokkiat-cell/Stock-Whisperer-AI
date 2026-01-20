@@ -25,6 +25,7 @@ export const users = pgTable("users", {
   twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
+  planTier: varchar("plan_tier").default("free"), // 'free', 'basic', or 'pro'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

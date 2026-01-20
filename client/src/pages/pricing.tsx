@@ -204,10 +204,10 @@ export default function Pricing() {
             product={basicPlan}
             icon={<Zap className="w-6 h-6" />}
             features={[
-              "Unlimited AI chat messages",
-              "Unlimited stock analyses",
-              "Unlimited image generation",
-              "Unlimited voice chat",
+              "50 AI chat messages/month",
+              "60 stock analyses/month",
+              "20 AI image generations/month",
+              "20 voice chat sessions/month",
               "Portfolio & watchlist tracking",
               "Price alerts (up to 10)",
               "Candlestick charts",
@@ -232,7 +232,10 @@ export default function Pricing() {
             icon={<Crown className="w-6 h-6 text-yellow-500" />}
             featured
             features={[
-              "Everything in Basic",
+              "Unlimited AI chat messages",
+              "Unlimited stock analyses",
+              "Unlimited image generation",
+              "Unlimited voice chat",
               "Multi-market AI scanner",
               "IBKR trading integration",
               "Unlimited price alerts",

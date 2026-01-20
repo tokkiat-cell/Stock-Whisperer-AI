@@ -44,19 +44,18 @@ Key features:
   - Shows highest percentage change stocks for selected market
   - Click to analyze any stock
   - Preference persists across sessions
-- **Stripe Subscription Billing**: Subscription-based access with two plans
-  - stockwhisperer Basic ($19.99/month or $199.90/year)
-  - stockwhisperer Pro ($49.99/month or $499.90/year)
+- **Stripe Subscription Billing**: Subscription-based access with three tiers
+  - Free Tier: Limited monthly usage
+  - stockwhisperer Basic ($9.99/month or $99.90/year) - Higher limits
+  - stockwhisperer Pro ($49.99/month or $499.90/year) - Unlimited usage
   - Secure checkout via Stripe-hosted payment pages
   - Customer portal for subscription management
   - Uses stripe-replit-sync for automatic schema management
-- **AI Usage Limits (Free Tier)**: Monthly usage limits to control costs
-  - Chat Analysis: 10 messages/month
-  - Image Generation: 3 images/month
-  - Voice Chat: 5 sessions/month
-  - Stock Analysis: 10 analyses/month
+- **AI Usage Limits**: Monthly usage limits vary by tier
+  - Free Tier: 10 chats, 3 images, 5 voice, 10 stock analyses per month
+  - Basic Tier: 50 chats, 20 images, 20 voice, 60 stock analyses per month
+  - Pro Tier: Unlimited usage on all AI features
   - Limits reset on the 1st of each month
-  - Subscribers bypass all limits (unlimited usage)
   - UpgradeModal prompts users to subscribe when limits are reached
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)
 - Configurable trade risk amount and timeframe selection
