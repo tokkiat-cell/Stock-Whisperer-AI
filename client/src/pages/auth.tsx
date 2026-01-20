@@ -56,7 +56,7 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-8 bg-background relative">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-display font-bold mb-2">Welcome Back</h2>
+            <h2 className="text-3xl font-display font-bold mb-2">Welcome to TK Stock Whisperper.AI platform</h2>
             <p className="text-muted-foreground">Sign in to access your trading dashboard.</p>
           </div>
 
