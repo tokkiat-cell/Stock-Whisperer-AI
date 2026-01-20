@@ -1400,10 +1400,49 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
   app.get('/api/stripe/products-with-prices', isAuthenticated, async (req, res) => {
     try {
-      const rows = await stripeStorage.listProductsWithPrices();
+      let rows: any[] = [];
+      
+      try {
+        rows = await stripeStorage.listProductsWithPrices() as any[];
+      } catch (dbError) {
+        console.log("Stripe sync table not available, falling back to Stripe API");
+      }
+      
+      // If synced data is empty or unavailable, fetch directly from Stripe
+      if (!rows || rows.length === 0) {
+        try {
+          const stripe = await getUncachableStripeClient();
+          const products = await stripe.products.list({ active: true, limit: 10 });
+          
+          const productsWithPrices = await Promise.all(
+            products.data.map(async (product) => {
+              const prices = await stripe.prices.list({ product: product.id, active: true });
+              return {
+                id: product.id,
+                name: product.name,
+                description: product.description || '',
+                active: product.active,
+                metadata: product.metadata,
+                prices: prices.data.map((price) => ({
+                  id: price.id,
+                  unit_amount: price.unit_amount,
+                  currency: price.currency,
+                  recurring: price.recurring,
+                  active: price.active,
+                })),
+              };
+            })
+          );
+          
+          return res.json({ data: productsWithPrices });
+        } catch (stripeError) {
+          console.error("Failed to fetch from Stripe API:", stripeError);
+          return res.status(500).json({ message: "Failed to fetch products" });
+        }
+      }
       
       const productsMap = new Map();
-      for (const row of rows as any[]) {
+      for (const row of rows) {
         if (!productsMap.has(row.product_id)) {
           productsMap.set(row.product_id, {
             id: row.product_id,
