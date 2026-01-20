@@ -11,7 +11,9 @@ import {
   PieChart,
   User as UserIcon,
   Server,
-  CreditCard
+  CreditCard,
+  BookOpen,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -31,6 +33,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/chat", label: "stockwhisperer AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
+    { href: "/user-manual", label: "User Manual", icon: BookOpen },
+    { href: "/feedback", label: "Q&A / Feedback", icon: MessageSquare },
   ];
 
   const NavContent = () => (

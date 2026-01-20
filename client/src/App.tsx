@@ -13,6 +13,8 @@ import ChatPage from "@/pages/chat";
 import PortfolioPage from "@/pages/portfolio";
 import TradingPage from "@/pages/trading";
 import PricingPage from "@/pages/pricing";
+import UserManualPage from "@/pages/user-manual";
+import FeedbackPage from "@/pages/feedback";
 import AuthPage from "@/pages/auth";
 import LayoutShell from "@/components/layout-shell";
 
@@ -72,6 +74,14 @@ function Router() {
       
       <Route path="/pricing">
         <ProtectedRoute component={PricingPage} />
+      </Route>
+      
+      <Route path="/user-manual">
+        <ProtectedRoute component={UserManualPage} />
+      </Route>
+      
+      <Route path="/feedback">
+        <ProtectedRoute component={FeedbackPage} />
       </Route>
       
       <Route path="/checkout/success">
