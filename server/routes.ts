@@ -9,7 +9,6 @@ import { sendAlertNotifications, formatAlertMessage } from "./notification-servi
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
-import { stripeStorage } from "./stripeStorage";
 import { getStripePublishableKey } from "./stripeClient";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -1390,7 +1389,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
   app.get('/api/stripe/products', isAuthenticated, async (req, res) => {
     try {
-      const products = await stripeStorage.listProducts();
+      const products = await stripeService.listProductsWithPrices();
       res.json({ data: products });
     } catch (error) {
       console.error("Failed to list products:", error);
@@ -1400,72 +1399,8 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
   app.get('/api/stripe/products-with-prices', isAuthenticated, async (req, res) => {
     try {
-      let rows: any[] = [];
-      
-      try {
-        rows = await stripeStorage.listProductsWithPrices() as any[];
-      } catch (dbError) {
-        console.log("Stripe sync table not available, falling back to Stripe API");
-      }
-      
-      // If synced data is empty or unavailable, fetch directly from Stripe
-      if (!rows || rows.length === 0) {
-        try {
-          const { getUncachableStripeClient } = await import('./stripeClient');
-          const stripe = await getUncachableStripeClient();
-          const products = await stripe.products.list({ active: true, limit: 10 });
-          
-          const productsWithPrices = await Promise.all(
-            products.data.map(async (product) => {
-              const prices = await stripe.prices.list({ product: product.id, active: true });
-              return {
-                id: product.id,
-                name: product.name,
-                description: product.description || '',
-                active: product.active,
-                metadata: product.metadata,
-                prices: prices.data.map((price) => ({
-                  id: price.id,
-                  unit_amount: price.unit_amount,
-                  currency: price.currency,
-                  recurring: price.recurring,
-                  active: price.active,
-                })),
-              };
-            })
-          );
-          
-          return res.json({ data: productsWithPrices });
-        } catch (stripeError) {
-          console.error("Failed to fetch from Stripe API:", stripeError);
-          return res.status(500).json({ message: "Failed to fetch products" });
-        }
-      }
-      
-      const productsMap = new Map();
-      for (const row of rows) {
-        if (!productsMap.has(row.product_id)) {
-          productsMap.set(row.product_id, {
-            id: row.product_id,
-            name: row.product_name,
-            description: row.product_description,
-            active: row.product_active,
-            metadata: row.product_metadata,
-            prices: []
-          });
-        }
-        if (row.price_id) {
-          productsMap.get(row.product_id).prices.push({
-            id: row.price_id,
-            unit_amount: row.unit_amount,
-            currency: row.currency,
-            recurring: row.recurring,
-            active: row.price_active,
-          });
-        }
-      }
-
-      res.json({ data: Array.from(productsMap.values()) });
+      const products = await stripeService.listProductsWithPrices();
+      res.json({ data: products });
     } catch (error) {
       console.error("Failed to list products with prices:", error);
       res.status(500).json({ message: "Failed to fetch products" });
@@ -1483,30 +1418,24 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         return res.json({ subscription: null, planTier: 'free' });
       }
 
-      const subscription = await stripeStorage.getSubscription(user.stripeSubscriptionId);
+      const subscription = await stripeService.getSubscription(user.stripeSubscriptionId);
       
-      // Determine plan tier from price metadata or product info
+      // Determine plan tier from expanded subscription data
       let planTier = 'subscriber';
       if (subscription) {
-        // Try to get price info to determine tier
-        const priceId = (subscription as any).plan?.id || (subscription as any).items?.data?.[0]?.price?.id;
-        if (priceId) {
-          const price = await stripeStorage.getPrice(priceId);
-          if (price?.metadata?.tier) {
-            planTier = (price.metadata as any).tier;
-          } else if (price?.product) {
-            // Get product to check its metadata
-            const productId = typeof price.product === 'string' ? price.product : (price.product as any)?.id;
-            if (productId) {
-              const product = await stripeStorage.getProduct(productId);
-              if ((product?.metadata as any)?.tier) {
-                planTier = (product.metadata as any).tier;
-              } else if (product?.name?.toLowerCase().includes('pro')) {
-                planTier = 'pro';
-              } else if (product?.name?.toLowerCase().includes('basic')) {
-                planTier = 'basic';
-              }
-            }
+        const item = (subscription as any).items?.data?.[0];
+        const price = item?.price;
+        const product = price?.product;
+        
+        if (product?.metadata?.tier) {
+          planTier = product.metadata.tier;
+        } else if (price?.metadata?.tier) {
+          planTier = price.metadata.tier;
+        } else if (typeof product === 'object' && product?.name) {
+          if (product.name.toLowerCase().includes('pro')) {
+            planTier = 'pro';
+          } else if (product.name.toLowerCase().includes('basic')) {
+            planTier = 'basic';
           }
         }
       }

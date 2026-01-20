@@ -1,4 +1,4 @@
-import { getStripeSync, getUncachableStripeClient } from './stripeClient';
+import { getUncachableStripeClient } from './stripeClient';
 import { storage } from './storage';
 import { db } from './db';
 import { users } from '@shared/schema';
@@ -15,10 +15,6 @@ export class WebhookHandlers {
       );
     }
 
-    const sync = await getStripeSync();
-    await sync.processWebhook(payload, signature);
-    
-    // Handle custom logic after sync processing
     try {
       const stripe = await getUncachableStripeClient();
       const event = stripe.webhooks.constructEvent(
@@ -27,12 +23,12 @@ export class WebhookHandlers {
         process.env.STRIPE_WEBHOOK_SECRET || ''
       );
       
-      // Handle subscription created/updated event
+      console.log(`Processing Stripe webhook: ${event.type}`);
+      
       if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
         const subscription = event.data.object as any;
         const metadata = subscription.metadata || {};
         
-        // Check if cancel_at_period_end was set to true in metadata
         if (metadata.cancel_at_period_end === 'true' && !subscription.cancel_at_period_end) {
           console.log(`Setting cancel_at_period_end for subscription ${subscription.id}`);
           await stripe.subscriptions.update(subscription.id, {
@@ -40,16 +36,13 @@ export class WebhookHandlers {
           });
         }
         
-        // Update user's plan tier based on product
         await this.updateUserPlanTier(subscription);
       }
       
-      // Handle subscription deleted (cancelled)
       if (event.type === 'customer.subscription.deleted') {
         const subscription = event.data.object as any;
         const customerId = subscription.customer;
         
-        // Find user by Stripe customer ID and reset to free tier
         const [user] = await db
           .select()
           .from(users)
@@ -63,9 +56,19 @@ export class WebhookHandlers {
           console.log(`Reset user ${user.id} to free tier after subscription cancelled`);
         }
       }
-    } catch (customError: any) {
-      // Don't fail the webhook if custom handling fails
-      console.log('Custom webhook handling skipped or failed:', customError.message);
+      
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as any;
+        if (session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription, {
+            expand: ['items.data.price.product'],
+          });
+          await this.updateUserPlanTier(subscription);
+        }
+      }
+    } catch (error: any) {
+      console.error('Webhook processing error:', error.message);
+      throw error;
     }
   }
   
@@ -74,7 +77,6 @@ export class WebhookHandlers {
       const stripe = await getUncachableStripeClient();
       const customerId = subscription.customer;
       
-      // Find user by Stripe customer ID
       const [user] = await db
         .select()
         .from(users)
@@ -85,7 +87,6 @@ export class WebhookHandlers {
         return;
       }
       
-      // Get the product to determine plan tier
       const items = subscription.items?.data || [];
       if (items.length === 0) return;
       
@@ -94,9 +95,16 @@ export class WebhookHandlers {
       
       const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
       const product = price.product as any;
-      const planTier = product?.metadata?.tier || 'basic';
       
-      // Update user's plan tier
+      let planTier = 'basic';
+      if (product?.metadata?.tier) {
+        planTier = product.metadata.tier;
+      } else if (product?.name?.toLowerCase().includes('pro')) {
+        planTier = 'pro';
+      } else if (product?.name?.toLowerCase().includes('basic')) {
+        planTier = 'basic';
+      }
+      
       await storage.updateUserStripeInfo(user.id, {
         stripeSubscriptionId: subscription.id,
         planTier,

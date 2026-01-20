@@ -1,5 +1,4 @@
 import { getUncachableStripeClient } from './stripeClient';
-import { stripeStorage } from './stripeStorage';
 
 export class StripeService {
   async createCustomer(email: string, userId: string) {
@@ -47,12 +46,42 @@ export class StripeService {
     });
   }
 
+  async listProductsWithPrices() {
+    const stripe = await getUncachableStripeClient();
+    const products = await stripe.products.list({ active: true, limit: 10 });
+    
+    const productsWithPrices = await Promise.all(
+      products.data.map(async (product) => {
+        const prices = await stripe.prices.list({ product: product.id, active: true });
+        return {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          metadata: product.metadata,
+          prices: prices.data.map(price => ({
+            id: price.id,
+            unit_amount: price.unit_amount,
+            currency: price.currency,
+            recurring: price.recurring,
+            metadata: price.metadata,
+          })),
+        };
+      })
+    );
+    
+    return productsWithPrices;
+  }
+
   async getProduct(productId: string) {
-    return await stripeStorage.getProduct(productId);
+    const stripe = await getUncachableStripeClient();
+    return await stripe.products.retrieve(productId);
   }
 
   async getSubscription(subscriptionId: string) {
-    return await stripeStorage.getSubscription(subscriptionId);
+    const stripe = await getUncachableStripeClient();
+    return await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['items.data.price.product'],
+    });
   }
 
   async updateSubscriptionCancelAtPeriodEnd(subscriptionId: string, cancelAtPeriodEnd: boolean) {
