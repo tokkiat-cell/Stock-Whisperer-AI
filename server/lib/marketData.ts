@@ -136,3 +136,26 @@ export async function getCompanyProfile(symbol: string): Promise<string | null> 
     return null;
   }
 }
+
+export async function getBatchQuotes(symbols: string[]): Promise<Record<string, MarketData>> {
+  const results: Record<string, MarketData> = {};
+  
+  // Fetch quotes in parallel with rate limiting (5 at a time)
+  const batchSize = 5;
+  for (let i = 0; i < symbols.length; i += batchSize) {
+    const batch = symbols.slice(i, i + batchSize);
+    const promises = batch.map(async (symbol) => {
+      try {
+        const quote = await getStockQuote(symbol);
+        if (quote) {
+          results[symbol.toUpperCase()] = quote;
+        }
+      } catch (error) {
+        console.error(`Failed to fetch quote for ${symbol}:`, error);
+      }
+    });
+    await Promise.all(promises);
+  }
+  
+  return results;
+}

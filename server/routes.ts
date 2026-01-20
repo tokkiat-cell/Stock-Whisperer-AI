@@ -712,6 +712,29 @@ CRITICAL RULES:
     }
   });
 
+  // Get current prices for portfolio holdings
+  app.get('/api/portfolio/prices', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const holdings = await storage.getPortfolioHoldings(userId);
+      
+      if (holdings.length === 0) {
+        return res.json({});
+      }
+      
+      const symbols = holdings.map(h => h.symbol);
+      const { getBatchQuotes } = await import('./lib/marketData');
+      const prices = await getBatchQuotes(symbols);
+      
+      res.json(prices);
+    } catch (error) {
+      console.error("Failed to fetch portfolio prices:", error);
+      res.status(500).json({ message: "Failed to fetch prices" });
+    }
+  });
+
   // --- Watchlist Routes ---
   app.get(api.watchlist.list.path, isAuthenticated, async (req, res) => {
     if (!req.user) return res.status(401).send();

@@ -84,7 +84,7 @@ export default function TradingPage() {
   
   const [settingsForm, setSettingsForm] = useState({
     host: "127.0.0.1",
-    port: 4002,
+    port: 11111,
     clientId: 1,
   });
 
@@ -352,7 +352,7 @@ export default function TradingPage() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Gateway Host</Label>
+                  <Label>API Host</Label>
                   <Input
                     value={settingsForm.host}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, host: e.target.value }))}
@@ -361,15 +361,15 @@ export default function TradingPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Gateway Port</Label>
+                  <Label>API Port</Label>
                   <Input
                     type="number"
                     value={settingsForm.port}
-                    onChange={(e) => setSettingsForm(prev => ({ ...prev, port: parseInt(e.target.value) || 4002 }))}
-                    placeholder="4002 (paper) or 4001 (live)"
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, port: parseInt(e.target.value) || 11111 }))}
+                    placeholder="11111"
                     data-testid="input-moomoo-port"
                   />
-                  <p className="text-xs text-muted-foreground">4002 = Paper Trading, 4001 = Live Trading</p>
+                  <p className="text-xs text-muted-foreground">Default Moomoo OpenAPI port: 11111</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Client ID</Label>
@@ -536,10 +536,10 @@ export default function TradingPage() {
                 )} />
                 <div>
                   <p className="font-medium">
-                    Gateway: {ibkrSettings.host}:{ibkrSettings.port}
+                    Moomoo: {ibkrSettings.host}:{ibkrSettings.port}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Client ID: {ibkrSettings.clientId} | {ibkrSettings.port === 4002 ? "Paper Trading" : "Live Trading"}
+                    Client ID: {ibkrSettings.clientId}
                   </p>
                 </div>
               </div>

@@ -68,6 +68,20 @@ export default function PortfolioPage() {
     queryKey: ["/api/portfolio"],
   });
 
+  interface MarketData {
+    symbol: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    companyName?: string;
+  }
+
+  const { data: portfolioPrices = {}, isLoading: pricesLoading } = useQuery<Record<string, MarketData>>({
+    queryKey: ["/api/portfolio/prices"],
+    enabled: holdings.length > 0,
+    refetchInterval: 60000, // Refresh every minute
+  });
+
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
   });
@@ -226,6 +240,7 @@ export default function PortfolioPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/prices"] });
       setAddHoldingOpen(false);
       setNewSymbol("");
       setNewShares("");
@@ -243,6 +258,7 @@ export default function PortfolioPage() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/prices"] });
       setImportOpen(false);
       setPasteData("");
       toast({ title: `${variables.length} holdings imported successfully` });
@@ -258,6 +274,7 @@ export default function PortfolioPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/prices"] });
       toast({ title: "Holding removed" });
     },
   });
@@ -738,42 +755,79 @@ export default function PortfolioPage() {
             </Card>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-5 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
+              <div className="grid grid-cols-7 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
                 <div>Symbol</div>
                 <div className="text-right">Shares</div>
                 <div className="text-right">Avg Cost</div>
-                <div className="text-right">Value</div>
+                <div className="text-right">Current</div>
+                <div className="text-right">Market Value</div>
+                <div className="text-right">P&L</div>
                 <div></div>
               </div>
-              {holdings.map((holding) => (
-                <Card key={holding.id} className="p-4" data-testid={`holding-${holding.symbol}`}>
-                  <div className="grid grid-cols-5 gap-4 items-center">
-                    <button 
-                      onClick={() => openChart(holding.symbol)}
-                      className="font-semibold text-primary hover:underline cursor-pointer text-left flex items-center gap-1 group"
-                      data-testid={`button-chart-holding-${holding.symbol}`}
-                    >
-                      {holding.symbol}
-                      <LineChart className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                    <div className="text-right font-mono">{parseFloat(holding.shares).toLocaleString()}</div>
-                    <div className="text-right font-mono">${parseFloat(holding.avgCost).toFixed(2)}</div>
-                    <div className="text-right font-mono font-semibold">
-                      ${(parseFloat(holding.shares) * parseFloat(holding.avgCost)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    <div className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteHoldingMutation.mutate(holding.id)}
-                        data-testid={`button-delete-holding-${holding.symbol}`}
+              {holdings.map((holding) => {
+                const priceData = portfolioPrices[holding.symbol.toUpperCase()];
+                const shares = parseFloat(holding.shares);
+                const avgCost = parseFloat(holding.avgCost);
+                const costBasis = shares * avgCost;
+                const currentPrice = priceData?.price || 0;
+                const marketValue = shares * currentPrice;
+                const pnl = marketValue - costBasis;
+                const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+                const isPriceLoaded = !!priceData;
+                
+                return (
+                  <Card key={holding.id} className="p-4" data-testid={`holding-${holding.symbol}`}>
+                    <div className="grid grid-cols-7 gap-4 items-center">
+                      <button 
+                        onClick={() => openChart(holding.symbol)}
+                        className="font-semibold text-primary hover:underline cursor-pointer text-left flex items-center gap-1 group"
+                        data-testid={`button-chart-holding-${holding.symbol}`}
                       >
-                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                        {holding.symbol}
+                        <LineChart className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                      <div className="text-right font-mono">{shares.toLocaleString()}</div>
+                      <div className="text-right font-mono">${avgCost.toFixed(2)}</div>
+                      <div className="text-right font-mono">
+                        {isPriceLoaded ? (
+                          <span>${currentPrice.toFixed(2)}</span>
+                        ) : pricesLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin ml-auto" />
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
+                      <div className="text-right font-mono font-semibold">
+                        {isPriceLoaded ? (
+                          `$${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        ) : (
+                          `$${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        )}
+                      </div>
+                      <div className={`text-right font-mono font-semibold ${isPriceLoaded ? (pnl >= 0 ? 'text-green-500' : 'text-red-500') : ''}`}>
+                        {isPriceLoaded ? (
+                          <div className="flex flex-col items-end">
+                            <span>{pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-xs">({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteHoldingMutation.mutate(holding.id)}
+                          data-testid={`button-delete-holding-${holding.symbol}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>

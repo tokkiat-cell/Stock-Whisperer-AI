@@ -16,6 +16,8 @@ Key features:
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
 - Portfolio management with holdings tracking, bulk import (Excel/paste/image AI extraction), and watchlist
+  - Real-time current prices with P&L (profit/loss) display
+  - Shows market value, gain/loss amount, and percentage change
 - **Price Alerts**: Set price alerts on watchlist stocks to monitor when they hit a target price (above/below) with optional AI model analysis
   - Multi-channel notifications: App (in-app), Telegram Bot, WhatsApp (via Twilio)
   - Notification settings configuration for Telegram chat ID and WhatsApp phone number
@@ -23,11 +25,11 @@ Key features:
   - 1 year of daily price data
   - Toggleable moving averages (20, 40, 100, 200 days)
   - Uses lightweight-charts v5 library
-- **IBKR Trading Integration**: Create and manage orders for Interactive Brokers
-  - Configure IB Gateway connection settings (host, port, client ID)
+- **Moomoo Trading Integration**: Create and manage orders for Moomoo
+  - Configure Moomoo OpenAPI connection settings (host, port, client ID)
   - Create draft orders with entry price, stop loss, and take profit
   - Modify prices before submission
-  - Submit orders to IBKR for execution
+  - Submit orders to Moomoo for execution
   - "Trade" button on AI Scanner recommendations creates pre-filled draft orders
   - Order status tracking (Draft, Submitted, Filled, Cancelled)
 - **Market Overview Dashboard**: Real-time display of global market indices
