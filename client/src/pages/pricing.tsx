@@ -232,14 +232,11 @@ export default function Pricing() {
             icon={<Crown className="w-6 h-6 text-yellow-500" />}
             featured
             features={[
+              "Everything in Basic, unlimited:",
               "Unlimited AI chat messages",
               "Unlimited stock analyses",
               "Unlimited image generation",
               "Unlimited voice chat",
-              "Multi-market AI scanner",
-              "IBKR trading integration",
-              "Unlimited price alerts",
-              "Advanced AI models",
               "Priority support",
             ]}
             onSelectPrice={(priceId, autoRenew) => checkoutMutation.mutate({ priceId, autoRenew })}
