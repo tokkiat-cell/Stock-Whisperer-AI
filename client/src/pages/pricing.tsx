@@ -67,8 +67,18 @@ export default function Pricing() {
   const currentSubscription = subscriptionData?.subscription;
   const currentPlanTier = subscriptionData?.planTier || 'free';
 
-  const basicPlan = products.find(p => p.metadata?.tier === 'basic');
-  const proPlan = products.find(p => p.metadata?.tier === 'pro');
+  // Find plans by metadata tier or name fallback
+  const basicPlan = products.find(p => 
+    p.metadata?.tier === 'basic' || 
+    p.name?.toLowerCase().includes('basic')
+  );
+  const proPlan = products.find(p => 
+    p.metadata?.tier === 'pro' || 
+    p.name?.toLowerCase().includes('pro')
+  );
+  
+  // Show plans are available check (for fallback display)
+  const hasPlans = basicPlan || proPlan;
 
   const formatPrice = (amount: number, interval?: string) => {
     const price = (amount / 100).toFixed(2);
@@ -199,7 +209,7 @@ export default function Pricing() {
         </Card>
 
         {/* Basic and Pro Plans */}
-        {basicPlan && (
+        {basicPlan ? (
           <PlanCard
             product={basicPlan}
             icon={<Zap className="w-6 h-6" />}
@@ -215,7 +225,7 @@ export default function Pricing() {
             ]}
             limitedFeatures={[
               "Multi-market AI scanner",
-              "IBKR trading integration",
+              "Moomoo trading integration",
             ]}
             onSelectPrice={(priceId, autoRenew) => checkoutMutation.mutate({ priceId, autoRenew })}
             isLoading={checkoutMutation.isPending}
@@ -224,9 +234,52 @@ export default function Pricing() {
             getYearlyPrice={getYearlyPrice}
             currentPlanTier={currentPlanTier}
           />
+        ) : (
+          <Card className="p-6" data-testid="card-plan-basic-fallback">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <Zap className="w-6 h-6" />
+                <h3 className="text-xl font-semibold">Basic</h3>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Essential AI trading analysis tools for individual traders
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">$9.99</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  50 AI chat messages/month
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  60 stock analyses/month
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  20 AI image generations/month
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Portfolio & watchlist tracking
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Email support
+                </li>
+              </ul>
+              <Button variant="outline" className="w-full" disabled>
+                Loading...
+              </Button>
+            </div>
+          </Card>
         )}
 
-        {proPlan && (
+        {proPlan ? (
           <PlanCard
             product={proPlan}
             icon={<Crown className="w-6 h-6 text-yellow-500" />}
@@ -246,6 +299,52 @@ export default function Pricing() {
             getYearlyPrice={getYearlyPrice}
             currentPlanTier={currentPlanTier}
           />
+        ) : (
+          <Card className="p-6 border-primary/50 relative" data-testid="card-plan-pro-fallback">
+            <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
+              Most Popular
+            </Badge>
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <Crown className="w-6 h-6 text-yellow-500" />
+                <h3 className="text-xl font-semibold">Pro</h3>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Advanced AI trading with unlimited usage
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">$49.99</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Everything in Basic, plus:
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Unlimited AI chat messages
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Unlimited stock analyses
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Unlimited image generation
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 shrink-0" />
+                  Priority support
+                </li>
+              </ul>
+              <Button className="w-full" disabled>
+                Loading...
+              </Button>
+            </div>
+          </Card>
         )}
       </div>
     </div>
