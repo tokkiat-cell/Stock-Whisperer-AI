@@ -124,15 +124,15 @@ export default function AnalysisPage() {
             variant="outline" 
             size="sm"
             asChild
-            data-testid="button-ibkr-analysis-header"
+            data-testid="button-moomoo-analysis-header"
           >
             <a 
-              href="https://www.interactivebrokers.com/sso/Login"
+              href="https://www.moomoo.com/trade"
               target="_blank"
               rel="noopener noreferrer"
             >
               <ExternalLink className="w-4 h-4 mr-2" />
-              IBKR Web
+              Moomoo
             </a>
           </Button>
         </div>

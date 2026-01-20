@@ -104,7 +104,7 @@ export default function TradingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ibkr/settings"] });
       setShowSettingsDialog(false);
-      toast({ title: "Settings Saved", description: "IBKR connection settings updated." });
+      toast({ title: "Settings Saved", description: "Moomoo connection settings updated." });
     },
     onError: () => {
       toast({ variant: "destructive", title: "Error", description: "Failed to save settings." });
@@ -258,10 +258,10 @@ export default function TradingPage() {
         <div>
           <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             <Server className="w-6 h-6 text-primary" />
-            IBKR Trading
+            Moomoo Trading
           </h2>
           <p className="text-muted-foreground mt-1">
-            Create and submit orders to Interactive Brokers
+            Create and submit orders to Moomoo
           </p>
         </div>
 
@@ -295,7 +295,7 @@ export default function TradingPage() {
                     });
                   }
                 }}
-                data-testid="button-ibkr-settings"
+                data-testid="button-moomoo-settings"
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
@@ -303,9 +303,9 @@ export default function TradingPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>IBKR Connection Settings</DialogTitle>
+                <DialogTitle>Moomoo Connection Settings</DialogTitle>
                 <DialogDescription>
-                  Configure your Interactive Brokers Gateway connection. Run IB Gateway locally to enable trade execution.
+                  Configure your Moomoo OpenAPI connection settings for trade execution.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -315,7 +315,7 @@ export default function TradingPage() {
                     value={settingsForm.host}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, host: e.target.value }))}
                     placeholder="127.0.0.1"
-                    data-testid="input-ibkr-host"
+                    data-testid="input-moomoo-host"
                   />
                 </div>
                 <div className="space-y-2">
@@ -325,7 +325,7 @@ export default function TradingPage() {
                     value={settingsForm.port}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, port: parseInt(e.target.value) || 4002 }))}
                     placeholder="4002 (paper) or 4001 (live)"
-                    data-testid="input-ibkr-port"
+                    data-testid="input-moomoo-port"
                   />
                   <p className="text-xs text-muted-foreground">4002 = Paper Trading, 4001 = Live Trading</p>
                 </div>
@@ -336,7 +336,7 @@ export default function TradingPage() {
                     value={settingsForm.clientId}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, clientId: parseInt(e.target.value) || 1 }))}
                     placeholder="1"
-                    data-testid="input-ibkr-client-id"
+                    data-testid="input-moomoo-client-id"
                   />
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function TradingPage() {
                 <Button 
                   onClick={handleSaveSettings}
                   disabled={updateSettingsMutation.isPending}
-                  data-testid="button-save-ibkr-settings"
+                  data-testid="button-save-moomoo-settings"
                 >
                   {updateSettingsMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Save Settings
@@ -760,7 +760,7 @@ function OrderCard({
         
         {order.ibkrOrderId && (
           <p className="text-xs text-muted-foreground mt-2">
-            IBKR Order ID: {order.ibkrOrderId}
+            Moomoo Order ID: {order.ibkrOrderId}
           </p>
         )}
       </CardContent>

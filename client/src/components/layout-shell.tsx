@@ -27,7 +27,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/scan", label: "AI Scanner", icon: Scan },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
-    { href: "/trading", label: "IBKR Trading", icon: Server },
+    { href: "/trading", label: "Moomoo Trading", icon: Server },
     { href: "/chat", label: "stockwhisperer AI", icon: MessageCircle },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/pricing", label: "Pricing", icon: CreditCard },

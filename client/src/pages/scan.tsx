@@ -247,15 +247,15 @@ export default function MarketScan() {
             variant="outline" 
             size="sm"
             asChild
-            data-testid="button-ibkr-header"
+            data-testid="button-moomoo-header"
           >
             <a 
-              href="https://www.interactivebrokers.com/sso/Login"
+              href="https://www.moomoo.com/trade"
               target="_blank"
               rel="noopener noreferrer"
             >
               <ExternalLink className="w-4 h-4 mr-2" />
-              IBKR Web
+              Moomoo
             </a>
           </Button>
         </div>
@@ -677,15 +677,15 @@ export default function MarketScan() {
                             variant="outline" 
                             asChild
                             className="w-full"
-                            data-testid={`button-ibkr-${rec.symbol}`}
+                            data-testid={`button-moomoo-${rec.symbol}`}
                           >
                             <a 
-                              href="https://www.interactivebrokers.com/sso/Login"
+                              href="https://www.moomoo.com/trade"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
                               <ExternalLink className="w-4 h-4 mr-2" />
-                              IBKR Web
+                              Moomoo
                             </a>
                           </Button>
                         </div>

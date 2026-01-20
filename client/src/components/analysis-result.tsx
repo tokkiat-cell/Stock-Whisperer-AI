@@ -259,15 +259,15 @@ export function AnalysisResult({ analysis, onApprove, isPending }: AnalysisResul
           variant="outline" 
           asChild
           className="w-full"
-          data-testid="button-ibkr-analysis"
+          data-testid="button-moomoo-analysis"
         >
           <a 
-            href="https://www.interactivebrokers.com/sso/Login"
+            href="https://www.moomoo.com/trade"
             target="_blank"
             rel="noopener noreferrer"
           >
             <ExternalLink className="w-4 h-4 mr-2" />
-            Trade on IBKR
+            Trade on Moomoo
           </a>
         </Button>
       </div>
