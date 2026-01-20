@@ -28,7 +28,8 @@ import {
   Activity,
   Send,
   LineChart,
-  Globe
+  Globe,
+  ExternalLink
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -566,8 +567,8 @@ export default function MarketScan() {
                         </p>
                       </div>
 
-                      {/* Deep Chart Analysis Link */}
-                      <div className="pt-4 border-t">
+                      {/* External Links & Chart Analysis */}
+                      <div className="pt-4 border-t space-y-3">
                         <Button 
                           variant="outline" 
                           onClick={() => openChart(rec.symbol)}
@@ -577,6 +578,39 @@ export default function MarketScan() {
                           <LineChart className="w-4 h-4 mr-2" />
                           View Full Chart Analysis
                         </Button>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <Button 
+                            variant="outline" 
+                            asChild
+                            className="w-full"
+                            data-testid={`button-tradingview-${rec.symbol}`}
+                          >
+                            <a 
+                              href={`https://www.tradingview.com/chart/?symbol=${rec.symbol}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              TradingView
+                            </a>
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            asChild
+                            className="w-full"
+                            data-testid={`button-ibkr-${rec.symbol}`}
+                          >
+                            <a 
+                              href="https://www.interactivebrokers.com/sso/Login"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              IBKR Web
+                            </a>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
