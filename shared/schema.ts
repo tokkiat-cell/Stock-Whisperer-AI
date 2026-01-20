@@ -45,6 +45,7 @@ export const tradeRecommendations = pgTable("trade_recommendations", {
 
 export const insertTradeSetupSchema = createInsertSchema(tradeSetups).omit({ 
   id: true, 
+  userId: true,  // userId is added by the server from session
   createdAt: true, 
   executedAt: true 
 });
