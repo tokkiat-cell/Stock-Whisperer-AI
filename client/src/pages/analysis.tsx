@@ -1,38 +1,49 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useStockQuote, useAnalyzeStock, useCreateTrade } from "@/hooks/use-stocks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AnalysisResult } from "@/components/analysis-result";
-import { Search, Sparkles, ArrowRight, Loader2, LineChart } from "lucide-react";
+import { Search, Sparkles, ArrowRight, Loader2, LineChart, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StockChart } from "@/components/stock-chart";
 
+const DEFAULT_SYMBOL = "NVDA";
+
 export default function AnalysisPage() {
   const [location] = useLocation();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(DEFAULT_SYMBOL);
   const { toast } = useToast();
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
+  const hasAutoAnalyzed = useRef(false);
 
   const openChart = (symbol: string) => {
     setChartSymbol(symbol);
     setChartOpen(true);
   };
   
-  // Parse query param for initial search
+  // Parse query param for initial search, default to NVDA
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const symbol = params.get("symbol");
     if (symbol) {
-      setSearch(symbol);
+      setSearch(symbol.toUpperCase());
     }
   }, []);
 
   const { data: quote, isError: isQuoteError, isLoading: isQuoteLoading } = useStockQuote(search);
   const analyzeMutation = useAnalyzeStock();
   const createTradeMutation = useCreateTrade();
+
+  // Auto-analyze NVDA on first load
+  useEffect(() => {
+    if (!hasAutoAnalyzed.current && search && !analyzeMutation.data && !analyzeMutation.isPending) {
+      hasAutoAnalyzed.current = true;
+      analyzeMutation.mutate(search);
+    }
+  }, [search]);
 
   const handleAnalyze = () => {
     if (!search) return;
@@ -81,13 +92,50 @@ export default function AnalysisPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center space-y-4 mb-12">
-        <h1 className="text-4xl md:text-5xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-          AI Market Analysis
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Enter a ticker symbol to get real-time price data and detailed AI-powered trading recommendations.
-        </p>
+      {/* Header with Quick Access Links */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
+        <div className="text-center md:text-left space-y-2">
+          <h1 className="text-4xl md:text-5xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+            AI Market Analysis
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl">
+            Get real-time price data and detailed AI-powered trading recommendations.
+          </p>
+        </div>
+        
+        {/* Quick Access Links - Always Visible */}
+        <div className="flex items-center gap-2 justify-center md:justify-end">
+          <Button 
+            variant="outline" 
+            size="sm"
+            asChild
+            data-testid="button-tradingview-analysis-header"
+          >
+            <a 
+              href={`https://www.tradingview.com/chart/?symbol=${search || DEFAULT_SYMBOL}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              TradingView
+            </a>
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            asChild
+            data-testid="button-ibkr-analysis-header"
+          >
+            <a 
+              href="https://www.interactivebrokers.com/sso/Login"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              IBKR Web
+            </a>
+          </Button>
+        </div>
       </div>
 
       <Card className="glass-panel p-2 flex items-center gap-2 max-w-2xl mx-auto">
