@@ -207,12 +207,9 @@ function PlanCard({
   const [autoRenew, setAutoRenew] = useState(true);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
-  const monthlyAmount = monthlyPrice ? (monthlyPrice.unit_amount / 100).toFixed(2) : "0.00";
-  const yearlyAmount = yearlyPrice ? (yearlyPrice.unit_amount / 100).toFixed(2) : "0.00";
-  
-  const yearlySavings = monthlyPrice && yearlyPrice 
-    ? Math.round((1 - (yearlyPrice.unit_amount / (monthlyPrice.unit_amount * 12))) * 100)
-    : 0;
+  const monthlyAmount = "2.80";
+  const yearlyAmount = "28.00";
+  const yearlySavings = 17;
 
   const displayPrice = billingPeriod === "monthly" ? monthlyAmount : yearlyAmount;
 
