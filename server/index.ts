@@ -15,6 +15,11 @@ declare module "http" {
 
 async function initStripe() {
   console.log('Stripe initialized - using direct API calls');
+  
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set. Subscription updates from Stripe webhooks will not work.');
+    console.warn('Configure webhook in Stripe Dashboard: https://dashboard.stripe.com/webhooks');
+  }
 }
 
 app.post(
