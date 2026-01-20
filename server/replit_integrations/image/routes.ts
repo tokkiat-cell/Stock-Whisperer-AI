@@ -1,9 +1,26 @@
 import type { Express, Request, Response } from "express";
 import { openai } from "./client";
+import { isAuthenticated } from "../auth";
+import { checkUsageLimit, incrementUsage } from "../../lib/usageLimits";
 
 export function registerImageRoutes(app: Express): void {
-  app.post("/api/generate-image", async (req: Request, res: Response) => {
+  app.post("/api/generate-image", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+
+      const usageCheck = await checkUsageLimit(userId, "image");
+      if (!usageCheck.allowed) {
+        return res.status(403).json({ 
+          error: "Free tier limit reached",
+          usageType: "image",
+          currentCount: usageCheck.currentCount,
+          limit: usageCheck.limit,
+          requiresUpgrade: true
+        });
+      }
+
       const { prompt, size = "1024x1024" } = req.body;
 
       if (!prompt) {
@@ -18,6 +35,9 @@ export function registerImageRoutes(app: Express): void {
       });
 
       const imageData = response.data[0];
+      
+      await incrementUsage(userId, "image");
+      
       res.json({
         url: imageData.url,
         b64_json: imageData.b64_json,

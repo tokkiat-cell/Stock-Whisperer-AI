@@ -1,6 +1,8 @@
 import type { Express, Request, Response } from "express";
 import { chatStorage } from "../chat/storage";
 import { openai, speechToText, voiceChatWithTextModel, convertWebmToWav } from "./client";
+import { isAuthenticated } from "../auth";
+import { checkUsageLimit, incrementUsage } from "../../lib/usageLimits";
 
 // Note: Set express.json({ limit: "50mb" }) for audio payloads.
 // Note: Use convertWebmToWav() to convert browser WebM to WAV before API calls.
@@ -59,8 +61,23 @@ export function registerAudioRoutes(app: Express): void {
   // Send voice message and get streaming audio response
   // Uses gpt-4o-mini-transcribe for STT, gpt-audio-mini for voice response
   // For text model control, chain: speechToText() -> text model -> textToSpeech()
-  app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
+  app.post("/api/conversations/:id/messages", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+
+      const usageCheck = await checkUsageLimit(userId, "voice");
+      if (!usageCheck.allowed) {
+        return res.status(403).json({ 
+          error: "Free tier limit reached",
+          usageType: "voice",
+          currentCount: usageCheck.currentCount,
+          limit: usageCheck.limit,
+          requiresUpgrade: true
+        });
+      }
+
       const conversationId = parseInt(req.params.id);
       const { audio, voice = "alloy", inputFormat = "wav" } = req.body;
 
@@ -117,6 +134,8 @@ export function registerAudioRoutes(app: Express): void {
       // 6. Save assistant message
       await chatStorage.createMessage(conversationId, "assistant", assistantTranscript);
 
+      await incrementUsage(userId, "voice");
+
       res.write(`data: ${JSON.stringify({ type: "done", transcript: assistantTranscript })}\n\n`);
       res.end();
     } catch (error) {
@@ -133,8 +152,23 @@ export function registerAudioRoutes(app: Express): void {
   // Voice chat using separate text model (GPT-5) + TTS pipeline
   // Streams sentences to TTS as they're generated for lower latency
   // Supports multilingual sentence detection via locale parameter
-  app.post("/api/conversations/:id/voice-stream", async (req: Request, res: Response) => {
+  app.post("/api/conversations/:id/voice-stream", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+
+      const usageCheck = await checkUsageLimit(userId, "voice");
+      if (!usageCheck.allowed) {
+        return res.status(403).json({ 
+          error: "Free tier limit reached",
+          usageType: "voice",
+          currentCount: usageCheck.currentCount,
+          limit: usageCheck.limit,
+          requiresUpgrade: true
+        });
+      }
+
       const conversationId = parseInt(req.params.id);
       const { audio, voice = "alloy", inputFormat = "wav", locale = "en" } = req.body;
 
@@ -178,6 +212,9 @@ export function registerAudioRoutes(app: Express): void {
 
       // Save assistant message
       await chatStorage.createMessage(conversationId, "assistant", assistantTranscript);
+      
+      await incrementUsage(userId, "voice");
+      
       res.end();
     } catch (error) {
       console.error("Error in voice stream:", error);

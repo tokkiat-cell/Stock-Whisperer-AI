@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -14,6 +15,22 @@ import {
   Bookmark, Plus, Trash2
 } from "lucide-react";
 import type { SavedPrompt } from "@shared/schema";
+import { UpgradeModal } from "@/components/upgrade-modal";
+
+interface UsageData {
+  chatCount: number;
+  imageCount: number;
+  voiceCount: number;
+  stockAnalysisCount: number;
+  limits: {
+    chat: number;
+    image: number;
+    voice: number;
+    stockAnalysis: number;
+  };
+  isSubscribed: boolean;
+  periodStart: string | null;
+}
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -122,8 +139,18 @@ export default function ChatPage() {
   const [savePromptOpen, setSavePromptOpen] = useState(false);
   const [newPromptTitle, setNewPromptTitle] = useState("");
   const [newPromptText, setNewPromptText] = useState("");
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeModalData, setUpgradeModalData] = useState<{
+    usageType: "chat" | "image" | "voice" | "stockAnalysis";
+    currentCount: number;
+    limit: number;
+  } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: usageData } = useQuery<UsageData>({
+    queryKey: ["/api/usage"],
+  });
 
   const { data: recommendations } = useQuery<any[]>({
     queryKey: ["/api/sp500/recommendations"],
@@ -163,12 +190,30 @@ export default function ChatPage() {
   const chatMutation = useMutation({
     mutationFn: async ({ message, imageBase64 }: { message: string; imageBase64?: string }) => {
       const res = await apiRequest("POST", "/api/dashboard/chat", { message, imageBase64 });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        throw { status: res.status, ...data };
+      }
+      return data;
     },
     onSuccess: (data) => {
       setMessages(prev => [...prev, { role: "assistant", content: data.response }]);
       setSelectedImage(null);
       setImagePreview(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
+    },
+    onError: (error: any) => {
+      if (error?.requiresUpgrade) {
+        setUpgradeModalData({
+          usageType: error.usageType || "chat",
+          currentCount: error.currentCount || 0,
+          limit: error.limit || 10,
+        });
+        setUpgradeModalOpen(true);
+        setMessages(prev => prev.slice(0, -1));
+      } else {
+        toast({ title: "Failed to get response", variant: "destructive" });
+      }
     },
   });
 
@@ -270,11 +315,27 @@ export default function ChatPage() {
                 <span className="text-xs text-green-500">Online</span>
               </div>
             </div>
-            {recommendations && recommendations.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {recommendations.length} active recommendations
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {usageData && !usageData.isSubscribed && (
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs"
+                  data-testid="badge-chat-usage"
+                >
+                  {usageData.chatCount}/{usageData.limits.chat} chats
+                </Badge>
+              )}
+              {usageData?.isSubscribed && (
+                <Badge variant="default" className="text-xs" data-testid="badge-pro-status">
+                  Pro
+                </Badge>
+              )}
+              {recommendations && recommendations.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {recommendations.length} active recommendations
+                </span>
+              )}
+            </div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -552,6 +613,14 @@ export default function ChatPage() {
           </Card>
         </div>
       </div>
+
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        usageType={upgradeModalData?.usageType}
+        currentCount={upgradeModalData?.currentCount}
+        limit={upgradeModalData?.limit}
+      />
     </div>
   );
 }

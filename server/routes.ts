@@ -59,6 +59,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // --- Analysis Routes ---
   app.post(api.analysis.analyze.path, isAuthenticated, async (req, res) => {
     try {
+      if (!req.user) return res.status(401).send();
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+
+      const { checkUsageLimit, incrementUsage } = await import("./lib/usageLimits");
+      const usageCheck = await checkUsageLimit(userId, "stockAnalysis");
+      if (!usageCheck.allowed) {
+        return res.status(403).json({ 
+          message: "Free tier limit reached",
+          usageType: "stockAnalysis",
+          currentCount: usageCheck.currentCount,
+          limit: usageCheck.limit,
+          requiresUpgrade: true
+        });
+      }
+
       const { symbol } = req.body;
       const quote = await getStockQuote(symbol);
       
@@ -67,6 +83,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const analysis = await analyzeStockWithAI(symbol, quote.price);
+      
+      await incrementUsage(userId, "stockAnalysis");
+      
       res.json({ symbol, ...analysis });
     } catch (error) {
       console.error(error);
@@ -782,6 +801,22 @@ CRITICAL RULES:
   // --- Dashboard Chat ---
   app.post(api.dashboard.chat.path, isAuthenticated, async (req, res) => {
     try {
+      if (!req.user) return res.status(401).send();
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+
+      const { checkUsageLimit, incrementUsage } = await import("./lib/usageLimits");
+      const usageCheck = await checkUsageLimit(userId, "chat");
+      if (!usageCheck.allowed) {
+        return res.status(403).json({ 
+          message: "Free tier limit reached",
+          usageType: "chat",
+          currentCount: usageCheck.currentCount,
+          limit: usageCheck.limit,
+          requiresUpgrade: true
+        });
+      }
+
       const parsed = api.dashboard.chat.input.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid request: message is required" });
@@ -854,6 +889,9 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       });
 
       const response = aiResponse.text || "I couldn't process your request. Please try again.";
+      
+      await incrementUsage(userId, "chat");
+      
       res.json({ response });
     } catch (error) {
       console.error(error);
@@ -1459,6 +1497,21 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error("Failed to create portal session:", error);
       res.status(500).json({ message: "Failed to create customer portal session" });
+    }
+  });
+
+  // --- Usage Limits API ---
+  app.get('/api/usage', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const { getUserUsageData } = await import("./lib/usageLimits");
+      const usageData = await getUserUsageData(userId);
+      res.json(usageData);
+    } catch (error) {
+      console.error("Failed to get usage data:", error);
+      res.status(500).json({ message: "Failed to get usage data" });
     }
   });
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -31,3 +31,20 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+// === USER USAGE TRACKING ===
+// Tracks monthly usage of AI features for free tier limits
+export const userUsage = pgTable("user_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  chatCount: integer("chat_count").default(0).notNull(),
+  imageCount: integer("image_count").default(0).notNull(),
+  voiceCount: integer("voice_count").default(0).notNull(),
+  stockAnalysisCount: integer("stock_analysis_count").default(0).notNull(),
+  periodStart: timestamp("period_start").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type UserUsage = typeof userUsage.$inferSelect;
+export type InsertUserUsage = typeof userUsage.$inferInsert;
