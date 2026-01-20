@@ -14,7 +14,7 @@ import {
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
   DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
   Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain, LineChart,
-  ShieldCheck, ExternalLink
+  ShieldCheck, ExternalLink, Pencil
 } from "lucide-react";
 import type { PortfolioHolding, WatchlistItem, PriceAlert, UserNotificationSettings } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,9 +56,22 @@ export default function PortfolioPage() {
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
   
+  // Edit Holding State
+  const [editHoldingOpen, setEditHoldingOpen] = useState(false);
+  const [editingHolding, setEditingHolding] = useState<PortfolioHolding | null>(null);
+  const [editShares, setEditShares] = useState("");
+  const [editAvgCost, setEditAvgCost] = useState("");
+  
   const openChart = (symbol: string) => {
     setChartSymbol(symbol);
     setChartOpen(true);
+  };
+  
+  const openEditHolding = (holding: PortfolioHolding) => {
+    setEditingHolding(holding);
+    setEditShares(holding.shares);
+    setEditAvgCost(holding.avgCost);
+    setEditHoldingOpen(true);
   };
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -276,6 +289,22 @@ export default function PortfolioPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/prices"] });
       toast({ title: "Holding removed" });
+    },
+  });
+
+  const updateHoldingMutation = useMutation({
+    mutationFn: async (data: { id: number; shares: string; avgCost: string }) => {
+      return apiRequest("PATCH", `/api/portfolio/${data.id}`, { shares: data.shares, avgCost: data.avgCost });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/prices"] });
+      setEditHoldingOpen(false);
+      setEditingHolding(null);
+      toast({ title: "Holding updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update holding", variant: "destructive" });
     },
   });
 
@@ -608,6 +637,58 @@ export default function PortfolioPage() {
               </DialogContent>
             </Dialog>
 
+            <Dialog open={editHoldingOpen} onOpenChange={(open) => {
+              setEditHoldingOpen(open);
+              if (!open) setEditingHolding(null);
+            }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Holding - {editingHolding?.symbol}</DialogTitle>
+                  <DialogDescription>
+                    Update the number of shares or average cost for this holding.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <label className="text-sm font-medium">Shares</label>
+                    <Input
+                      type="number"
+                      placeholder="100"
+                      value={editShares}
+                      onChange={(e) => setEditShares(e.target.value)}
+                      data-testid="input-edit-shares"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Average Cost ($)</label>
+                    <Input
+                      type="number"
+                      placeholder="150.00"
+                      value={editAvgCost}
+                      onChange={(e) => setEditAvgCost(e.target.value)}
+                      data-testid="input-edit-cost"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      if (editingHolding && editShares && editAvgCost) {
+                        updateHoldingMutation.mutate({
+                          id: editingHolding.id,
+                          shares: editShares,
+                          avgCost: editAvgCost
+                        });
+                      }
+                    }} 
+                    className="w-full"
+                    disabled={updateHoldingMutation.isPending || !editShares || !editAvgCost}
+                    data-testid="button-submit-edit"
+                  >
+                    {updateHoldingMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Holding"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={importOpen} onOpenChange={(open) => {
               setImportOpen(open);
               if (!open) clearImageExtraction();
@@ -814,7 +895,15 @@ export default function PortfolioPage() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditHolding(holding)}
+                          data-testid={`button-edit-holding-${holding.symbol}`}
+                        >
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
