@@ -206,14 +206,50 @@ export default function MarketScan() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-          <Scan className="w-6 h-6 text-primary" />
-          AI Market Scanner
-        </h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Get personalized trade recommendations with detailed technical analysis
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+            <Scan className="w-6 h-6 text-primary" />
+            AI Market Scanner
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Get personalized trade recommendations with detailed technical analysis
+          </p>
+        </div>
+        
+        {/* Quick Access Links */}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            asChild
+            data-testid="button-tradingview-header"
+          >
+            <a 
+              href="https://www.tradingview.com/chart/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              TradingView
+            </a>
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            asChild
+            data-testid="button-ibkr-header"
+          >
+            <a 
+              href="https://www.interactivebrokers.com/sso/Login"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              IBKR Web
+            </a>
+          </Button>
+        </div>
       </div>
 
       {/* Scan Configuration */}
