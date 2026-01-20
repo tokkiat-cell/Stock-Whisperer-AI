@@ -207,6 +207,15 @@ function PlanCard({
   const [autoRenew, setAutoRenew] = useState(true);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
+  const monthlyAmount = monthlyPrice ? (monthlyPrice.unit_amount / 100).toFixed(2) : "0.00";
+  const yearlyAmount = yearlyPrice ? (yearlyPrice.unit_amount / 100).toFixed(2) : "0.00";
+  
+  const yearlySavings = monthlyPrice && yearlyPrice 
+    ? Math.round((1 - (yearlyPrice.unit_amount / (monthlyPrice.unit_amount * 12))) * 100)
+    : 0;
+
+  const displayPrice = billingPeriod === "monthly" ? monthlyAmount : yearlyAmount;
+
   return (
     <Card 
       className={cn(
@@ -234,15 +243,15 @@ function PlanCard({
         <div className="space-y-2">
           <div className="flex items-baseline gap-1">
             <span className="text-3xl font-bold">
-              {billingPeriod === "monthly" ? "$2.80" : "$28.00"}
+              ${displayPrice}
             </span>
             <span className="text-muted-foreground">
               /{billingPeriod === "monthly" ? "month" : "year"}
             </span>
           </div>
-          {billingPeriod === "yearly" && (
+          {billingPeriod === "yearly" && yearlySavings > 0 && (
             <p className="text-xs text-green-500 font-medium">
-              Save 17% with annual billing
+              Save {yearlySavings}% with annual billing
             </p>
           )}
         </div>
@@ -259,7 +268,7 @@ function PlanCard({
                 className="flex-1"
                 data-testid={`button-period-monthly-${product.metadata?.tier}`}
               >
-                Monthly ($2.80)
+                Monthly (${monthlyAmount})
               </Button>
               <Button
                 type="button"
@@ -269,7 +278,7 @@ function PlanCard({
                 className="flex-1"
                 data-testid={`button-period-yearly-${product.metadata?.tier}`}
               >
-                Yearly ($28)
+                Yearly (${yearlyAmount})
               </Button>
             </div>
           </div>
@@ -316,7 +325,7 @@ function PlanCard({
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
-                {autoRenew ? "Subscribe" : "Pay Once"} - {billingPeriod === "monthly" ? "$2.80" : "$28.00"}
+                {autoRenew ? "Subscribe" : "Pay Once"} - ${displayPrice}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </>
             )}
