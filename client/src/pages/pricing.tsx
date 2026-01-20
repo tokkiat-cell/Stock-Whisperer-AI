@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, Crown, Zap, ArrowRight } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Check, Loader2, Crown, Zap, ArrowRight, Info, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -201,6 +204,8 @@ function PlanCard({
 }: PlanCardProps) {
   const monthlyPrice = getMonthlyPrice(product);
   const yearlyPrice = getYearlyPrice(product);
+  const [autoRenew, setAutoRenew] = useState(true);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
   return (
     <Card 
@@ -229,13 +234,62 @@ function PlanCard({
         <div className="space-y-2">
           <div className="flex items-baseline gap-1">
             <span className="text-3xl font-bold">
-              $2.80
+              {billingPeriod === "monthly" ? "$2.80" : "$28.00"}
             </span>
-            <span className="text-muted-foreground">/month</span>
+            <span className="text-muted-foreground">
+              /{billingPeriod === "monthly" ? "month" : "year"}
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            or $28.00/year (save 17%)
-          </p>
+          {billingPeriod === "yearly" && (
+            <p className="text-xs text-green-500 font-medium">
+              Save 17% with annual billing
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Billing Period</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={billingPeriod === "monthly" ? "default" : "outline"}
+                onClick={() => setBillingPeriod("monthly")}
+                className="flex-1"
+                data-testid={`button-period-monthly-${product.metadata?.tier}`}
+              >
+                Monthly ($2.80)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={billingPeriod === "yearly" ? "default" : "outline"}
+                onClick={() => setBillingPeriod("yearly")}
+                className="flex-1"
+                data-testid={`button-period-yearly-${product.metadata?.tier}`}
+              >
+                Yearly ($28)
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor={`auto-renew-${product.id}`} className="text-sm font-medium">
+                Auto-Renewal
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {autoRenew ? "Renews automatically each period" : "One-time payment, no auto-renewal"}
+              </p>
+            </div>
+            <Switch
+              id={`auto-renew-${product.id}`}
+              checked={autoRenew}
+              onCheckedChange={setAutoRenew}
+              data-testid={`switch-auto-renew-${product.metadata?.tier}`}
+            />
+          </div>
         </div>
 
         <ul className="space-y-3">
@@ -247,40 +301,33 @@ function PlanCard({
           ))}
         </ul>
 
-        <div className="space-y-2">
-          {monthlyPrice && (
-            <Button
-              className="w-full"
-              variant={featured ? "default" : "outline"}
-              onClick={() => onSelectPrice(monthlyPrice.id)}
-              disabled={isLoading}
-              data-testid={`button-subscribe-${product.metadata?.tier}-monthly`}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  Subscribe Monthly
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
-          )}
-          {yearlyPrice && (
-            <Button
-              className="w-full"
-              variant="ghost"
-              onClick={() => onSelectPrice(yearlyPrice.id)}
-              disabled={isLoading}
-              data-testid={`button-subscribe-${product.metadata?.tier}-yearly`}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Subscribe Yearly (Save 17%)"
-              )}
-            </Button>
-          )}
+        <div className="space-y-3">
+          <Button
+            className="w-full"
+            variant={featured ? "default" : "outline"}
+            onClick={() => {
+              const priceId = billingPeriod === "monthly" ? monthlyPrice?.id : yearlyPrice?.id;
+              if (priceId) onSelectPrice(priceId);
+            }}
+            disabled={isLoading || (!monthlyPrice && !yearlyPrice)}
+            data-testid={`button-subscribe-${product.metadata?.tier}`}
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                {autoRenew ? "Subscribe" : "Pay Once"} - {billingPeriod === "monthly" ? "$2.80" : "$28.00"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
+
+          <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-600 dark:text-blue-400">
+              You can cancel your subscription at any time. Your access will continue until the end of your current billing period.
+            </p>
+          </div>
         </div>
       </div>
     </Card>
