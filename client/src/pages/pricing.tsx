@@ -226,21 +226,17 @@ function PlanCard({
           {product.description}
         </p>
 
-        {monthlyPrice && (
-          <div className="space-y-2">
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold">
-                ${(monthlyPrice.unit_amount / 100).toFixed(2)}
-              </span>
-              <span className="text-muted-foreground">/month</span>
-            </div>
-            {yearlyPrice && (
-              <p className="text-xs text-muted-foreground">
-                or ${(yearlyPrice.unit_amount / 100).toFixed(2)}/year (save 17%)
-              </p>
-            )}
+        <div className="space-y-2">
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-bold">
+              $2.80
+            </span>
+            <span className="text-muted-foreground">/month</span>
           </div>
-        )}
+          <p className="text-xs text-muted-foreground">
+            or $28.00/year (save 17%)
+          </p>
+        </div>
 
         <ul className="space-y-3">
           {features.map((feature, idx) => (
