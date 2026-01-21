@@ -187,16 +187,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const validTimeframes = ["day", "month", "swing", "longterm"];
       const validMarkets = ["US", "SG", "HK", "CN", "EU"];
       
-      let riskAmount = 100;
       let timeframe = "day";
       let market = "US";
-      
-      if (req.body.riskAmount !== undefined) {
-        const parsedRisk = parseFloat(req.body.riskAmount);
-        if (!isNaN(parsedRisk) && parsedRisk > 0) {
-          riskAmount = parsedRisk;
-        }
-      }
       
       if (req.body.timeframe !== undefined && validTimeframes.includes(req.body.timeframe)) {
         timeframe = req.body.timeframe;
@@ -213,6 +205,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         longterm: "long-term investing (holding 1+ years)"
       };
 
+      // Stop loss and take profit guidance based on timeframe
+      const timeframeSLTPGuidance: Record<string, string> = {
+        day: "Use tight stop losses (0.5-2% from entry) and take profits (1-3% from entry). Target 1.5:1 to 2:1 risk/reward ratio.",
+        month: "Use moderate stop losses (3-5% from entry) and take profits (6-10% from entry). Target 2:1 to 3:1 risk/reward ratio.",
+        swing: "Use wider stop losses (5-10% from entry) and take profits (15-25% from entry). Target 2:1 to 3:1 risk/reward ratio.",
+        longterm: "Use wide stop losses (10-20% from entry) and take profits (30-50% from entry). Target 2:1 to 3:1 risk/reward ratio."
+      };
+
       // 1. Get stocks based on selected market
       const symbols = marketStocksConfig[market] || marketStocksConfig.US;
       const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
@@ -224,9 +224,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 You are an expert technical analyst. Analyze the following ${marketName} market stocks: ${JSON.stringify(validQuotes)}.
 
 Trading parameters:
-- Risk per trade: $${riskAmount}
 - Trading style: ${timeframeDescriptions[timeframe] || "day trading"}
 - Market: ${marketName}
+- Stop Loss / Take Profit Guidance: ${timeframeSLTPGuidance[timeframe] || timeframeSLTPGuidance.day}
 
 Generate exactly 5 high-probability trade setups optimized for ${timeframeDescriptions[timeframe] || "day trading"}.
 
@@ -234,9 +234,14 @@ For each recommendation, provide DETAILED technical analysis including:
 1. Candlestick pattern identification (e.g., "Bullish Engulfing", "Hammer", "Doji", "Waterfall pattern", "Roller coaster", "Tow pattern")
 2. Trend type classification (e.g., "Waterfall downtrend", "Roller coaster consolidation", "Tow uptrend", "Channel breakout")
 3. Moving average analysis for 20, 40, 100, 150, and 200-day periods
-4. Calculate position size based on ${riskAmount} risk and the stop loss distance
-5. Support and resistance levels for precise entry/exit points
-6. Options trading recommendation (if the stock has liquid options)
+4. Support and resistance levels for precise entry/exit points
+5. Options trading recommendation (if the stock has liquid options)
+
+CRITICAL: Determine stop loss and take profit based on the timeframe:
+- For day trading: Use tight stops (0.5-2% from entry), tight targets (1-3% from entry)
+- For monthly trading: Use moderate stops (3-5% from entry), moderate targets (6-10% from entry)
+- For swing trading: Use wider stops (5-10% from entry), wider targets (15-25% from entry)
+- For long-term investing: Use wide stops (10-20% from entry), wide targets (30-50% from entry)
 
 Return a JSON object with this EXACT structure:
 {
@@ -274,9 +279,7 @@ Return a JSON object with this EXACT structure:
         "maxProfit": "Difference between strikes minus premium paid",
         "maxRisk": "Premium paid for the spread",
         "rationale": "Limited risk bullish play with defined profit potential"
-      },
-      "positionSize": "18",
-      "riskAmount": "${riskAmount}"
+      }
     }
   ]
 }
@@ -285,11 +288,10 @@ CRITICAL RULES:
 - recommendation must be exactly "BUY" or "SELL"
 - All price values must be numeric strings WITHOUT currency symbols (e.g., "185.50" not "$185.50")
 - riskReward must be a single numeric value (e.g., "1.7" not "1:1.7")
-- positionSize = Math.floor(riskAmount / (entryPrice - stopLoss)) for BUY, or Math.floor(riskAmount / (stopLoss - entryPrice)) for SELL
 - Include realistic moving average values based on current price levels
 - candlePattern should describe the specific pattern observed
 - trendType should classify as: Waterfall (sharp decline), Roller coaster (high volatility), Tow (steady trend), Channel, or Breakout
-- Adjust stop loss and take profit distances based on the timeframe (tighter for day trading, wider for swing/long-term)
+- Stop loss and take profit MUST be calculated based on the timeframe guidance above - this is CRITICAL
 - For optionsStrategy: suggest appropriate strategies like Bull Call Spread, Bear Put Spread, Iron Condor, Covered Call, or Protective Put based on the directional bias
 - Support and resistance levels should be realistic based on recent price action
 - For non-US markets, options may not be available - set optionsStrategy to null in that case
@@ -330,13 +332,11 @@ CRITICAL RULES:
         takeProfit: String(rec.takeProfit).replace(/[^0-9.]/g, ''),
         stopLoss: String(rec.stopLoss).replace(/[^0-9.]/g, ''),
         riskReward: String(rec.riskReward).replace(/[^0-9.]/g, ''),
-        positionSize: rec.positionSize ? String(rec.positionSize).replace(/[^0-9]/g, '') : undefined,
-        riskAmount: rec.riskAmount ? String(rec.riskAmount).replace(/[^0-9.]/g, '') : String(riskAmount),
       }));
       
       await storage.saveTradeRecommendations(cleanedRecommendations);
 
-      res.json({ message: `Scan complete. 5 ${marketName} market ${timeframe} trading setups generated with $${riskAmount} risk.` });
+      res.json({ message: `Scan complete. 5 ${marketName} market ${timeframe} trading setups generated.` });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Market scan failed" });

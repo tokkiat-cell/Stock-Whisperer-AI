@@ -2,7 +2,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Select,
@@ -22,7 +21,6 @@ import {
   ChevronUp,
   Loader2,
   AlertTriangle,
-  DollarSign,
   Clock,
   BarChart3,
   Activity,
@@ -31,7 +29,7 @@ import {
   Globe,
   ExternalLink
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -77,8 +75,6 @@ interface Recommendation {
     maxRisk: string;
     rationale: string;
   } | null;
-  positionSize?: string;
-  riskAmount?: string;
 }
 
 type Timeframe = "day" | "month" | "swing" | "longterm";
@@ -113,26 +109,10 @@ export default function MarketScan() {
   const [, setLocation] = useLocation();
   const [isScanning, setIsScanning] = useState(false);
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
-  const [riskAmount, setRiskAmount] = useState<string>("100");
   const [timeframe, setTimeframe] = useState<Timeframe>("day");
   const [selectedMarket, setSelectedMarket] = useState<MarketType>("US");
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
-
-  // Fetch market preferences to get the selected movers market
-  const { data: marketPrefs } = useQuery<{
-    selectedMoversMarket: string;
-  }>({
-    queryKey: ['/api/market/preferences'],
-  });
-
-  // Sync with user's preferred market on load (in useEffect to avoid render-time state updates)
-  useEffect(() => {
-    const preferredMarket = marketPrefs?.selectedMoversMarket as MarketType;
-    if (preferredMarket && preferredMarket !== selectedMarket) {
-      setSelectedMarket(preferredMarket);
-    }
-  }, [marketPrefs?.selectedMoversMarket]);
 
   const openChart = (symbol: string) => {
     setChartSymbol(symbol);
@@ -141,12 +121,11 @@ export default function MarketScan() {
 
   const createOrderMutation = useMutation({
     mutationFn: async (rec: Recommendation) => {
-      const quantity = rec.positionSize ? parseInt(rec.positionSize) : 10;
       return apiRequest("POST", "/api/trading-orders", {
         symbol: rec.symbol,
         action: rec.recommendation === "BUY" ? "BUY" : "SELL",
         orderType: "LIMIT",
-        quantity,
+        quantity: 10,
         entryPrice: rec.entryPrice,
         stopLoss: rec.stopLoss,
         takeProfit: rec.takeProfit,
@@ -175,26 +154,16 @@ export default function MarketScan() {
   });
 
   const handleScan = async () => {
-    if (!riskAmount || parseFloat(riskAmount) <= 0) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Risk Amount",
-        description: "Please enter a valid risk amount greater than $0.",
-      });
-      return;
-    }
-
     setIsScanning(true);
     try {
       await apiRequest("POST", "/api/sp500/scan", {
-        riskAmount: parseFloat(riskAmount),
         timeframe: timeframe,
         market: selectedMarket
       });
       queryClient.invalidateQueries({ queryKey: ["/api/sp500/recommendations"] });
       toast({
         title: "Scan Complete",
-        description: `Generated top 5 ${marketLabels[selectedMarket]} ${timeframeLabels[timeframe].toLowerCase()} setups with $${riskAmount} risk per trade.`,
+        description: `Generated top 5 ${marketLabels[selectedMarket]} ${timeframeLabels[timeframe].toLowerCase()} setups.`,
       });
     } catch (error) {
       toast({
@@ -268,7 +237,7 @@ export default function MarketScan() {
           Scan Configuration
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <Label htmlFor="market" className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-muted-foreground" />
@@ -287,38 +256,7 @@ export default function MarketScan() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Aligned with your dashboard preference
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="risk-amount" className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-              Risk Amount ({marketCurrency[selectedMarket].code})
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                {marketCurrency[selectedMarket].symbol}
-              </span>
-              <Input
-                id="risk-amount"
-                type="number"
-                min="1"
-                step="10"
-                value={riskAmount}
-                onChange={(e) => setRiskAmount(e.target.value)}
-                className="pl-8"
-                placeholder="100"
-                data-testid="input-risk-amount"
-              />
-            </div>
-            {selectedMarket !== "US" && riskAmount && parseFloat(riskAmount) > 0 && (
-              <p className="text-xs text-primary font-mono">
-                ≈ ${(parseFloat(riskAmount) * marketCurrency[selectedMarket].toUSD).toFixed(2)} USD
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Maximum amount you're willing to risk on each trade
+              Select your target market region
             </p>
           </div>
 
@@ -498,24 +436,6 @@ export default function MarketScan() {
                       </Button>
                     </div>
                   </div>
-
-                  {/* Position Sizing */}
-                  {rec.positionSize && (
-                    <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
-                      <p className="text-sm">
-                        <span className="font-medium">Suggested Position:</span>{" "}
-                        <span className="font-mono font-bold">{rec.positionSize} shares</span>
-                        {rec.riskAmount && (
-                          <span className="text-muted-foreground">
-                            {" "}({marketCurrency[selectedMarket].symbol}{rec.riskAmount} risk
-                            {selectedMarket !== "US" && (
-                              <span> ≈ ${(parseFloat(rec.riskAmount) * marketCurrency[selectedMarket].toUSD).toFixed(2)} USD</span>
-                            )})
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  )}
 
                   {/* Expanded Technical Analysis */}
                   {expandedSymbol === rec.symbol && (
