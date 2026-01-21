@@ -1387,7 +1387,8 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
-  app.get('/api/stripe/products', isAuthenticated, async (req, res) => {
+  // Public endpoint - no auth required for viewing pricing
+  app.get('/api/stripe/products', async (req, res) => {
     try {
       const products = await stripeService.listProductsWithPrices();
       res.json({ data: products });
@@ -1397,7 +1398,8 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
-  app.get('/api/stripe/products-with-prices', isAuthenticated, async (req, res) => {
+  // Public endpoint - no auth required for viewing pricing
+  app.get('/api/stripe/products-with-prices', async (req, res) => {
     try {
       const products = await stripeService.listProductsWithPrices();
       res.json({ data: products });
