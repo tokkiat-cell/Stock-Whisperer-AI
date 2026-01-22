@@ -67,9 +67,10 @@ export default function Pricing() {
   const currentSubscription = subscriptionData?.subscription;
   const currentPlanTier = subscriptionData?.planTier || 'free';
 
-  // Find plans by metadata tier or name fallback
+  // Find plans by metadata tier, product ID, or name fallback
   const basicPlan = products.find(p => 
     p.metadata?.tier === 'basic' || 
+    p.id === 'prod_TpsGF4YO07CEFn' ||
     p.name?.toLowerCase().includes('basic')
   );
   const proPlan = products.find(p => 
