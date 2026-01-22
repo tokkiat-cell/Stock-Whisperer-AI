@@ -1,20 +1,14 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { 
   Crown, 
-  Zap, 
   Loader2, 
-  CreditCard, 
-  Calendar, 
   ArrowRight,
-  CheckCircle,
   AlertCircle,
   Sparkles
 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
 
 interface UsageData {
@@ -23,6 +17,7 @@ interface UsageData {
   voiceCount: number;
   stockAnalysisCount: number;
   isSubscriber: boolean;
+  planTier: string;
   limits: {
     chat: number;
     image: number;
@@ -32,53 +27,25 @@ interface UsageData {
 }
 
 export default function SubscriptionPage() {
-  const { data: subscriptionData, isLoading: subLoading } = useQuery<{ subscription: any; planTier: string }>({
-    queryKey: ['/api/stripe/subscription'],
-  });
-
-  const { data: usageData, isLoading: usageLoading, isError: usageError } = useQuery<UsageData>({
+  const { data: usageData, isLoading: usageLoading } = useQuery<UsageData>({
     queryKey: ['/api/usage'],
   });
 
-  const portalMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/stripe/customer-portal', {});
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-  });
-
-  const subscription = subscriptionData?.subscription;
-  const planTier = subscriptionData?.planTier || 'free';
-  const isSubscriber = planTier !== 'free';
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  const planTier = usageData?.planTier || 'free';
 
   const getPlanName = () => {
     if (planTier === 'pro') return 'Pro';
     if (planTier === 'basic') return 'Basic';
-    if (planTier === 'subscriber') return 'Subscriber';
     return 'Free';
   };
 
   const getPlanIcon = () => {
     if (planTier === 'pro') return <Crown className="w-6 h-6 text-yellow-500" />;
-    if (planTier === 'basic') return <Zap className="w-6 h-6 text-primary" />;
-    if (planTier === 'subscriber') return <Crown className="w-6 h-6 text-primary" />;
+    if (planTier === 'basic') return <Crown className="w-6 h-6 text-primary" />;
     return <Sparkles className="w-6 h-6 text-muted-foreground" />;
   };
 
-  if (subLoading || usageLoading) {
+  if (usageLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -89,9 +56,9 @@ export default function SubscriptionPage() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Subscription & Billing</h1>
+        <h1 className="text-3xl font-bold">Subscription & Usage</h1>
         <p className="text-muted-foreground mt-2">
-          Manage your subscription plan and view your usage
+          View your current plan and AI usage
         </p>
       </div>
 
@@ -105,50 +72,26 @@ export default function SubscriptionPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-semibold">{getPlanName()} Plan</h2>
-                <Badge variant={isSubscriber ? "default" : "secondary"}>
-                  {isSubscriber ? "Active" : "Free Tier"}
+                <Badge variant={planTier !== 'free' ? "default" : "secondary"}>
+                  {planTier !== 'free' ? "Active" : "Free Tier"}
                 </Badge>
               </div>
-              {subscription ? (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {subscription.cancel_at_period_end 
-                    ? `Cancels on ${formatDate(subscription.current_period_end)}`
-                    : `Renews on ${formatDate(subscription.current_period_end)}`
-                  }
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Limited AI features - Upgrade to unlock more
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground mt-1">
+                {planTier === 'free' 
+                  ? "Limited AI features - Upgrade to unlock more"
+                  : "Unlimited access to AI features"
+                }
+              </p>
             </div>
           </div>
 
           <div className="flex gap-2">
-            {subscription ? (
-              <Button
-                variant="outline"
-                onClick={() => portalMutation.mutate()}
-                disabled={portalMutation.isPending}
-                data-testid="button-manage-billing"
-              >
-                {portalMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Manage Billing
-                  </>
-                )}
+            <Link href="/pricing">
+              <Button data-testid="button-view-plans">
+                View Plans
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            ) : (
-              <Link href="/pricing">
-                <Button data-testid="button-upgrade-plan">
-                  Upgrade Plan
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            )}
+            </Link>
           </div>
         </div>
       </Card>
@@ -157,98 +100,41 @@ export default function SubscriptionPage() {
       <Card className="p-6" data-testid="card-usage-stats">
         <h3 className="text-lg font-semibold mb-4">Monthly AI Usage</h3>
         
-        {isSubscriber ? (
-          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-primary" />
-            <div>
-              <p className="font-medium">Unlimited Access</p>
-              <p className="text-sm text-muted-foreground">
-                As a subscriber, you have unlimited access to all AI features.
-              </p>
-            </div>
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3 mb-4">
+            <AlertCircle className="w-5 h-5 text-amber-500" />
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Your usage resets on the 1st of each month
+            </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                Your usage resets on the 1st of each month
-              </p>
-            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <UsageCard
-                label="Chat Messages"
-                used={usageData?.chatCount || 0}
-                limit={usageData?.limits?.chat || 10}
-              />
-              <UsageCard
-                label="Stock Analyses"
-                used={usageData?.stockAnalysisCount || 0}
-                limit={usageData?.limits?.stockAnalysis || 10}
-              />
-              <UsageCard
-                label="Image Generation"
-                used={usageData?.imageCount || 0}
-                limit={usageData?.limits?.image || 3}
-              />
-              <UsageCard
-                label="Voice Chat"
-                used={usageData?.voiceCount || 0}
-                limit={usageData?.limits?.voice || 5}
-              />
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <UsageCard
+              label="Chat Messages"
+              used={usageData?.chatCount || 0}
+              limit={usageData?.limits?.chat || 10}
+            />
+            <UsageCard
+              label="Stock Analyses"
+              used={usageData?.stockAnalysisCount || 0}
+              limit={usageData?.limits?.stockAnalysis || 10}
+            />
+            <UsageCard
+              label="Image Generation"
+              used={usageData?.imageCount || 0}
+              limit={usageData?.limits?.image || 3}
+            />
+            <UsageCard
+              label="Voice Chat"
+              used={usageData?.voiceCount || 0}
+              limit={usageData?.limits?.voice || 5}
+            />
           </div>
-        )}
+        </div>
       </Card>
 
-      {/* Subscription Details (if subscribed) */}
-      {subscription && (
-        <Card className="p-6" data-testid="card-subscription-details">
-          <h3 className="text-lg font-semibold mb-4">Subscription Details</h3>
-          
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Status</span>
-              <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
-                {subscription.status}
-              </Badge>
-            </div>
-            
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Billing Period</span>
-              <span className="font-medium">
-                {subscription.plan?.interval === 'year' ? 'Yearly' : 'Monthly'}
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="font-medium">
-                ${(subscription.plan?.amount / 100).toFixed(2)}/{subscription.plan?.interval}
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Current Period</span>
-              <span className="font-medium">
-                {formatDate(subscription.current_period_start)} - {formatDate(subscription.current_period_end)}
-              </span>
-            </div>
-
-            {subscription.cancel_at_period_end && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <p className="text-sm text-amber-600 dark:text-amber-400">
-                  Your subscription will be cancelled at the end of the current billing period.
-                </p>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
       {/* Upgrade CTA for Free users */}
-      {!subscription && (
+      {planTier === 'free' && (
         <Card className="p-6 border-primary/50 bg-gradient-to-r from-primary/5 to-primary/10" data-testid="card-upgrade-cta">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
@@ -261,7 +147,7 @@ export default function SubscriptionPage() {
               </div>
             </div>
             <Link href="/pricing">
-              <Button data-testid="button-view-plans">
+              <Button data-testid="button-upgrade-plan">
                 View Plans
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -269,6 +155,10 @@ export default function SubscriptionPage() {
           </div>
         </Card>
       )}
+
+      <div className="text-center text-muted-foreground text-sm">
+        <p>Payment integration coming soon. Subscription management will be available shortly.</p>
+      </div>
     </div>
   );
 }

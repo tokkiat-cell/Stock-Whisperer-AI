@@ -74,9 +74,7 @@ function Router() {
         <ProtectedRoute component={TradingPage} />
       </Route>
       
-      <Route path="/pricing">
-        <ProtectedRoute component={PricingPage} />
-      </Route>
+      <Route path="/pricing" component={PricingPage} />
       
       <Route path="/subscription">
         <ProtectedRoute component={SubscriptionPage} />

@@ -102,18 +102,17 @@ async function getOrCreateUserUsage(userId: string) {
 async function getUserPlanTier(userId: string): Promise<PlanTier> {
   const [user] = await db
     .select({ 
-      stripeSubscriptionId: users.stripeSubscriptionId,
       planTier: users.planTier 
     })
     .from(users)
     .where(eq(users.id, userId));
   
-  if (!user?.stripeSubscriptionId) {
-    return "free";
+  // Return the stored plan tier, defaulting to "free"
+  const tier = user?.planTier as PlanTier;
+  if (tier === "pro" || tier === "basic") {
+    return tier;
   }
-  
-  // Return the stored plan tier, defaulting to "basic" for backwards compatibility
-  return (user.planTier as PlanTier) || "basic";
+  return "free";
 }
 
 function getLimitsForTier(tier: PlanTier) {

@@ -2,8 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Zap, MessageSquare, Image, Mic, TrendingUp } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Link } from "wouter";
 
 interface UpgradeModalProps {
   open: boolean;
@@ -21,30 +20,8 @@ const usageTypeLabels: Record<string, { label: string; icon: typeof MessageSquar
 };
 
 export function UpgradeModal({ open, onOpenChange, usageType, currentCount, limit }: UpgradeModalProps) {
-  const { data: products } = useQuery<{ data: Array<{ id: string; name: string; prices: Array<{ id: string; unit_amount: number; recurring?: { interval: string } }> }> }>({
-    queryKey: ['/api/stripe/products'],
-    enabled: open,
-  });
-
-  const checkoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const res = await apiRequest('POST', '/api/stripe/checkout', { priceId, mode: 'subscription' });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-  });
-
   const typeInfo = usageType ? usageTypeLabels[usageType] : null;
   const TypeIcon = typeInfo?.icon || Zap;
-
-  const subscriptionProduct = products?.data?.find(p => 
-    p.prices.some(price => price.recurring)
-  );
-  const monthlyPrice = subscriptionProduct?.prices.find(p => p.recurring?.interval === 'month');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,14 +71,10 @@ export function UpgradeModal({ open, onOpenChange, usageType, currentCount, limi
             </ul>
           </div>
 
-          {monthlyPrice && (
-            <div className="text-center">
-              <span className="text-3xl font-bold">
-                ${(monthlyPrice.unit_amount / 100).toFixed(2)}
-              </span>
-              <span className="text-muted-foreground">/month</span>
-            </div>
-          )}
+          <div className="text-center">
+            <span className="text-3xl font-bold">$49.99</span>
+            <span className="text-muted-foreground">/month</span>
+          </div>
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">
@@ -112,13 +85,11 @@ export function UpgradeModal({ open, onOpenChange, usageType, currentCount, limi
           >
             Maybe Later
           </Button>
-          <Button
-            onClick={() => monthlyPrice && checkoutMutation.mutate(monthlyPrice.id)}
-            disabled={!monthlyPrice || checkoutMutation.isPending}
-            data-testid="button-upgrade-subscribe"
-          >
-            {checkoutMutation.isPending ? "Loading..." : "Subscribe Now"}
-          </Button>
+          <Link href="/pricing">
+            <Button data-testid="button-upgrade-subscribe" onClick={() => onOpenChange(false)}>
+              View Plans
+            </Button>
+          </Link>
         </DialogFooter>
       </DialogContent>
     </Dialog>

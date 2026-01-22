@@ -31,11 +31,11 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const { data: subscriptionData } = useQuery<{ subscription: any; planTier: string }>({
-    queryKey: ['/api/stripe/subscription'],
+  const { data: usageData } = useQuery<{ planTier: string }>({
+    queryKey: ['/api/usage'],
   });
 
-  const planTier = subscriptionData?.planTier || 'free';
+  const planTier = usageData?.planTier || 'free';
   
   const getPlanInfo = () => {
     if (planTier === 'pro') return { name: 'Pro', icon: Crown, color: 'text-yellow-500' };
