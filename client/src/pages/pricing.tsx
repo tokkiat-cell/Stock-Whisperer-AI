@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Check, Crown, Zap, Sparkles, Star, Loader2 } from "lucide-react";
+import { Check, Crown, Zap, Sparkles, Star, Loader2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +66,15 @@ export default function Pricing() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
+      <div className="mb-6">
+        <Button variant="ghost" asChild data-testid="button-back-from-pricing">
+          <Link href="/">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Link>
+        </Button>
+      </div>
+      
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
