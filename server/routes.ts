@@ -370,6 +370,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Roller Coaster Setup Scanner - Find waterfall decline + reversal patterns
+  app.get(api.market.rollerCoasterScanner.path, isAuthenticated, async (req, res) => {
+    try {
+      const { scanForRollerCoasterSetups } = await import('./lib/rollerCoasterSetup');
+      const results = await scanForRollerCoasterSetups();
+      res.json(results);
+    } catch (error) {
+      console.error('Roller Coaster scanner error:', error);
+      res.status(500).json({ message: "Failed to scan for Roller Coaster setups" });
+    }
+  });
+
+  // Tug of War Setup Scanner - Find tight consolidation + shakeout patterns
+  app.get(api.market.tugOfWarScanner.path, isAuthenticated, async (req, res) => {
+    try {
+      const { scanForTugOfWarSetups } = await import('./lib/tugOfWarSetup');
+      const results = await scanForTugOfWarSetups();
+      res.json(results);
+    } catch (error) {
+      console.error('Tug of War scanner error:', error);
+      res.status(500).json({ message: "Failed to scan for Tug of War setups" });
+    }
+  });
+
   // Market Indices - US, Singapore, Hong Kong, China, Europe
   const marketIndicesConfig: Record<string, { symbol: string; name: string }[]> = {
     US: [

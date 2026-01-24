@@ -22,7 +22,9 @@ import {
   Target,
   UserCog,
   TrendingUp,
-  Heart
+  Heart,
+  TrendingDown,
+  Sword
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +59,9 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/profile-setup", label: "My Profile", icon: UserCog },
     { href: "/scan", label: "AI Scanner", icon: Scan },
     { href: "/cupid-scanner", label: "Cupid Setup Scanner", icon: Heart },
-    { href: "/powerranger-scanner", label: "Power Ranger Scanner", icon: Zap },
+    { href: "/powerranger-scanner", label: "Power Ranger", icon: Zap },
+    { href: "/rollercoaster-scanner", label: "Roller Coaster", icon: TrendingDown },
+    { href: "/tugofwar-scanner", label: "Tug of War", icon: Sword },
     { href: "/investor-watchlist", label: "Investor Targets", icon: Target },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/trading", label: "Moomoo Trading", icon: Server },

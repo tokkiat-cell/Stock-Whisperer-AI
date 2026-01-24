@@ -22,10 +22,19 @@ interface StockHistoryResponse {
   };
 }
 
+interface ChartLevels {
+  support?: number;
+  resistance?: number;
+  entry?: number;
+  stopLoss?: number;
+  target?: number;
+}
+
 interface StockChartProps {
   symbol: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  levels?: ChartLevels;
 }
 
 const MA_COLORS = {
@@ -35,7 +44,7 @@ const MA_COLORS = {
   ma200: "#ef4444",
 };
 
-export function StockChart({ symbol, open, onOpenChange }: StockChartProps) {
+export function StockChart({ symbol, open, onOpenChange, levels }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [visibleMAs, setVisibleMAs] = useState({
@@ -165,6 +174,42 @@ export function StockChart({ symbol, open, onOpenChange }: StockChartProps) {
       maSeries.ma200.setData(data.movingAverages.ma200 as LineData[]);
     }
 
+    if (levels && candleData.length > 0) {
+      const firstTime = candleData[0].time;
+      const lastTime = candleData[candleData.length - 1].time;
+      
+      const addPriceLine = (price: number, color: string, title: string, lineStyle: number = 0) => {
+        const lineSeries = chart.addSeries(LineSeries, {
+          color,
+          lineWidth: 2,
+          lineStyle,
+          title,
+          lastValueVisible: true,
+          priceLineVisible: false,
+        });
+        lineSeries.setData([
+          { time: firstTime as any, value: price },
+          { time: lastTime as any, value: price }
+        ]);
+      };
+      
+      if (levels.support) {
+        addPriceLine(levels.support, '#3b82f6', 'Support', 2);
+      }
+      if (levels.resistance) {
+        addPriceLine(levels.resistance, '#ef4444', 'Resistance', 2);
+      }
+      if (levels.entry) {
+        addPriceLine(levels.entry, '#22c55e', 'Entry', 0);
+      }
+      if (levels.stopLoss) {
+        addPriceLine(levels.stopLoss, '#ef4444', 'Stop', 0);
+      }
+      if (levels.target) {
+        addPriceLine(levels.target, '#22c55e', 'Target', 0);
+      }
+    }
+
     chart.timeScale().fitContent();
 
     const handleResize = () => {
@@ -180,7 +225,7 @@ export function StockChart({ symbol, open, onOpenChange }: StockChartProps) {
       chart.remove();
       chartRef.current = null;
     };
-  }, [chartReady, data, visibleMAs]);
+  }, [chartReady, data, visibleMAs, levels]);
 
   const toggleMA = (ma: keyof typeof visibleMAs) => {
     setVisibleMAs((prev) => ({ ...prev, [ma]: !prev[ma] }));

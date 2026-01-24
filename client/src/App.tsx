@@ -26,6 +26,8 @@ import InvestorWatchlist from "@/pages/investor-watchlist";
 import Premarket from "@/pages/premarket";
 import CupidScanner from "@/pages/cupid-scanner";
 import PowerRangerScanner from "@/pages/powerranger-scanner";
+import RollerCoasterScanner from "@/pages/rollercoaster-scanner";
+import TugOfWarScanner from "@/pages/tugofwar-scanner";
 import LayoutShell from "@/components/layout-shell";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -117,6 +119,14 @@ function Router() {
       
       <Route path="/powerranger-scanner">
         <ProtectedRoute component={PowerRangerScanner} />
+      </Route>
+      
+      <Route path="/rollercoaster-scanner">
+        <ProtectedRoute component={RollerCoasterScanner} />
+      </Route>
+      
+      <Route path="/tugofwar-scanner">
+        <ProtectedRoute component={TugOfWarScanner} />
       </Route>
       
       <Route path="/checkout/success">
