@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,7 @@ export default function TradingPage() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<TradingOrder | null>(null);
+  const [platform, setPlatform] = useState<"ibkr" | "moomoo">("ibkr");
   
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
@@ -296,15 +298,32 @@ export default function TradingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             <Server className="w-6 h-6 text-primary" />
-            IBKR Trading
+            Trading Platform
           </h2>
           <p className="text-muted-foreground mt-1">
-            Create and submit orders to Interactive Brokers
+            Manage orders and connect to your trading platforms
           </p>
+        </div>
+        
+        <Tabs value={platform} onValueChange={(v) => setPlatform(v as "ibkr" | "moomoo")} className="w-full">
+          <TabsList>
+            <TabsTrigger value="ibkr" data-testid="tab-platform-ibkr">IBKR</TabsTrigger>
+            <TabsTrigger value="moomoo" data-testid="tab-platform-moomoo">Moomoo</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      
+      {platform === "ibkr" && (
+      <>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium text-foreground">
+            Interactive Brokers
+          </h3>
         </div>
 
         <div className="flex items-center gap-2">
@@ -833,6 +852,31 @@ export default function TradingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
+      )}
+      
+      {platform === "moomoo" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-foreground">
+                Moomoo OpenD
+              </h3>
+            </div>
+          </div>
+          
+          <Card className="p-6">
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-4">
+                Moomoo integration is accessed via OpenD API. Configure your connection settings and manage orders from the dedicated Moomoo page.
+              </p>
+              <Button asChild data-testid="button-goto-moomoo">
+                <Link href="/moomoo-trading">Go to Moomoo Trading</Link>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -94,12 +94,12 @@ export function StockChart({ symbol, open, onOpenChange, levels }: StockChartPro
     
     const chart = createChart(container, {
       layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "hsl(var(--foreground))",
+        background: { type: ColorType.Solid, color: "#ffffff" },
+        textColor: "#333333",
       },
       grid: {
-        vertLines: { color: "hsl(var(--muted) / 0.3)" },
-        horzLines: { color: "hsl(var(--muted) / 0.3)" },
+        vertLines: { color: "#e0e0e0" },
+        horzLines: { color: "#e0e0e0" },
       },
       width: container.clientWidth,
       height: 400,

@@ -1,6 +1,6 @@
 import yahooFinance from "yahoo-finance2";
 
-export type MonthPatternType = 'breakout' | 'accumulation' | 'momentum' | 'value';
+export type MonthPatternType = 'powerranger' | 'cupid' | 'tugofwar' | 'rollercoaster';
 
 export interface MonthTradingSetup {
   symbol: string;
@@ -60,7 +60,7 @@ async function getWeeklyData(symbol: string): Promise<StockCandle[] | null> {
   }
 }
 
-async function detectBreakoutPattern(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectPowerRangerWeekly(symbol: string): Promise<MonthTradingSetup | null> {
   try {
     const candles = await getWeeklyData(symbol);
     if (!candles || candles.length < 20) return null;
@@ -69,26 +69,39 @@ async function detectBreakoutPattern(symbol: string): Promise<MonthTradingSetup 
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
     
-    const recent12 = candles.slice(-12);
+    const recent = candles.slice(-12);
     const prior = candles.slice(-24, -12);
     
-    const rangeHigh = Math.max(...prior.map(c => c.high));
-    const rangeLow = Math.min(...prior.map(c => c.low));
+    let gapUpWeek = -1;
+    for (let i = 1; i < recent.length; i++) {
+      const gapPercent = ((recent[i].open - recent[i-1].close) / recent[i-1].close) * 100;
+      if (gapPercent >= 3) {
+        gapUpWeek = i;
+        break;
+      }
+    }
     
-    const isBreakingOut = recent12[recent12.length - 1].close > rangeHigh * 0.98;
-    const volumeIncrease = recent12.slice(-4).reduce((sum, c) => sum + c.volume, 0) / 
-                          prior.slice(-4).reduce((sum, c) => sum + c.volume, 0);
+    if (gapUpWeek < 0) return null;
     
-    if (!isBreakingOut || volumeIncrease < 1.2) return null;
+    const rangeStart = gapUpWeek;
+    const rangeCandles = recent.slice(rangeStart);
+    if (rangeCandles.length < 3) return null;
     
-    const weeklyChange = currentPrice - recent12[recent12.length - 2]?.close || 0;
-    const weeklyChangePercent = (weeklyChange / (recent12[recent12.length - 2]?.close || 1)) * 100;
-    const monthlyChange = currentPrice - recent12[recent12.length - 5]?.close || 0;
-    const monthlyChangePercent = (monthlyChange / (recent12[recent12.length - 5]?.close || 1)) * 100;
+    const rangeHigh = Math.max(...rangeCandles.map(c => c.high));
+    const rangeLow = Math.min(...rangeCandles.map(c => c.low));
+    const rangePercent = ((rangeHigh - rangeLow) / rangeLow) * 100;
     
-    const entryPrice = currentPrice;
-    const stopLoss = rangeLow + (rangeHigh - rangeLow) * 0.3;
-    const targetPrice = rangeHigh + (rangeHigh - rangeLow) * 1.5;
+    if (rangePercent > 15 || currentPrice < rangeLow * 0.98) return null;
+    
+    const gapPercent = ((recent[gapUpWeek].open - recent[gapUpWeek-1].close) / recent[gapUpWeek-1].close) * 100;
+    const weeklyChange = currentPrice - recent[recent.length - 2]?.close || 0;
+    const weeklyChangePercent = (weeklyChange / (recent[recent.length - 2]?.close || 1)) * 100;
+    const monthlyChange = currentPrice - recent[0]?.close || 0;
+    const monthlyChangePercent = (monthlyChange / (recent[0]?.close || 1)) * 100;
+    
+    const entryPrice = rangeHigh;
+    const stopLoss = rangeLow - (rangeHigh - rangeLow) * 0.2;
+    const targetPrice = rangeHigh + (rangeHigh - rangeLow) * 2;
     const risk = entryPrice - stopLoss;
     const reward = targetPrice - entryPrice;
     const riskRewardRatio = reward / risk;
@@ -97,9 +110,9 @@ async function detectBreakoutPattern(symbol: string): Promise<MonthTradingSetup 
       symbol,
       name,
       currentPrice,
-      patternType: 'breakout',
-      patternName: 'Monthly Breakout',
-      confidence: Math.min(95, 60 + volumeIncrease * 10),
+      patternType: 'powerranger',
+      patternName: 'Power Ranger (Weekly Gap & Range)',
+      confidence: Math.min(90, 60 + gapPercent * 3),
       entryPrice,
       stopLoss,
       targetPrice,
@@ -107,9 +120,9 @@ async function detectBreakoutPattern(symbol: string): Promise<MonthTradingSetup 
       supportLevel: rangeLow,
       resistanceLevel: rangeHigh,
       details: [
-        `Breaking out above 3-month range high of $${rangeHigh.toFixed(2)}`,
-        `Volume increase: ${(volumeIncrease * 100 - 100).toFixed(0)}% above average`,
-        `Monthly momentum: ${monthlyChangePercent.toFixed(1)}%`,
+        `Weekly gap up: ${gapPercent.toFixed(1)}%`,
+        `Consolidating in ${rangePercent.toFixed(1)}% range`,
+        `Entry on breakout above $${rangeHigh.toFixed(2)}`,
       ],
       weeklyChange,
       weeklyChangePercent,
@@ -121,7 +134,7 @@ async function detectBreakoutPattern(symbol: string): Promise<MonthTradingSetup 
   }
 }
 
-async function detectAccumulationPattern(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectCupidWeekly(symbol: string): Promise<MonthTradingSetup | null> {
   try {
     const candles = await getWeeklyData(symbol);
     if (!candles || candles.length < 20) return null;
@@ -130,29 +143,37 @@ async function detectAccumulationPattern(symbol: string): Promise<MonthTradingSe
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
     
-    const recent8 = candles.slice(-8);
-    const rangeHigh = Math.max(...recent8.map(c => c.high));
-    const rangeLow = Math.min(...recent8.map(c => c.low));
-    const range = rangeHigh - rangeLow;
-    const avgPrice = recent8.reduce((sum, c) => sum + c.close, 0) / recent8.length;
+    const recent20 = candles.slice(-20);
+    const firstHalf = recent20.slice(0, 10);
+    const secondHalf = recent20.slice(10);
     
-    const tightRange = (range / avgPrice) < 0.15;
+    const firstHalfTrend = (firstHalf[9].close - firstHalf[0].close) / firstHalf[0].close;
+    const isUptrend = firstHalfTrend > 0.05;
     
-    const volumeTrend = recent8.slice(-4).reduce((sum, c) => sum + c.volume, 0) /
-                        recent8.slice(0, 4).reduce((sum, c) => sum + c.volume, 0);
+    if (!isUptrend) return null;
     
-    const priceNearLow = (currentPrice - rangeLow) / range < 0.4;
+    const swingHigh = Math.max(...firstHalf.map(c => c.high));
+    const swingHighIdx = firstHalf.findIndex(c => c.high === swingHigh);
     
-    if (!tightRange || !priceNearLow || volumeTrend > 0.8) return null;
+    const pullbackCandles = secondHalf.slice(0, 6);
+    const pullbackLow = Math.min(...pullbackCandles.map(c => c.low));
+    const pullbackPercent = ((swingHigh - pullbackLow) / swingHigh) * 100;
     
-    const weeklyChange = currentPrice - recent8[recent8.length - 2]?.close || 0;
-    const weeklyChangePercent = (weeklyChange / (recent8[recent8.length - 2]?.close || 1)) * 100;
-    const monthlyChange = currentPrice - recent8[0]?.close || 0;
-    const monthlyChangePercent = (monthlyChange / (recent8[0]?.close || 1)) * 100;
+    if (pullbackPercent < 5 || pullbackPercent > 25) return null;
+    
+    const recentCandles = secondHalf.slice(-4);
+    const isRecovering = recentCandles[recentCandles.length - 1].close > recentCandles[0].close;
+    
+    if (!isRecovering) return null;
+    
+    const weeklyChange = currentPrice - candles[candles.length - 2]?.close || 0;
+    const weeklyChangePercent = (weeklyChange / (candles[candles.length - 2]?.close || 1)) * 100;
+    const monthlyChange = currentPrice - candles[candles.length - 5]?.close || 0;
+    const monthlyChangePercent = (monthlyChange / (candles[candles.length - 5]?.close || 1)) * 100;
     
     const entryPrice = currentPrice;
-    const stopLoss = rangeLow - range * 0.2;
-    const targetPrice = rangeHigh + range * 0.5;
+    const stopLoss = pullbackLow - (swingHigh - pullbackLow) * 0.2;
+    const targetPrice = swingHigh + (swingHigh - pullbackLow);
     const risk = entryPrice - stopLoss;
     const reward = targetPrice - entryPrice;
     const riskRewardRatio = reward / risk;
@@ -161,9 +182,76 @@ async function detectAccumulationPattern(symbol: string): Promise<MonthTradingSe
       symbol,
       name,
       currentPrice,
-      patternType: 'accumulation',
-      patternName: 'Accumulation Zone',
-      confidence: Math.min(90, 55 + (1 - volumeTrend) * 30),
+      patternType: 'cupid',
+      patternName: 'Cupid (Uptrend Pullback)',
+      confidence: Math.min(85, 55 + firstHalfTrend * 100),
+      entryPrice,
+      stopLoss,
+      targetPrice,
+      riskRewardRatio,
+      supportLevel: pullbackLow,
+      resistanceLevel: swingHigh,
+      details: [
+        `Uptrend strength: ${(firstHalfTrend * 100).toFixed(1)}%`,
+        `Pullback depth: ${pullbackPercent.toFixed(1)}%`,
+        `Recovering from pullback low $${pullbackLow.toFixed(2)}`,
+      ],
+      weeklyChange,
+      weeklyChangePercent,
+      monthlyChange,
+      monthlyChangePercent,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+async function detectTugOfWarWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+  try {
+    const candles = await getWeeklyData(symbol);
+    if (!candles || candles.length < 20) return null;
+    
+    const quote: any = await yahooFinance.quote(symbol.toUpperCase());
+    const currentPrice = quote?.regularMarketPrice || 0;
+    const name = quote?.shortName || quote?.longName || symbol;
+    
+    const recent10 = candles.slice(-10);
+    const rangeHigh = Math.max(...recent10.map(c => c.high));
+    const rangeLow = Math.min(...recent10.map(c => c.low));
+    const range = rangeHigh - rangeLow;
+    const avgPrice = recent10.reduce((sum, c) => sum + c.close, 0) / recent10.length;
+    
+    const tightRange = (range / avgPrice) < 0.10;
+    
+    if (!tightRange) return null;
+    
+    const bodyRanges = recent10.map(c => Math.abs(c.close - c.open) / (c.high - c.low || 1));
+    const avgBodyRange = bodyRanges.reduce((sum, r) => sum + r, 0) / bodyRanges.length;
+    const hasIndecision = avgBodyRange < 0.5;
+    
+    if (!hasIndecision) return null;
+    
+    const priceNearMid = Math.abs(currentPrice - (rangeHigh + rangeLow) / 2) / range < 0.3;
+    
+    const weeklyChange = currentPrice - candles[candles.length - 2]?.close || 0;
+    const weeklyChangePercent = (weeklyChange / (candles[candles.length - 2]?.close || 1)) * 100;
+    const monthlyChange = currentPrice - candles[candles.length - 5]?.close || 0;
+    const monthlyChangePercent = (monthlyChange / (candles[candles.length - 5]?.close || 1)) * 100;
+    
+    const entryPrice = rangeHigh;
+    const stopLoss = rangeLow - range * 0.1;
+    const targetPrice = rangeHigh + range * 2;
+    const risk = entryPrice - stopLoss;
+    const reward = targetPrice - entryPrice;
+    const riskRewardRatio = reward / risk;
+    
+    return {
+      symbol,
+      name,
+      currentPrice,
+      patternType: 'tugofwar',
+      patternName: 'Tug of War (Tight Consolidation)',
+      confidence: Math.min(80, 50 + (1 - avgBodyRange) * 50),
       entryPrice,
       stopLoss,
       targetPrice,
@@ -171,9 +259,9 @@ async function detectAccumulationPattern(symbol: string): Promise<MonthTradingSe
       supportLevel: rangeLow,
       resistanceLevel: rangeHigh,
       details: [
-        `Tight 8-week range: $${rangeLow.toFixed(2)} - $${rangeHigh.toFixed(2)}`,
-        `Price near support at ${((currentPrice - rangeLow) / range * 100).toFixed(0)}% of range`,
-        `Volume drying up: ${((1 - volumeTrend) * 100).toFixed(0)}% decrease`,
+        `10-week range: ${((range / avgPrice) * 100).toFixed(1)}%`,
+        `Price consolidating between $${rangeLow.toFixed(2)} - $${rangeHigh.toFixed(2)}`,
+        `Entry on breakout above resistance`,
       ],
       weeklyChange,
       weeklyChangePercent,
@@ -185,91 +273,33 @@ async function detectAccumulationPattern(symbol: string): Promise<MonthTradingSe
   }
 }
 
-async function detectMomentumPattern(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectRollercoasterWeekly(symbol: string): Promise<MonthTradingSetup | null> {
   try {
     const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 26) return null;
+    if (!candles || candles.length < 30) return null;
     
     const quote: any = await yahooFinance.quote(symbol.toUpperCase());
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
     
-    const ma8 = candles.slice(-8).reduce((sum, c) => sum + c.close, 0) / 8;
-    const ma21 = candles.slice(-21).reduce((sum, c) => sum + c.close, 0) / 21;
+    const older = candles.slice(-30, -10);
+    const recent = candles.slice(-10);
     
-    const uptrend = currentPrice > ma8 && ma8 > ma21;
-    const pullback = (currentPrice - ma8) / ma8 < 0.03;
+    const olderHigh = Math.max(...older.map(c => c.high));
+    const olderLow = Math.min(...older.map(c => c.low));
+    const declinePercent = ((olderHigh - olderLow) / olderHigh) * 100;
     
-    const recent = candles.slice(-4);
-    const higherLows = recent.every((c, i) => i === 0 || c.low >= recent[i-1].low * 0.98);
+    if (declinePercent < 15) return null;
     
-    if (!uptrend || !pullback || !higherLows) return null;
-    
-    const weeklyChange = currentPrice - candles[candles.length - 2]?.close || 0;
-    const weeklyChangePercent = (weeklyChange / (candles[candles.length - 2]?.close || 1)) * 100;
-    const monthlyChange = currentPrice - candles[candles.length - 5]?.close || 0;
-    const monthlyChangePercent = (monthlyChange / (candles[candles.length - 5]?.close || 1)) * 100;
-    
-    const recentLow = Math.min(...recent.map(c => c.low));
     const recentHigh = Math.max(...recent.map(c => c.high));
+    const recentLow = Math.min(...recent.map(c => c.low));
+    const isReversal = currentPrice > recentLow + (recentHigh - recentLow) * 0.5;
     
-    const entryPrice = currentPrice;
-    const stopLoss = recentLow - (recentHigh - recentLow) * 0.3;
-    const targetPrice = currentPrice + (currentPrice - stopLoss) * 2.5;
-    const risk = entryPrice - stopLoss;
-    const reward = targetPrice - entryPrice;
-    const riskRewardRatio = reward / risk;
+    const volumeRecent = recent.slice(-3).reduce((sum, c) => sum + c.volume, 0) / 3;
+    const volumeOlder = older.slice(-3).reduce((sum, c) => sum + c.volume, 0) / 3;
+    const volumeIncrease = volumeRecent > volumeOlder * 0.8;
     
-    return {
-      symbol,
-      name,
-      currentPrice,
-      patternType: 'momentum',
-      patternName: 'Momentum Pullback',
-      confidence: Math.min(85, 65 + ((ma8 - ma21) / ma21) * 100),
-      entryPrice,
-      stopLoss,
-      targetPrice,
-      riskRewardRatio,
-      supportLevel: ma8,
-      resistanceLevel: recentHigh,
-      details: [
-        `Price above 8-week MA ($${ma8.toFixed(2)}) and 21-week MA ($${ma21.toFixed(2)})`,
-        `Pullback to 8-week MA with higher lows pattern`,
-        `Strong monthly momentum: ${monthlyChangePercent.toFixed(1)}%`,
-      ],
-      weeklyChange,
-      weeklyChangePercent,
-      monthlyChange,
-      monthlyChangePercent,
-    };
-  } catch (error) {
-    return null;
-  }
-}
-
-async function detectValuePattern(symbol: string): Promise<MonthTradingSetup | null> {
-  try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 52) return null;
-    
-    const quote: any = await yahooFinance.quote(symbol.toUpperCase());
-    const currentPrice = quote?.regularMarketPrice || 0;
-    const name = quote?.shortName || quote?.longName || symbol;
-    
-    const high52 = Math.max(...candles.map(c => c.high));
-    const low52 = Math.min(...candles.map(c => c.low));
-    const range52 = high52 - low52;
-    
-    const nearLow = (currentPrice - low52) / range52 < 0.25;
-    
-    const recent8 = candles.slice(-8);
-    const volumeRecovery = recent8.slice(-4).reduce((sum, c) => sum + c.volume, 0) /
-                           recent8.slice(0, 4).reduce((sum, c) => sum + c.volume, 0);
-    
-    const priceRecovery = recent8[recent8.length - 1].close > recent8[0].close;
-    
-    if (!nearLow || !priceRecovery || volumeRecovery < 1.1) return null;
+    if (!isReversal || !volumeIncrease) return null;
     
     const weeklyChange = currentPrice - candles[candles.length - 2]?.close || 0;
     const weeklyChangePercent = (weeklyChange / (candles[candles.length - 2]?.close || 1)) * 100;
@@ -277,29 +307,29 @@ async function detectValuePattern(symbol: string): Promise<MonthTradingSetup | n
     const monthlyChangePercent = (monthlyChange / (candles[candles.length - 5]?.close || 1)) * 100;
     
     const entryPrice = currentPrice;
-    const stopLoss = low52 - range52 * 0.1;
-    const targetPrice = low52 + range52 * 0.5;
+    const stopLoss = recentLow - (recentHigh - recentLow) * 0.2;
+    const targetPrice = olderHigh * 0.8;
     const risk = entryPrice - stopLoss;
     const reward = targetPrice - entryPrice;
-    const riskRewardRatio = reward / risk;
+    const riskRewardRatio = Math.max(0.5, reward / risk);
     
     return {
       symbol,
       name,
       currentPrice,
-      patternType: 'value',
-      patternName: 'Value Recovery',
-      confidence: Math.min(80, 50 + volumeRecovery * 15),
+      patternType: 'rollercoaster',
+      patternName: 'Rollercoaster (Decline & Reversal)',
+      confidence: Math.min(75, 45 + declinePercent),
       entryPrice,
       stopLoss,
       targetPrice,
       riskRewardRatio,
-      supportLevel: low52,
-      resistanceLevel: high52,
+      supportLevel: recentLow,
+      resistanceLevel: olderHigh,
       details: [
-        `Trading near 52-week low: ${((currentPrice - low52) / range52 * 100).toFixed(0)}% of range`,
-        `52-week range: $${low52.toFixed(2)} - $${high52.toFixed(2)}`,
-        `Volume recovery: ${((volumeRecovery - 1) * 100).toFixed(0)}% increase`,
+        `Prior decline: ${declinePercent.toFixed(1)}%`,
+        `Reversal from $${recentLow.toFixed(2)}`,
+        `Target recovery to $${targetPrice.toFixed(2)}`,
       ],
       weeklyChange,
       weeklyChangePercent,
@@ -314,30 +344,30 @@ async function detectValuePattern(symbol: string): Promise<MonthTradingSetup | n
 export async function scanMonthTradingSetups(symbols: string[]): Promise<MonthTradingSetup[]> {
   const setups: MonthTradingSetup[] = [];
   
-  console.log(`Month Trading Scanner: Analyzing ${symbols.length} stocks...`);
+  console.log(`Month Trading Scanner: Analyzing ${symbols.length} stocks with 4 pattern types...`);
   
   const scanPromises = symbols.map(async (symbol) => {
     try {
-      const [breakout, accumulation, momentum, value] = await Promise.all([
-        detectBreakoutPattern(symbol).catch(() => null),
-        detectAccumulationPattern(symbol).catch(() => null),
-        detectMomentumPattern(symbol).catch(() => null),
-        detectValuePattern(symbol).catch(() => null),
+      const [powerranger, cupid, tugofwar, rollercoaster] = await Promise.all([
+        detectPowerRangerWeekly(symbol).catch(() => null),
+        detectCupidWeekly(symbol).catch(() => null),
+        detectTugOfWarWeekly(symbol).catch(() => null),
+        detectRollercoasterWeekly(symbol).catch(() => null),
       ]);
       
       const results: MonthTradingSetup[] = [];
       
-      if (breakout && breakout.confidence >= 60) {
-        results.push(breakout);
+      if (powerranger && powerranger.confidence >= 60) {
+        results.push(powerranger);
       }
-      if (accumulation && accumulation.confidence >= 55) {
-        results.push(accumulation);
+      if (cupid && cupid.confidence >= 55) {
+        results.push(cupid);
       }
-      if (momentum && momentum.confidence >= 60) {
-        results.push(momentum);
+      if (tugofwar && tugofwar.confidence >= 50) {
+        results.push(tugofwar);
       }
-      if (value && value.confidence >= 50) {
-        results.push(value);
+      if (rollercoaster && rollercoaster.confidence >= 45) {
+        results.push(rollercoaster);
       }
       
       return results;

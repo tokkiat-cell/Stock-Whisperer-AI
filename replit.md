@@ -47,13 +47,20 @@ Key features:
   - 1 year of daily price data
   - Toggleable moving averages (20, 40, 100, 200 days)
   - Uses lightweight-charts v5 library
-- **Moomoo Trading Integration**: Create and manage orders for Moomoo
-  - Configure Moomoo OpenAPI connection settings (host, port, client ID)
+- **Trading Platform Integration**: Unified trading page with platform tabs
+  - **IBKR (Interactive Brokers)**: Connection settings, order management, approval workflow
+  - **Moomoo Trading**: Access via OpenD API with dedicated trading page
   - Create draft orders with entry price, stop loss, and take profit
   - Modify prices before submission
-  - Submit orders to Moomoo for execution
+  - Submit orders for execution
   - "Trade" button on AI Scanner recommendations creates pre-filled draft orders
   - Order status tracking (Draft, Submitted, Filled, Cancelled)
+- **Month Trading Scanner**: Weekly chart pattern detection with 4 pattern types
+  - **Power Ranger**: Gap-up followed by tight consolidation (breakout setup)
+  - **Cupid**: Uptrend with pullback to support (continuation setup)
+  - **Tug of War**: Tight range consolidation with indecision (breakout pending)
+  - **Rollercoaster**: Decline followed by reversal (mean reversion setup)
+  - 12-month lookback with weekly candles
 - **Market Overview Dashboard**: Real-time display of global market indices
   - US Markets: S&P 500, Dow Jones, Nasdaq, Russell 2000
   - Singapore Markets: STI, STI ETF, DBS, OCBC, UOB

@@ -2,14 +2,14 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Loader2, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ShoppingCart, ArrowUp, ArrowDown, Rocket, BarChart3, Activity, DollarSign, Calendar } from "lucide-react";
+import { RefreshCw, Loader2, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ShoppingCart, ArrowUp, ArrowDown, Zap, Heart, Scale, Waves, Calendar } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { StockChart } from "@/components/stock-chart";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-type MonthPatternType = 'breakout' | 'accumulation' | 'momentum' | 'value';
+type MonthPatternType = 'powerranger' | 'cupid' | 'tugofwar' | 'rollercoaster';
 
 interface MonthTradingSetup {
   symbol: string;
@@ -31,11 +31,11 @@ interface MonthTradingSetup {
   monthlyChangePercent: number;
 }
 
-const patternConfig: Record<MonthPatternType, { icon: typeof Rocket; color: string; bgColor: string }> = {
-  breakout: { icon: Rocket, color: "text-green-500", bgColor: "bg-green-500/10" },
-  accumulation: { icon: BarChart3, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  momentum: { icon: Activity, color: "text-orange-500", bgColor: "bg-orange-500/10" },
-  value: { icon: DollarSign, color: "text-purple-500", bgColor: "bg-purple-500/10" },
+const patternConfig: Record<MonthPatternType, { icon: typeof Zap; color: string; bgColor: string; label: string }> = {
+  powerranger: { icon: Zap, color: "text-green-500", bgColor: "bg-green-500/10", label: "Power Ranger" },
+  cupid: { icon: Heart, color: "text-pink-500", bgColor: "bg-pink-500/10", label: "Cupid" },
+  tugofwar: { icon: Scale, color: "text-blue-500", bgColor: "bg-blue-500/10", label: "Tug of War" },
+  rollercoaster: { icon: Waves, color: "text-orange-500", bgColor: "bg-orange-500/10", label: "Rollercoaster" },
 };
 
 export default function MonthTradingScanner() {
@@ -114,7 +114,7 @@ export default function MonthTradingScanner() {
             Month Trading Scanner
           </h1>
           <p className="text-muted-foreground" data-testid="text-month-scanner-description">
-            Scans weekly charts for Breakout, Accumulation, Momentum & Value setups
+            Scans weekly charts for Power Ranger, Cupid, Tug of War & Rollercoaster setups
           </p>
         </div>
         <Button
@@ -156,9 +156,7 @@ export default function MonthTradingScanner() {
                 data-testid={`button-filter-${pattern}`}
               >
                 <Icon className={`w-4 h-4 mr-1 ${patternFilter === pattern ? "" : config.color}`} />
-                {pattern === 'breakout' ? 'Breakout' : 
-                 pattern === 'accumulation' ? 'Accumulation' : 
-                 pattern === 'momentum' ? 'Momentum' : 'Value'} ({count})
+                {config.label} ({count})
               </Button>
             );
           })}
