@@ -349,9 +349,23 @@ export type RiskPerTrade = '1_2_PERCENT' | '3_5_PERCENT' | '5_PLUS_PERCENT';
 export const investorTargetList = pgTable("investor_target_list", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
-  symbol: varchar("symbol", { length: 10 }).notNull(),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
   companyName: text("company_name"),
-  intrinsicValue: numeric("intrinsic_value").notNull(),
+  adamList: varchar("adam_list", { length: 50 }), // Category: Favorite, HK, US, SG, etc.
+  currency: varchar("currency", { length: 10 }), // USD, HKD, SGD, etc.
+  supportLevel1: numeric("support_level_1"),
+  supportLevel2: numeric("support_level_2"),
+  supportLevel3: numeric("support_level_3"),
+  supportLevel4: numeric("support_level_4"),
+  supportLevel5: numeric("support_level_5"),
+  conservativeIV: numeric("conservative_iv"),
+  baseIV: numeric("base_iv"),
+  averageIV: numeric("average_iv"),
+  intrinsicValue: numeric("intrinsic_value").notNull(), // Backward compatible - uses averageIV
+  discountPremium: varchar("discount_premium", { length: 20 }), // e.g., "24.2%"
+  growthRates: varchar("growth_rates", { length: 20 }), // e.g., "10.90%"
+  moat: varchar("moat", { length: 20 }), // Wide, Narrow, NA
+  investmentType: varchar("investment_type", { length: 100 }), // Large-Growth, Turnaround, ETF, etc.
   notes: text("notes"),
   source: text("source"), // 'AI_RECOMMENDED' or 'USER_UPLOADED'
   createdAt: timestamp("created_at").defaultNow(),

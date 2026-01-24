@@ -56,7 +56,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/scan", label: "AI Market Scanner", icon: Scan },
     { href: "/daytrading-scanner", label: "Day Trading Scanner", icon: TrendingUp },
     { href: "/month-trading-scanner", label: "Month Trading Scanner", icon: TrendingUp },
-    { href: "/investor-watchlist", label: "Growth Targets", icon: Target },
+    { href: "/investor-watchlist", label: "Growth Stocklist", icon: Target },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/trading", label: "Trading Platform", icon: Server },
     { href: "/analysis", label: "Symbol Analysis Chart", icon: LineChart },
