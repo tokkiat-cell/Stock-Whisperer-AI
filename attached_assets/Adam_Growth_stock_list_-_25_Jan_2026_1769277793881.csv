@@ -1,0 +1,51 @@
+,,IV updated,3-Sept-25,,,,,,,,,,,,,
+Adam List,Ticker,Company,Currency,Support Level 1,Support Level 2,Support Level 3,Support Level 4,Support Level 5,Last Price,Conservative IV,Base IV,Average IV,Avg. Discount / Premium,Avg. Growth Rates,Moat,Investment Type
+Favorite,AAPL-US,Apple Inc,USD,189.0,182.0,168.0,N/A,N/A,239.69,N/A,193.00,193.00,24.2%,10.90%,Wide,Large-Growth
+Favorite,AMZN-US,"Amazon.com, Inc.",USD,213.0,187.0,163.0,146.0,N/A,232.33,N/A,229.00,229.00,1.5%,26.70%,Wide,Large-Growth
+Favorite,GOOGL-US,Alphabet Inc Class A,USD,190.0,182.0,175.0,164.0,N/A,235.05,N/A,223.00,223.00,5.4%,14.90%,Wide,Large-Growth
+Favorite,MA-US,Mastercard Inc,USD,502.0,462.0,423.0,N/A,N/A,584.22,N/A,529.00,529.00,10.4%,14.20%,Wide,Large-Predictable (Moderately Cyclical)
+Favorite,META-US,Meta Platforms Inc,USD,734.0,694.0,649.0,576.0,N/A,752.45,N/A,815.00,815.00,-7.7%,18.00%,Wide,Large-Growth
+Favorite,MSFT-US,Microsoft Corporation,USD,482.0,456.0,431.0,387.0,N/A,495.00,N/A,544.00,544.00,-9.0%,17.00%,Wide,Large-Growth
+Favorite,NVDA-US,NVIDIA Corporation,USD,153.0,134.0,113.0,101.0,90.0,167.02,N/A,168.00,168.00,-0.6%,37.30%,Wide,Large-Growth
+Favorite,SPGI-US,S&P Global Inc,USD,512.0,480.0,457.0,429.0,N/A,538.06,N/A,528.00,528.00,1.9%,12.50%,Wide,Large-Predictable (Defensive)
+Favorite,TMO-US,Thermo Fisher Scientific Inc,USD,528.0,501.0,475.0,414.0,N/A,492.60,N/A,619.00,619.00,-20.4%,15.10%,Wide,Large-Predictable (Defensive)
+HK,0388-HK,Hong Kong Exchanges and Clearing Limited,HKD,322.0,299.0,281.0,219.0,N/A,435.60,N/A,325.00,325.00,34.0%,12.90%,Wide,Large-Predictable (Moderately Cyclical)
+HK,2318-HK,Ping An Insurance (Group),HKD,54.90,52.00,46.90,39.70,N/A,N/A,74.7,95.50,85.10,#VALUE!,N/A,Wide,Turnaround
+HK,3067-HK,iShares Hang Seng TECH ETF,HKD,10.10,8.70,7.18,6.27,N/A,11.89,N/A,N/A,N/A,,N/A,NA,ETF
+HK,1618-HK,JD.com Inc (HK),HKD,N/A,N/A,N/A,N/A,N/A,122.10,N/A,389.00,389.00,-68.6%,N/A,Wide,Large-Growth
+HK,9988-HK,Alibaba Group Holding Ltd (HK),HKD,N/A,N/A,N/A,N/A,N/A,131.80,180.0,205.00,192.50,-31.5%,10.80%,Wide,Large-Growth
+US,ACN-US,Accenture Plc,USD,296.0,278.0,262.0,243.0,N/A,254.95,N/A,318.00,318.00,-19.83%,7.60%,Wide,Large-Predictable (Moderately Cyclical)
+US,ASML-US,ASML Holding NV,USD,772.0,707.0,645.0,575.0,N/A,781.70,N/A,895.00,895.00,-12.66%,18.80%,Wide,Large-Growth
+US,AVGO-US,Broadcom Inc,USD,207.0,182.0,157.0,140.0,N/A,334.89,N/A,212.00,212.00,57.97%,21.40%,Wide,Large-Growth
+US,AZO-US,AutoZone Inc,USD,3231.0,3004.0,2897.0,2730.0,N/A,4219.41,N/A,3272.00,3272.00,28.96%,11.90%,Wide,Large-Predictable (Moderately Cyclical)
+US,BKNG-US,Booking Holdings Inc,USD,4148.0,3749.0,3395.0,3166.0,N/A,5505.80,N/A,4389.00,4389.00,25.45%,14.90%,Wide,Large-Growth
+US,CELH-US,"Celsius Holdings, Inc.",USD,58.0,50.0,46.0,40.0,N/A,58.37,N/A,84.77,84.77,-31.14%,31.40%,Narrow,Speculative Growth
+US,CPRT-US,Copart Inc,USD,51.0,48.0,46.0,43.0,N/A,48.57,51.0,56.00,53.50,-9.21%,13.50%,Wide,Large-Cap Growth (Moderately Cyclical)
+US,CRM-US,"Salesforce.com, Inc.",USD,286.0,266.0,234.0,211.0,N/A,250.76,N/A,318.00,318.00,-21.14%,14.90%,Wide,Large-Growth
+US,CRWD-US,Crowdstrike Holdings Inc,USD,335.0,303.0,280.0,253.0,N/A,417.63,N/A,345.00,345.00,21.05%,34.50%,Narrow,Speculative Growth
+US,ELV-US,Elevance Health Inc,USD,448.0,410.0,362.0,285.0,N/A,313.64,N/A,481.00,481.00,-34.79%,10.10%,Narrow,Large-Predictable (Defensive)
+US,EVBN-US,Evolution AB,USD,98.0,86.0,82.0,69.0,N/A,85.14,N/A,170.00,170.00,-49.92%,13.90%,Wide,Large Growth
+US,FNTTF-US,Fortinet Inc,USD,87.0,81.0,74.0,69.0,N/A,78.83,N/A,92.00,92.00,-14.32%,12.30%,Wide,Large Growth
+US,GXC-US,S&P China ETF,USD,N/A,N/A,N/A,N/A,N/A,98.47,N/A,N/A,N/A,,N/A,N/A,ETF
+US,HCA-US,HCA Healthcare Inc,USD,377.0,355.0,330.0,311.0,NA,420.77,NA,398.00,398.00,5.72%,11.10%,Narrow,Large-Predictable (Defensive)
+US,HSY-US,Hershey Co,USD,181.0,162.0,139.0,115.0,NA,185.48,NA,205.00,205.00,-9.52%,4.60%,Wide,Large-Predictable (Defensive)
+US,IDXX-US,IDEXX Laboratories Inc,USD,372.0,318.0,254.0,174.0,NA,642.99,NA,395.00,395.00,62.78%,,Narrow,Large-Predictable (Defensive)
+US,IHF-US,iShares US Healthcare Providers ETF,USD,NA,NA,NA,NA,NA,47.75,NA,NA,NA,,N/A,N/A,ETF
+US,IHI-US,iShares US Medical Devices ETF,USD,60.0,58.0,56.0,54.0,NA,62.44,NA,NA,NA,,N/A,N/A,ETF
+US,LOW-US,Lowe's Companies Inc,USD,237.0,222.0,212.0,NA,NA,269.97,NA,245.0,245.0,10.19%,5.10%,Wide,Large-Predictable (Moderately Cyclical)
+US,LVMUY-US,LVMH Moët Hennessy Louis Vuitton SA Unsponsored ADR,USD,137.0,119.0,106.0,NA,NA,116.13,NA,159.0,159.0,-26.96%,7.70%,Wide,Turnaround
+US,MEI-US,Mercadolibre Inc,USD,2145.0,1834.0,1645.0,1481.0,NA,2417.49,NA,2284.0,2284.0,5.84%,29.60%,N/A,Large Growth
+US,MSCI-US,Msci Inc,USD,482.0,457.0,438.0,385.0,NA,555.15,NA,491.0,491.0,13.07%,12.30%,Wide,Large-Predictable (Moderately Cyclical)
+US,MSI-US,Motorola Solutions Inc,USD,405.0,388.0,352.0,NA,NA,478.98,NA,408.0,408.0,17.40%,12.00%,Wide,Large Growth
+US,NKE-US,Nike Inc,USD,97.0,82.0,70.0,60.0,NA,73.91,NA,110.0,110.0,-32.81%,15.00%,Wide,Turnaround
+US,NOW-US,ServiceNow Inc,USD,871.0,808.0,730.0,637.0,NA,913.90,NA,925.0,925.0,-1.20%,23.30%,Wide,Large Growth
+US,NVO-US,Novo Nordisk A/S,USD,75.0,67.0,65.0,45.0,NA,55.23,NA,89.0,89.0,-37.94%,12.80%,Wide,Large-Predictable (Defensive)
+US,PANW-US,Palo Alto Networks Inc,USD,185.0,173.0,165.0,145.0,NA,194.46,NA,202.0,202.0,-3.73%,20.00%,Wide,Large Growth
+US,PEP-US,PepsiCo Inc,USD,155.0,148.0,141.0,127.0,NA,146.39,NA,158.0,158.0,-7.35%,5.80%,Wide,Large-Predictable (Defensive)
+US,PLTR-US,Palantir Technologies Inc,USD,65.0,56.0,40.0,27.0,NA,153.11,NA,71.0,71.0,115.65%,36.10%,Narrow,Speculative Growth
+US,POOL-US,Pool Corporation,USD,338.0,330.0,308.0,284.0,NA,333.09,341.0,364.0,352.5,-5.51%,5.90%,Wide,Large-Predictable (Moderately Cyclical)
+US,SHLD-US,Global X Defense Tech ETF,USD,61.0,57.0,53.0,49.0,NA,62.12,NA,NA,NA,,N/A,N/A,ETF
+US,SOHX-US,iShares Semiconductor ETF,USD,231.0,209.0,192.0,178.0,NA,247.05,NA,NA,NA,,N/A,N/A,ETF
+US,UNH-US,UnitedHealth Group Inc,USD,367.0,320.0,246.0,187.0,NA,315.39,326.0,412.0,369.0,-14.53%,11.80%,Narrow,Large-Predictable (Defensive)
+US,V-US,Visa Inc,USD,292.0,281.0,268.0,254.0,NA,343.22,NA,296.0,296.0,15.95%,13.10%,Wide,Large-Predictable (Moderately Cyclical)
+US,VEEV-US,Veeva Systems Inc,USD,247.0,235.0,217.0,201.0,NA,272.93,NA,270.0,270.0,1.09%,19.20%,wide,Large-Predictable (Defensive) / Large Growth

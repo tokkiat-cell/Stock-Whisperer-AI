@@ -1,4 +1,5 @@
 import YahooFinance from "yahoo-finance2";
+import { getAlphaVantageQuote } from "./alphaVantageClient";
 
 const yahooFinance = new YahooFinance();
 
@@ -8,6 +9,7 @@ export interface MarketData {
   change: number;
   changePercent: number;
   companyName?: string;
+  dataSource?: "yahoo" | "alphavantage";
 }
 
 export async function searchStocks(query: string): Promise<{ symbol: string; name: string }[]> {
@@ -34,8 +36,8 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
     const quote = await yahooFinance.quote(symbol.toUpperCase());
     
     if (!quote || !quote.regularMarketPrice) {
-      console.error(`Yahoo Finance: No data for ${symbol}`);
-      return null;
+      console.error(`Yahoo Finance: No data for ${symbol}, trying Alpha Vantage...`);
+      return await getAlphaVantageStockQuote(symbol);
     }
     
     return {
@@ -43,10 +45,32 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
       price: quote.regularMarketPrice,
       change: quote.regularMarketChange || 0,
       changePercent: quote.regularMarketChangePercent || 0,
-      companyName: quote.shortName || quote.longName || symbol.toUpperCase()
+      companyName: quote.shortName || quote.longName || symbol.toUpperCase(),
+      dataSource: "yahoo"
     };
   } catch (error) {
     console.error(`Yahoo Finance Quote Error for ${symbol}:`, error);
+    return await getAlphaVantageStockQuote(symbol);
+  }
+}
+
+async function getAlphaVantageStockQuote(symbol: string): Promise<MarketData | null> {
+  try {
+    const avQuote = await getAlphaVantageQuote(symbol);
+    if (!avQuote || avQuote.price === 0) {
+      console.error(`Alpha Vantage: No data for ${symbol}`);
+      return null;
+    }
+    
+    return {
+      symbol: avQuote.symbol,
+      price: avQuote.price,
+      change: avQuote.change,
+      changePercent: avQuote.changePercent,
+      dataSource: "alphavantage"
+    };
+  } catch (error) {
+    console.error(`Alpha Vantage Quote Error for ${symbol}:`, error);
     return null;
   }
 }

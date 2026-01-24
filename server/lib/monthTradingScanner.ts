@@ -501,9 +501,11 @@ export async function scanMonthTradingSetups(symbols: string[]): Promise<MonthTr
   
   setups.sort((a, b) => b.confidence - a.confidence);
   
-  console.log(`Month Trading Scanner: Found ${setups.length} setups`);
+  const limitedSetups = setups.slice(0, 20);
   
-  return setups;
+  console.log(`Month Trading Scanner: Found ${setups.length} setups, returning top 20`);
+  
+  return limitedSetups;
 }
 
 const DEFAULT_SWING_STOCKS = [

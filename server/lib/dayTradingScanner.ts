@@ -464,9 +464,11 @@ export async function scanDayTradingSetups(): Promise<DayTradingSetup[]> {
     
     setups.sort((a, b) => b.confidence - a.confidence);
     
-    console.log(`Day Trading Scanner: Found ${setups.length} setups`);
+    const limitedSetups = setups.slice(0, 20);
     
-    return setups;
+    console.log(`Day Trading Scanner: Found ${setups.length} setups, returning top 20`);
+    
+    return limitedSetups;
     
   } catch (error) {
     console.error('Day Trading Scanner error:', error);

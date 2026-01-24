@@ -231,8 +231,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         priceMap,
         timeframe,
         market,
-        5, // Get top 5 recommendations
-        profileInfo // Pass profile for personalized recommendations
+        10 // Get top 10 recommendations
       );
 
       // Convert enhanced analyses to recommendation format for storage
