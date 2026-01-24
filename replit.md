@@ -149,6 +149,17 @@ Key tables:
 - `ISSUER_URL` - Replit OIDC issuer (defaults to `https://replit.com/oidc`)
 - `REPL_ID` - Replit environment identifier
 
+### Paddle Payment Integration (Required for Subscriptions)
+- `VITE_PADDLE_CLIENT_TOKEN` - Paddle client-side token (from Dashboard → Developer Tools → Authentication)
+- `VITE_PADDLE_ENVIRONMENT` - Set to "sandbox" for testing, "production" for live
+- `VITE_PADDLE_BASIC_PRICE_ID` - Price ID for Basic tier subscription ($9.90/month)
+- `VITE_PADDLE_PRO_PRICE_ID` - Price ID for Pro tier subscription ($49.99/month)
+- `PADDLE_BASIC_PRICE_ID` - Same as VITE_PADDLE_BASIC_PRICE_ID (for backend webhook)
+- `PADDLE_PRO_PRICE_ID` - Same as VITE_PADDLE_PRO_PRICE_ID (for backend webhook)
+- `PADDLE_WEBHOOK_SECRET` - Paddle webhook signing secret (for verifying webhook payloads)
+
+**Note**: You need to configure your Paddle webhook URL to: `https://your-app-url/api/paddle/webhook`
+
 ### Optional Environment Variables (for notifications)
 - `TELEGRAM_BOT_TOKEN` - Telegram Bot API token for sending alerts via Telegram
 - `TWILIO_ACCOUNT_SID` - Twilio Account SID for WhatsApp notifications
