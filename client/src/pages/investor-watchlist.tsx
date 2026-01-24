@@ -124,6 +124,18 @@ export default function InvestorWatchlist() {
     });
   };
 
+  const stripExchangePrefix = (symbol: string): string => {
+    const prefixes = ['NASDAQ:', 'NYSE:', 'AMEX:', 'ARCA:', 'BATS:', 'OTC:', 'SGX:', 'HKEX:', 'SSE:', 'SZSE:', 'LSE:', 'XETR:', 'EURONEXT:'];
+    let cleanSymbol = symbol.toUpperCase().replace(/"/g, "").trim();
+    for (const prefix of prefixes) {
+      if (cleanSymbol.startsWith(prefix)) {
+        cleanSymbol = cleanSymbol.substring(prefix.length);
+        break;
+      }
+    }
+    return cleanSymbol;
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -135,14 +147,49 @@ export default function InvestorWatchlist() {
         const lines = text.split("\n").filter(line => line.trim());
         const items: { symbol: string; intrinsicValue: string; notes?: string }[] = [];
 
+        if (lines.length < 1) {
+          toast({ title: "File is empty", variant: "destructive" });
+          return;
+        }
+
+        const headerLine = lines[0].toLowerCase();
+        const isTabSeparated = headerLine.includes("\t");
+        const separator = isTabSeparated ? "\t" : ",";
+        
+        const headers = lines[0].split(separator).map(h => h.toLowerCase().replace(/"/g, "").trim());
+        
+        const isTradingViewFormat = headers.includes("symbol") && 
+          (headers.includes("description") || headers.includes("name")) &&
+          !headers.some(h => h.includes("intrinsic") || h.includes("value") || h.includes("target"));
+        
+        const symbolIdx = headers.findIndex(h => h === "symbol" || h === "ticker");
+        const intrinsicIdx = headers.findIndex(h => h.includes("intrinsic") || h === "value" || h === "target");
+        const descIdx = headers.findIndex(h => h === "description" || h === "name" || h === "notes");
+
         for (let i = 1; i < lines.length; i++) {
-          const parts = lines[i].split(",").map(p => p.trim());
-          if (parts.length >= 2) {
-            const symbol = parts[0].toUpperCase().replace(/"/g, "");
-            const intrinsicValue = parts[1].replace(/"/g, "");
-            const notes = parts[2]?.replace(/"/g, "") || undefined;
+          const parts = lines[i].split(separator).map(p => p.trim().replace(/"/g, ""));
+          
+          if (parts.length >= 1 && parts[0]) {
+            let symbol: string;
+            let intrinsicValue: string;
+            let notes: string | undefined;
+
+            if (isTradingViewFormat || intrinsicIdx === -1) {
+              symbol = stripExchangePrefix(symbolIdx >= 0 ? parts[symbolIdx] : parts[0]);
+              intrinsicValue = "0";
+              notes = descIdx >= 0 ? parts[descIdx] : undefined;
+            } else {
+              symbol = stripExchangePrefix(symbolIdx >= 0 ? parts[symbolIdx] : parts[0]);
+              intrinsicValue = intrinsicIdx >= 0 ? parts[intrinsicIdx] : parts[1];
+              const notesIdx = descIdx >= 0 ? descIdx : (intrinsicIdx >= 0 ? intrinsicIdx + 1 : 2);
+              notes = parts[notesIdx] || undefined;
+              
+              if (!intrinsicValue || isNaN(parseFloat(intrinsicValue))) {
+                intrinsicValue = "0";
+              }
+            }
             
-            if (symbol && intrinsicValue && !isNaN(parseFloat(intrinsicValue))) {
+            if (symbol && symbol.length > 0 && symbol.length <= 10) {
               items.push({ symbol, intrinsicValue, notes });
             }
           }
