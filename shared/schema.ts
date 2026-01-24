@@ -366,3 +366,98 @@ export const insertInvestorTargetListSchema = createInsertSchema(investorTargetL
 
 export type InvestorTargetItem = typeof investorTargetList.$inferSelect;
 export type InsertInvestorTargetItem = z.infer<typeof insertInvestorTargetListSchema>;
+
+// === MOOMOO BROKER SETTINGS ===
+export const moomooSettings = pgTable("moomoo_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  host: varchar("host", { length: 100 }).default("127.0.0.1").notNull(),
+  port: integer("port").default(11111).notNull(),
+  tradeAccount: varchar("trade_account", { length: 50 }),
+  isConnected: boolean("is_connected").default(false).notNull(),
+  lastConnectedAt: timestamp("last_connected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMoomooSettingsSchema = createInsertSchema(moomooSettings).omit({
+  id: true,
+  isConnected: true,
+  lastConnectedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MoomooSettings = typeof moomooSettings.$inferSelect;
+export type InsertMoomooSettings = z.infer<typeof insertMoomooSettingsSchema>;
+
+// === MOOMOO TRADING ORDERS ===
+export const moomooOrders = pgTable("moomoo_orders", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  action: text("action").notNull(),
+  orderType: text("order_type").notNull(),
+  quantity: integer("quantity").notNull(),
+  entryPrice: numeric("entry_price").notNull(),
+  stopLoss: numeric("stop_loss"),
+  takeProfit: numeric("take_profit"),
+  status: text("status").default("DRAFT").notNull(),
+  moomooOrderId: varchar("moomoo_order_id", { length: 50 }),
+  filledQuantity: integer("filled_quantity").default(0),
+  avgFillPrice: numeric("avg_fill_price"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  submittedAt: timestamp("submitted_at"),
+  filledAt: timestamp("filled_at"),
+});
+
+export const insertMoomooOrderSchema = createInsertSchema(moomooOrders).omit({
+  id: true,
+  status: true,
+  moomooOrderId: true,
+  filledQuantity: true,
+  avgFillPrice: true,
+  createdAt: true,
+  updatedAt: true,
+  submittedAt: true,
+  filledAt: true,
+});
+
+export type MoomooOrder = typeof moomooOrders.$inferSelect;
+export type InsertMoomooOrder = z.infer<typeof insertMoomooOrderSchema>;
+
+// === EXTENDED INVESTOR TARGET LIST (with support levels and growth data) ===
+export const growthStockTargets = pgTable("growth_stock_targets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  category: varchar("category", { length: 50 }),
+  symbol: varchar("symbol", { length: 15 }).notNull(),
+  companyName: text("company_name"),
+  currency: varchar("currency", { length: 5 }).default("USD"),
+  supportLevel1: numeric("support_level_1"),
+  supportLevel2: numeric("support_level_2"),
+  supportLevel3: numeric("support_level_3"),
+  supportLevel4: numeric("support_level_4"),
+  supportLevel5: numeric("support_level_5"),
+  conservativeIV: numeric("conservative_iv"),
+  baseIV: numeric("base_iv"),
+  averageIV: numeric("average_iv"),
+  discountPremium: varchar("discount_premium", { length: 20 }),
+  growthRate: varchar("growth_rate", { length: 20 }),
+  moat: varchar("moat", { length: 20 }),
+  investmentType: varchar("investment_type", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertGrowthStockTargetSchema = createInsertSchema(growthStockTargets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type GrowthStockTarget = typeof growthStockTargets.$inferSelect;
+export type InsertGrowthStockTarget = z.infer<typeof insertGrowthStockTargetSchema>;

@@ -1,5 +1,5 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders, marketPreferences, investorProfiles, investorTargetList,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders, marketPreferences, investorProfiles, investorTargetList, moomooSettings, moomooOrders, growthStockTargets,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
@@ -12,7 +12,10 @@ import {
   type TradingOrder, type InsertTradingOrder,
   type MarketPreferences, type InsertMarketPreferences,
   type InvestorProfile, type InsertInvestorProfile,
-  type InvestorTargetItem, type InsertInvestorTargetItem
+  type InvestorTargetItem, type InsertInvestorTargetItem,
+  type MoomooSettings, type InsertMoomooSettings,
+  type MoomooOrder, type InsertMoomooOrder,
+  type GrowthStockTarget, type InsertGrowthStockTarget
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -103,6 +106,22 @@ export interface IStorage {
   bulkAddInvestorTargetItems(userId: string, items: Omit<InsertInvestorTargetItem, 'userId'>[]): Promise<InvestorTargetItem[]>;
   updateInvestorTargetItem(userId: string, id: number, updates: Partial<InsertInvestorTargetItem>): Promise<InvestorTargetItem | null>;
   deleteInvestorTargetItem(userId: string, id: number): Promise<boolean>;
+
+  // Moomoo Settings methods
+  getMoomooSettings(userId: string): Promise<MoomooSettings | null>;
+  upsertMoomooSettings(settings: InsertMoomooSettings): Promise<MoomooSettings>;
+
+  // Moomoo Orders methods
+  getMoomooOrders(userId: string): Promise<MoomooOrder[]>;
+  createMoomooOrder(order: InsertMoomooOrder): Promise<MoomooOrder>;
+  updateMoomooOrder(id: number, userId: string, updates: Partial<MoomooOrder>): Promise<MoomooOrder | null>;
+  deleteMoomooOrder(id: number, userId: string): Promise<boolean>;
+
+  // Growth Stock Targets methods
+  getGrowthStockTargets(userId: string): Promise<GrowthStockTarget[]>;
+  bulkAddGrowthStockTargets(userId: string, targets: Omit<InsertGrowthStockTarget, 'userId'>[]): Promise<GrowthStockTarget[]>;
+  deleteGrowthStockTarget(id: number, userId: string): Promise<boolean>;
+  deleteAllGrowthStockTargets(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -627,6 +646,100 @@ export class DatabaseStorage implements IStorage {
       .delete(investorTargetList)
       .where(and(eq(investorTargetList.id, id), eq(investorTargetList.userId, userId)));
     return true;
+  }
+
+  // --- Moomoo Settings ---
+  async getMoomooSettings(userId: string): Promise<MoomooSettings | null> {
+    const [settings] = await db
+      .select()
+      .from(moomooSettings)
+      .where(eq(moomooSettings.userId, userId));
+    return settings || null;
+  }
+
+  async upsertMoomooSettings(settings: InsertMoomooSettings): Promise<MoomooSettings> {
+    const [result] = await db
+      .insert(moomooSettings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: moomooSettings.userId,
+        set: {
+          host: settings.host,
+          port: settings.port,
+          tradeAccount: settings.tradeAccount,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  // --- Moomoo Orders ---
+  async getMoomooOrders(userId: string): Promise<MoomooOrder[]> {
+    return await db
+      .select()
+      .from(moomooOrders)
+      .where(eq(moomooOrders.userId, userId))
+      .orderBy(desc(moomooOrders.createdAt));
+  }
+
+  async createMoomooOrder(order: InsertMoomooOrder): Promise<MoomooOrder> {
+    const [created] = await db
+      .insert(moomooOrders)
+      .values(order)
+      .returning();
+    return created;
+  }
+
+  async updateMoomooOrder(id: number, userId: string, updates: Partial<MoomooOrder>): Promise<MoomooOrder | null> {
+    const [updated] = await db
+      .update(moomooOrders)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(moomooOrders.id, id), eq(moomooOrders.userId, userId)))
+      .returning();
+    return updated || null;
+  }
+
+  async deleteMoomooOrder(id: number, userId: string): Promise<boolean> {
+    await db
+      .delete(moomooOrders)
+      .where(and(eq(moomooOrders.id, id), eq(moomooOrders.userId, userId)));
+    return true;
+  }
+
+  // --- Growth Stock Targets ---
+  async getGrowthStockTargets(userId: string): Promise<GrowthStockTarget[]> {
+    return await db
+      .select()
+      .from(growthStockTargets)
+      .where(eq(growthStockTargets.userId, userId))
+      .orderBy(growthStockTargets.category, growthStockTargets.symbol);
+  }
+
+  async bulkAddGrowthStockTargets(userId: string, targets: Omit<InsertGrowthStockTarget, 'userId'>[]): Promise<GrowthStockTarget[]> {
+    if (targets.length === 0) return [];
+    
+    const targetsWithUserId = targets.map(target => ({ ...target, userId }));
+    return await db
+      .insert(growthStockTargets)
+      .values(targetsWithUserId)
+      .returning();
+  }
+
+  async deleteGrowthStockTarget(id: number, userId: string): Promise<boolean> {
+    await db
+      .delete(growthStockTargets)
+      .where(and(eq(growthStockTargets.id, id), eq(growthStockTargets.userId, userId)));
+    return true;
+  }
+
+  async deleteAllGrowthStockTargets(userId: string): Promise<void> {
+    await db
+      .delete(growthStockTargets)
+      .where(eq(growthStockTargets.userId, userId));
   }
 }
 

@@ -358,6 +358,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Month Trading Scanner - Unified scanner for monthly/swing setups
+  app.get(api.market.monthTradingScanner.path, isAuthenticated, async (req, res) => {
+    try {
+      const { scanDefaultMonthSetups } = await import('./lib/monthTradingScanner');
+      const results = await scanDefaultMonthSetups();
+      res.json(results);
+    } catch (error) {
+      console.error('Month trading scanner error:', error);
+      res.status(500).json({ message: "Failed to scan for monthly setups" });
+    }
+  });
+
   // Cupid Setup Scanner - Find stocks matching the Cupid Setup pattern
   app.get(api.market.cupidScanner.path, isAuthenticated, async (req, res) => {
     try {
@@ -1398,6 +1410,157 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       res.json(result);
     } catch (error) {
       res.status(500).json({ success: false, message: "Failed to cancel order", error: "Internal server error" });
+    }
+  });
+
+  // --- Moomoo Settings Routes ---
+  app.get(api.moomoo.settings.get.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const settings = await storage.getMoomooSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get Moomoo settings" });
+    }
+  });
+
+  app.post(api.moomoo.settings.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.moomoo.settings.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const settings = await storage.upsertMoomooSettings({
+        userId,
+        ...parsed.data,
+      });
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Moomoo settings" });
+    }
+  });
+
+  // --- Moomoo Orders Routes ---
+  app.get(api.moomooOrders.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orders = await storage.getMoomooOrders(userId);
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get Moomoo orders" });
+    }
+  });
+
+  app.post(api.moomooOrders.create.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.moomooOrders.create.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const order = await storage.createMoomooOrder({
+        userId,
+        ...parsed.data,
+      });
+      res.status(201).json({ id: order.id, symbol: order.symbol, status: order.status });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create Moomoo order" });
+    }
+  });
+
+  app.patch(api.moomooOrders.update.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      const parsed = api.moomooOrders.update.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const order = await storage.updateMoomooOrder(orderId, userId, parsed.data);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json({ id: order.id, status: order.status });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Moomoo order" });
+    }
+  });
+
+  app.delete(api.moomooOrders.delete.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const orderId = parseInt(req.params.id);
+      await storage.deleteMoomooOrder(orderId, userId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete Moomoo order" });
+    }
+  });
+
+  // --- Growth Stock Targets Routes ---
+  app.get(api.growthTargets.list.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const targets = await storage.getGrowthStockTargets(userId);
+      res.json(targets);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get growth targets" });
+    }
+  });
+
+  app.post(api.growthTargets.bulkImport.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const parsed = api.growthTargets.bulkImport.input.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const targets = await storage.bulkAddGrowthStockTargets(userId, parsed.data);
+      res.status(201).json({ imported: targets.length });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to import growth targets" });
+    }
+  });
+
+  app.delete(api.growthTargets.delete.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const targetId = parseInt(req.params.id);
+      await storage.deleteGrowthStockTarget(targetId, userId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete growth target" });
+    }
+  });
+
+  app.delete(api.growthTargets.deleteAll.path, isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      await storage.deleteAllGrowthStockTargets(userId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete all growth targets" });
     }
   });
 
