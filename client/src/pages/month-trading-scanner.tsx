@@ -29,6 +29,15 @@ interface MonthTradingSetup {
   weeklyChangePercent: number;
   monthlyChange: number;
   monthlyChangePercent: number;
+  marketCap?: number;
+}
+
+function formatMarketCap(marketCap?: number): string {
+  if (!marketCap) return "-";
+  if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(2)}T`;
+  if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(2)}B`;
+  if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(1)}M`;
+  return `$${marketCap.toLocaleString()}`;
 }
 
 const patternConfig: Record<MonthPatternType, { icon: typeof Zap; color: string; bgColor: string; label: string }> = {
@@ -216,6 +225,9 @@ export default function MonthTradingScanner() {
                               <Icon className="w-3 h-3 mr-1" />
                               {setup.patternName}
                             </Badge>
+                            {setup.marketCap && (
+                              <span className="text-xs text-muted-foreground font-medium" data-testid={`text-month-marketcap-${setup.symbol}`}>{formatMarketCap(setup.marketCap)}</span>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">{setup.name}</p>
                         </div>

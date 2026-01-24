@@ -22,6 +22,7 @@ export interface MonthTradingSetup {
   weeklyChangePercent: number;
   monthlyChange: number;
   monthlyChangePercent: number;
+  marketCap?: number;
 }
 
 interface StockCandle {
@@ -69,12 +70,13 @@ async function getWeeklyData(symbol: string): Promise<StockCandle[] | null> {
   }
 }
 
-async function getQuoteData(symbol: string): Promise<{ price: number; name: string } | null> {
+async function getQuoteData(symbol: string): Promise<{ price: number; name: string; marketCap?: number } | null> {
   try {
     const quote: any = await yahooFinance.quote(symbol.toUpperCase());
     return {
       price: quote?.regularMarketPrice || 0,
       name: quote?.shortName || quote?.longName || symbol,
+      marketCap: quote?.marketCap,
     };
   } catch {
     return null;
@@ -96,7 +98,7 @@ async function detectPowerRangerWeekly(symbol: string): Promise<MonthTradingSetu
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const recent = candles.slice(-10);
     
@@ -131,7 +133,7 @@ async function detectPowerRangerWeekly(symbol: string): Promise<MonthTradingSetu
     const riskRewardRatio = (targetPrice - entryPrice) / risk;
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'powerranger',
       patternName: 'Power Ranger (Gap & Range)',
       confidence: Math.min(85, 55 + gapPercent * 4),
@@ -150,7 +152,7 @@ async function detectCupidWeekly(symbol: string): Promise<MonthTradingSetup | nu
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const recent = candles.slice(-15);
     const firstHalf = recent.slice(0, 8);
@@ -177,7 +179,7 @@ async function detectCupidWeekly(symbol: string): Promise<MonthTradingSetup | nu
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'cupid',
       patternName: 'Cupid (Uptrend Pullback)',
       confidence: Math.min(80, 50 + firstHalfTrend * 150),
@@ -196,7 +198,7 @@ async function detectTugOfWarWeekly(symbol: string): Promise<MonthTradingSetup |
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const recent = candles.slice(-8);
     const rangeHigh = Math.max(...recent.map(c => c.high));
@@ -216,7 +218,7 @@ async function detectTugOfWarWeekly(symbol: string): Promise<MonthTradingSetup |
     const riskRewardRatio = (targetPrice - entryPrice) / risk;
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'tugofwar',
       patternName: 'Tug of War (Consolidation)',
       confidence: Math.min(75, 45 + (15 - rangePercent) * 3),
@@ -235,7 +237,7 @@ async function detectRollercoasterWeekly(symbol: string): Promise<MonthTradingSe
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const older = candles.slice(-20, -8);
     const recent = candles.slice(-8);
@@ -259,7 +261,7 @@ async function detectRollercoasterWeekly(symbol: string): Promise<MonthTradingSe
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'rollercoaster',
       patternName: 'Rollercoaster (Reversal)',
       confidence: Math.min(70, 40 + declinePercent * 1.5),
@@ -278,7 +280,7 @@ async function detectBreakoutWeekly(symbol: string): Promise<MonthTradingSetup |
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const older = candles.slice(-12, -2);
     const recent = candles.slice(-2);
@@ -301,7 +303,7 @@ async function detectBreakoutWeekly(symbol: string): Promise<MonthTradingSetup |
     const riskRewardRatio = (targetPrice - entryPrice) / risk;
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'breakout',
       patternName: 'Breakout (Resistance Break)',
       confidence: Math.min(80, 55 + (volumeIncrease ? 15 : 0)),
@@ -320,7 +322,7 @@ async function detectAccumulationWeekly(symbol: string): Promise<MonthTradingSet
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const recent = candles.slice(-10);
     const rangeHigh = Math.max(...recent.map(c => c.high));
@@ -347,7 +349,7 @@ async function detectAccumulationWeekly(symbol: string): Promise<MonthTradingSet
     const riskRewardRatio = (targetPrice - entryPrice) / risk;
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'accumulation',
       patternName: 'Accumulation (Base Building)',
       confidence: Math.min(75, 50 + (volumeIncreasing ? 15 : 0) + (12 - rangePercent)),
@@ -366,7 +368,7 @@ async function detectMomentumWeekly(symbol: string): Promise<MonthTradingSetup |
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const recent8 = candles.slice(-8);
     const older8 = candles.slice(-16, -8);
@@ -390,7 +392,7 @@ async function detectMomentumWeekly(symbol: string): Promise<MonthTradingSetup |
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'momentum',
       patternName: 'Momentum (Trend Strength)',
       confidence: Math.min(80, 45 + recentTrend * 1.5 + (accelerating ? 10 : 0)),
@@ -409,7 +411,7 @@ async function detectValueWeekly(symbol: string): Promise<MonthTradingSetup | nu
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
-    const { price: currentPrice, name } = quoteData;
+    const { price: currentPrice, name, marketCap } = quoteData;
     
     const allHighs = candles.map(c => c.high);
     const high52w = Math.max(...allHighs);
@@ -434,7 +436,7 @@ async function detectValueWeekly(symbol: string): Promise<MonthTradingSetup | nu
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'value',
       patternName: 'Value (Pullback Opportunity)',
       confidence: Math.min(70, 40 + fromHigh * 0.8),

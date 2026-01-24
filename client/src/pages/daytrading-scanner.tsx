@@ -27,6 +27,15 @@ interface DayTradingSetup {
   details: string[];
   premarketChange: number;
   premarketChangePercent: number;
+  marketCap?: number;
+}
+
+function formatMarketCap(marketCap?: number): string {
+  if (!marketCap) return "-";
+  if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(2)}T`;
+  if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(2)}B`;
+  if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(1)}M`;
+  return `$${marketCap.toLocaleString()}`;
 }
 
 const patternConfig: Record<PatternType, { icon: typeof Heart; color: string; bgColor: string }> = {
@@ -102,10 +111,10 @@ export default function DayTradingScanner() {
 
   const filteredResults = results?.filter(r => patternFilter === 'all' || r.patternType === patternFilter) || [];
 
-  const patternCounts = results?.reduce((acc, r) => {
+  const patternCounts: Partial<Record<PatternType, number>> = results?.reduce((acc, r) => {
     acc[r.patternType] = (acc[r.patternType] || 0) + 1;
     return acc;
-  }, {} as Record<PatternType, number>) || {};
+  }, {} as Partial<Record<PatternType, number>>) || {};
 
   return (
     <div className="space-y-6 p-6">
@@ -220,6 +229,9 @@ export default function DayTradingScanner() {
                               <Icon className="w-3 h-3 mr-1" />
                               {setup.patternName}
                             </Badge>
+                            {setup.marketCap && (
+                              <span className="text-xs text-muted-foreground font-medium" data-testid={`text-marketcap-${setup.symbol}`}>{formatMarketCap(setup.marketCap)}</span>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">{setup.name}</p>
                         </div>

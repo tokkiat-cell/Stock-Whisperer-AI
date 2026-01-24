@@ -24,6 +24,7 @@ export interface DayTradingSetup {
   details: string[];
   premarketChange: number;
   premarketChangePercent: number;
+  marketCap?: number;
 }
 
 interface PowerRangerResult {
@@ -167,6 +168,7 @@ async function detectBreakoutDaily(symbol: string): Promise<DayTradingSetup | nu
     const quote: any = await yahooFinance.quote(symbol.toUpperCase());
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
+    const marketCap = quote?.marketCap;
     
     const older = candles.slice(-10, -2);
     const recent = candles.slice(-2);
@@ -186,7 +188,7 @@ async function detectBreakoutDaily(symbol: string): Promise<DayTradingSetup | nu
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'breakout',
       patternName: 'Breakout Setup',
       confidence: Math.min(75, 50 + (recent[recent.length-1].close > resistanceLevel ? 20 : 0)),
@@ -207,6 +209,7 @@ async function detectAccumulationDaily(symbol: string): Promise<DayTradingSetup 
     const quote: any = await yahooFinance.quote(symbol.toUpperCase());
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
+    const marketCap = quote?.marketCap;
     
     const recent = candles.slice(-8);
     const rangeHigh = Math.max(...recent.map(c => c.high));
@@ -227,7 +230,7 @@ async function detectAccumulationDaily(symbol: string): Promise<DayTradingSetup 
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'accumulation',
       patternName: 'Accumulation Base',
       confidence: Math.min(70, 45 + (15 - rangePercent)),
@@ -248,6 +251,7 @@ async function detectMomentumDaily(symbol: string): Promise<DayTradingSetup | nu
     const quote: any = await yahooFinance.quote(symbol.toUpperCase());
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
+    const marketCap = quote?.marketCap;
     
     const recent6 = candles.slice(-6);
     const recentTrend = (recent6[recent6.length-1].close - recent6[0].close) / recent6[0].close * 100;
@@ -264,7 +268,7 @@ async function detectMomentumDaily(symbol: string): Promise<DayTradingSetup | nu
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'momentum',
       patternName: 'Momentum Trend',
       confidence: Math.min(75, 40 + recentTrend * 2),
@@ -285,6 +289,7 @@ async function detectValueDaily(symbol: string): Promise<DayTradingSetup | null>
     const quote: any = await yahooFinance.quote(symbol.toUpperCase());
     const currentPrice = quote?.regularMarketPrice || 0;
     const name = quote?.shortName || quote?.longName || symbol;
+    const marketCap = quote?.marketCap;
     
     const high52w = Math.max(...candles.map(c => c.high));
     const low52w = Math.min(...candles.map(c => c.low));
@@ -305,7 +310,7 @@ async function detectValueDaily(symbol: string): Promise<DayTradingSetup | null>
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
-      symbol, name, currentPrice,
+      symbol, name, currentPrice, marketCap,
       patternType: 'value',
       patternName: 'Value Pullback',
       confidence: Math.min(70, 35 + fromHigh * 0.7),
@@ -334,6 +339,12 @@ export async function scanDayTradingSetups(): Promise<DayTradingSetup[]> {
       const premarketChange = mover?.change || 0;
       const premarketChangePercent = mover?.changePercent || 0;
       
+      let marketCap: number | undefined;
+      try {
+        const quote: any = await yahooFinance.quote(symbol.toUpperCase());
+        marketCap = quote?.marketCap;
+      } catch {}
+      
       try {
         const [cupidResult, powerRangerResult, rollerCoasterResult, tugOfWarResult, breakoutResult, accumulationResult, momentumResult, valueResult] = await Promise.all([
           detectCupidSetup(symbol).catch(() => null),
@@ -353,6 +364,7 @@ export async function scanDayTradingSetups(): Promise<DayTradingSetup[]> {
             symbol: cupidResult.symbol,
             name: cupidResult.name,
             currentPrice: cupidResult.currentPrice,
+            marketCap,
             patternType: 'cupid',
             patternName: 'Cupid Setup',
             confidence: cupidResult.confidence,
@@ -373,6 +385,7 @@ export async function scanDayTradingSetups(): Promise<DayTradingSetup[]> {
             symbol: powerRangerResult.symbol,
             name: powerRangerResult.name,
             currentPrice: powerRangerResult.currentPrice,
+            marketCap,
             patternType: 'powerRanger',
             patternName: 'Power Ranger',
             confidence: powerRangerResult.confidence,
@@ -393,6 +406,7 @@ export async function scanDayTradingSetups(): Promise<DayTradingSetup[]> {
             symbol: rollerCoasterResult.symbol,
             name: rollerCoasterResult.name,
             currentPrice: rollerCoasterResult.currentPrice,
+            marketCap,
             patternType: 'rollerCoaster',
             patternName: 'Roller Coaster',
             confidence: rollerCoasterResult.confidence,
@@ -413,6 +427,7 @@ export async function scanDayTradingSetups(): Promise<DayTradingSetup[]> {
             symbol: tugOfWarResult.symbol,
             name: tugOfWarResult.name,
             currentPrice: tugOfWarResult.currentPrice,
+            marketCap,
             patternType: 'tugOfWar',
             patternName: 'Tug of War',
             confidence: tugOfWarResult.confidence,
