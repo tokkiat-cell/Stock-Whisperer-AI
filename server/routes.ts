@@ -1438,9 +1438,11 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         return res.status(400).json({ error: 'Invalid subscription tier/interval or price not configured' });
       }
 
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+      // Use request origin to ensure correct redirect URL for both dev and production
+      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '');
+      const baseUrl = origin || (process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+        : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`);
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
@@ -1486,9 +1488,11 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       const { getUncachableStripeClient } = await import('./stripeClient');
       const stripe = await getUncachableStripeClient();
 
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+      // Use request origin to ensure correct redirect URL for both dev and production
+      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '');
+      const baseUrl = origin || (process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+        : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`);
 
       const session = await stripe.billingPortal.sessions.create({
         customer: user.stripeCustomerId,
