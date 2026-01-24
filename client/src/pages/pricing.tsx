@@ -1,12 +1,47 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Zap, Sparkles, Star } from "lucide-react";
+import { Check, Crown, Zap, Sparkles, Star, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { usePaddle } from "@/hooks/use-paddle";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Pricing() {
   const { user } = useAuth();
+  const { openCheckout, isLoading: paddleLoading, error: paddleError } = usePaddle();
+  const { toast } = useToast();
+
+  const handleSubscribe = (tier: 'basic' | 'pro') => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to subscribe to a plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const priceIds = {
+      basic: import.meta.env.VITE_PADDLE_BASIC_PRICE_ID,
+      pro: import.meta.env.VITE_PADDLE_PRO_PRICE_ID,
+    };
+
+    const priceId = priceIds[tier];
+    
+    if (!priceId) {
+      toast({
+        title: "Configuration Error",
+        description: "Payment system is not fully configured. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    openCheckout(priceId, user.email || undefined, user.id);
+  };
+
+  const userPlan = (user as any)?.planTier || 'free';
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -53,9 +88,15 @@ export default function Pricing() {
               </li>
             </ul>
             {user ? (
-              <Button variant="outline" className="w-full" disabled>
-                Current Plan
-              </Button>
+              userPlan === 'free' ? (
+                <Button variant="outline" className="w-full" disabled>
+                  Current Plan
+                </Button>
+              ) : (
+                <Button variant="outline" className="w-full" disabled>
+                  Free Tier
+                </Button>
+              )
             ) : (
               <Link href="/login">
                 <Button variant="outline" className="w-full" data-testid="button-get-started-free">
@@ -104,9 +145,27 @@ export default function Pricing() {
                 Email support
               </li>
             </ul>
-            <Button className="w-full" disabled data-testid="button-subscribe-basic">
-              Coming Soon
-            </Button>
+            {userPlan === 'basic' ? (
+              <Button className="w-full" disabled>
+                Current Plan
+              </Button>
+            ) : (
+              <Button 
+                className="w-full" 
+                onClick={() => handleSubscribe('basic')}
+                disabled={paddleLoading}
+                data-testid="button-subscribe-basic"
+              >
+                {paddleLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Subscribe'
+                )}
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -155,15 +214,39 @@ export default function Pricing() {
                 Priority support
               </li>
             </ul>
-            <Button className="w-full" disabled data-testid="button-subscribe-pro">
-              Coming Soon
-            </Button>
+            {userPlan === 'pro' ? (
+              <Button className="w-full" disabled>
+                Current Plan
+              </Button>
+            ) : (
+              <Button 
+                className="w-full" 
+                onClick={() => handleSubscribe('pro')}
+                disabled={paddleLoading}
+                data-testid="button-subscribe-pro"
+              >
+                {paddleLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Subscribe'
+                )}
+              </Button>
+            )}
           </div>
         </Card>
       </div>
 
+      {paddleError && (
+        <div className="mt-6 text-center text-sm text-yellow-600">
+          Payment system is initializing. Please try again in a moment.
+        </div>
+      )}
+
       <div className="mt-12 text-center text-muted-foreground space-y-4">
-        <p>Payment integration coming soon. All plans will be available shortly.</p>
+        <p className="text-sm">Secure payments powered by Paddle. Cancel anytime.</p>
         <div className="flex justify-center gap-4 text-sm">
           <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           <span>|</span>
