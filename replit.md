@@ -63,11 +63,12 @@ Key features:
   - Daily performance with day-over-day comparison
   - Customizable settings to toggle market visibility for each region
   - Auto-refresh every 60 seconds
-- **Top 10 Market Movers**: View top moving stocks by market region
-  - Selectable market region: US, Singapore, Hong Kong, China, Europe
-  - Shows highest percentage change stocks for selected market
-  - Click to analyze any stock
-  - Preference persists across sessions
+- **Premarket Changes Page**: Dedicated page showing top daily movers (/premarket)
+  - Top 20 daily gainers sorted by % change
+  - Top 20 daily losers sorted by % change
+  - Uses Yahoo Finance with fallback to batch quotes of 100 popular stocks
+  - Click any stock to analyze
+  - Accessible from sidebar navigation and dashboard CTA
 - **Subscription Tiers**: Three-tier access model with Stripe payments
   - Free Tier: Limited monthly usage (SGD $0/month)
   - stockwhisperer Basic (SGD $8.80/month or $88/year) - Higher limits

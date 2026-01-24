@@ -169,45 +169,101 @@ export interface PremarketMover {
   volume?: number;
 }
 
+const POPULAR_STOCKS = [
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK-B', 'JPM', 'V',
+  'UNH', 'XOM', 'JNJ', 'WMT', 'MA', 'PG', 'HD', 'CVX', 'MRK', 'KO',
+  'ABBV', 'PEP', 'COST', 'AVGO', 'TMO', 'LLY', 'MCD', 'CSCO', 'ACN', 'ABT',
+  'DHR', 'NKE', 'CMCSA', 'VZ', 'NFLX', 'ADBE', 'TXN', 'NEE', 'PM', 'WFC',
+  'AMD', 'INTC', 'QCOM', 'CRM', 'BMY', 'UPS', 'RTX', 'T', 'BA', 'ORCL',
+  'DIS', 'HON', 'IBM', 'LMT', 'GE', 'SBUX', 'CAT', 'LOW', 'DE', 'AXP',
+  'AMGN', 'GILD', 'MDLZ', 'PLD', 'MMM', 'TJX', 'C', 'ADI', 'ISRG', 'BKNG',
+  'PYPL', 'SQ', 'SHOP', 'SNAP', 'COIN', 'RIVN', 'LCID', 'PLTR', 'SOFI', 'NIO',
+  'MRNA', 'ZM', 'DOCU', 'ROKU', 'ABNB', 'UBER', 'LYFT', 'HOOD', 'DKNG', 'RBLX',
+  'CRWD', 'PANW', 'ZS', 'OKTA', 'NET', 'DDOG', 'SNOW', 'MDB', 'ESTC', 'PATH'
+];
+
 export async function getPremarketGainersAndLosers(): Promise<{
   gainers: PremarketMover[];
   losers: PremarketMover[];
 }> {
   try {
-    const [gainersResult, losersResult] = await Promise.all([
-      yahooFinance.screener({
-        scrIds: 'day_gainers',
-        count: 25,
-      }),
-      yahooFinance.screener({
-        scrIds: 'day_losers',
-        count: 25,
-      }),
-    ]);
+    // Try screener first
+    try {
+      const [gainersResult, losersResult] = await Promise.all([
+        yahooFinance.screener({
+          scrIds: 'day_gainers',
+          count: 25,
+        }),
+        yahooFinance.screener({
+          scrIds: 'day_losers',
+          count: 25,
+        }),
+      ]);
 
-    const mapQuoteToMover = (quote: any): PremarketMover | null => {
-      if (!quote || !quote.symbol || quote.regularMarketPrice === undefined) {
-        return null;
-      }
-      return {
-        symbol: quote.symbol,
-        name: quote.shortName || quote.longName || quote.symbol,
-        price: quote.regularMarketPrice || 0,
-        change: quote.regularMarketChange || 0,
-        changePercent: quote.regularMarketChangePercent || 0,
-        volume: quote.regularMarketVolume,
+      const mapQuoteToMover = (quote: any): PremarketMover | null => {
+        if (!quote || !quote.symbol || quote.regularMarketPrice === undefined) {
+          return null;
+        }
+        return {
+          symbol: quote.symbol,
+          name: quote.shortName || quote.longName || quote.symbol,
+          price: quote.regularMarketPrice || 0,
+          change: quote.regularMarketChange || 0,
+          changePercent: quote.regularMarketChangePercent || 0,
+          volume: quote.regularMarketVolume,
+        };
       };
-    };
 
-    const gainers = (gainersResult?.quotes || [])
-      .map(mapQuoteToMover)
-      .filter((m): m is PremarketMover => m !== null)
-      .slice(0, 20);
+      const gainers = (gainersResult?.quotes || [])
+        .map(mapQuoteToMover)
+        .filter((m): m is PremarketMover => m !== null)
+        .slice(0, 20);
 
-    const losers = (losersResult?.quotes || [])
-      .map(mapQuoteToMover)
-      .filter((m): m is PremarketMover => m !== null)
-      .slice(0, 20);
+      const losers = (losersResult?.quotes || [])
+        .map(mapQuoteToMover)
+        .filter((m): m is PremarketMover => m !== null)
+        .slice(0, 20);
+
+      if (gainers.length > 0 || losers.length > 0) {
+        return { gainers, losers };
+      }
+    } catch (screenerError) {
+      console.log('Yahoo screener failed, falling back to batch quotes:', screenerError);
+    }
+
+    // Fallback: fetch quotes for popular stocks and sort by % change
+    const allMovers: PremarketMover[] = [];
+    const batchSize = 10;
+    
+    for (let i = 0; i < POPULAR_STOCKS.length; i += batchSize) {
+      const batch = POPULAR_STOCKS.slice(i, i + batchSize);
+      const promises = batch.map(async (symbol) => {
+        try {
+          const quote = await yahooFinance.quote(symbol);
+          if (quote && quote.regularMarketPrice !== undefined) {
+            return {
+              symbol: quote.symbol || symbol,
+              name: quote.shortName || quote.longName || symbol,
+              price: quote.regularMarketPrice || 0,
+              change: quote.regularMarketChange || 0,
+              changePercent: quote.regularMarketChangePercent || 0,
+              volume: quote.regularMarketVolume,
+            };
+          }
+        } catch (err) {
+          // Ignore individual stock errors
+        }
+        return null;
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach(r => { if (r) allMovers.push(r); });
+    }
+
+    // Sort by % change to find gainers and losers
+    const sorted = [...allMovers].sort((a, b) => b.changePercent - a.changePercent);
+    const gainers = sorted.slice(0, 20);
+    const losers = sorted.slice(-20).reverse();
 
     return { gainers, losers };
   } catch (error) {
