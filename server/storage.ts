@@ -1,5 +1,5 @@
 import { 
-  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders, marketPreferences,
+  users, tradeSetups, sp500Stocks, tradeRecommendations, portfolioHoldings, watchlist, savedPrompts, priceAlerts, userNotificationSettings, ibkrSettings, tradingOrders, marketPreferences, investorProfiles, investorTargetList,
   type User, type InsertUser, type UpdateUser, 
   type TradeSetup, type InsertTradeSetup,
   type UpsertUser,
@@ -10,7 +10,9 @@ import {
   type UserNotificationSettings, type InsertUserNotificationSettings,
   type IbkrSettings, type InsertIbkrSettings,
   type TradingOrder, type InsertTradingOrder,
-  type MarketPreferences, type InsertMarketPreferences
+  type MarketPreferences, type InsertMarketPreferences,
+  type InvestorProfile, type InsertInvestorProfile,
+  type InvestorTargetItem, type InsertInvestorTargetItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -86,6 +88,17 @@ export interface IStorage {
   // User Subscription methods
   updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; planTier?: string }): Promise<User | undefined>;
   getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
+
+  // Investor Profile methods
+  getInvestorProfile(userId: string): Promise<InvestorProfile | null>;
+  upsertInvestorProfile(profile: InsertInvestorProfile): Promise<InvestorProfile>;
+
+  // Investor Target List methods
+  getInvestorTargetList(userId: string): Promise<InvestorTargetItem[]>;
+  addInvestorTargetItem(item: InsertInvestorTargetItem): Promise<InvestorTargetItem>;
+  bulkAddInvestorTargetItems(userId: string, items: Omit<InsertInvestorTargetItem, 'userId'>[]): Promise<InvestorTargetItem[]>;
+  updateInvestorTargetItem(userId: string, id: number, updates: Partial<InsertInvestorTargetItem>): Promise<InvestorTargetItem | null>;
+  deleteInvestorTargetItem(userId: string, id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -525,6 +538,83 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.stripeCustomerId, stripeCustomerId));
     return user;
+  }
+
+  // --- Investor Profile ---
+  async getInvestorProfile(userId: string): Promise<InvestorProfile | null> {
+    const [profile] = await db
+      .select()
+      .from(investorProfiles)
+      .where(eq(investorProfiles.userId, userId));
+    return profile || null;
+  }
+
+  async upsertInvestorProfile(profile: InsertInvestorProfile): Promise<InvestorProfile> {
+    const existing = await this.getInvestorProfile(profile.userId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(investorProfiles)
+        .set({
+          ...profile,
+          updatedAt: new Date(),
+        })
+        .where(eq(investorProfiles.userId, profile.userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(investorProfiles)
+        .values(profile)
+        .returning();
+      return created;
+    }
+  }
+
+  // --- Investor Target List ---
+  async getInvestorTargetList(userId: string): Promise<InvestorTargetItem[]> {
+    return await db
+      .select()
+      .from(investorTargetList)
+      .where(eq(investorTargetList.userId, userId))
+      .orderBy(desc(investorTargetList.createdAt));
+  }
+
+  async addInvestorTargetItem(item: InsertInvestorTargetItem): Promise<InvestorTargetItem> {
+    const [created] = await db
+      .insert(investorTargetList)
+      .values(item)
+      .returning();
+    return created;
+  }
+
+  async bulkAddInvestorTargetItems(userId: string, items: Omit<InsertInvestorTargetItem, 'userId'>[]): Promise<InvestorTargetItem[]> {
+    if (items.length === 0) return [];
+    
+    const itemsWithUserId = items.map(item => ({ ...item, userId }));
+    return await db
+      .insert(investorTargetList)
+      .values(itemsWithUserId)
+      .returning();
+  }
+
+  async updateInvestorTargetItem(userId: string, id: number, updates: Partial<InsertInvestorTargetItem>): Promise<InvestorTargetItem | null> {
+    const [updated] = await db
+      .update(investorTargetList)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(investorTargetList.id, id), eq(investorTargetList.userId, userId)))
+      .returning();
+    return updated || null;
+  }
+
+  async deleteInvestorTargetItem(userId: string, id: number): Promise<boolean> {
+    const result = await db
+      .delete(investorTargetList)
+      .where(and(eq(investorTargetList.id, id), eq(investorTargetList.userId, userId)));
+    return true;
   }
 }
 

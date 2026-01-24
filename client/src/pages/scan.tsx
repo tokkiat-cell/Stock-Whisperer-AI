@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { 
   Select,
   SelectContent,
@@ -27,13 +28,16 @@ import {
   Send,
   LineChart,
   Globe,
-  ExternalLink
+  ExternalLink,
+  UserCog,
+  Zap
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { StockChart } from "@/components/stock-chart";
+import type { InvestorProfile } from "@shared/schema";
 
 interface TechnicalIndicator {
   name: string;
@@ -114,10 +118,32 @@ export default function MarketScan() {
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
 
+  const { data: investorProfile } = useQuery<InvestorProfile | null>({
+    queryKey: ["/api/investor-profile"],
+  });
+
   const openChart = (symbol: string) => {
     setChartSymbol(symbol);
     setChartOpen(true);
   };
+
+  const getProfileLabel = () => {
+    if (!investorProfile) return null;
+    if (investorProfile.profileType === "INVESTOR") {
+      return {
+        type: "Investor",
+        detail: investorProfile.riskLevel?.replace(/_/g, " ") || "Unknown Risk",
+        color: "bg-blue-500/20 text-blue-500"
+      };
+    }
+    return {
+      type: "Trader",
+      detail: investorProfile.traderStyle?.replace(/_/g, " ") || "Unknown Style",
+      color: "bg-orange-500/20 text-orange-500"
+    };
+  };
+
+  const profileLabel = getProfileLabel();
 
   const createOrderMutation = useMutation({
     mutationFn: async (rec: Recommendation) => {
@@ -158,12 +184,18 @@ export default function MarketScan() {
     try {
       await apiRequest("POST", "/api/sp500/scan", {
         timeframe: timeframe,
-        market: selectedMarket
+        market: selectedMarket,
+        profileType: investorProfile?.profileType || null,
+        riskLevel: investorProfile?.riskLevel || null,
+        traderStyle: investorProfile?.traderStyle || null,
+        riskPerTrade: investorProfile?.riskPerTrade || null,
+        investmentHorizon: investorProfile?.investmentHorizon || null
       });
       queryClient.invalidateQueries({ queryKey: ["/api/sp500/recommendations"] });
+      const modeLabel = investorProfile?.profileType === "INVESTOR" ? "investor" : "trader";
       toast({
         title: "Scan Complete",
-        description: `Generated top 5 ${marketLabels[selectedMarket]} ${timeframeLabels[timeframe].toLowerCase()} setups.`,
+        description: `Generated ${investorProfile ? modeLabel + " " : ""}recommendations for ${marketLabels[selectedMarket]}.`,
       });
     } catch (error) {
       toast({
@@ -186,12 +218,33 @@ export default function MarketScan() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-            <Scan className="w-6 h-6 text-primary" />
-            AI Market Scanner
-          </h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+              <Scan className="w-6 h-6 text-primary" />
+              AI Market Scanner
+            </h2>
+            {profileLabel && (
+              <Badge className={cn("flex items-center gap-1", profileLabel.color)} data-testid="badge-profile-mode">
+                {investorProfile?.profileType === "INVESTOR" ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : (
+                  <Zap className="w-3 h-3" />
+                )}
+                {profileLabel.type} Mode
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground text-sm mt-1">
-            Get personalized trade recommendations with detailed technical analysis
+            {investorProfile ? (
+              investorProfile.profileType === "INVESTOR" 
+                ? `Scanning for value stocks matching your ${investorProfile.riskLevel?.toLowerCase().replace(/_/g, " ")} risk profile`
+                : `Scanning for momentum stocks with ${investorProfile.traderStyle?.toLowerCase().replace(/_/g, " ")} patterns`
+            ) : (
+              <>
+                Get personalized recommendations.{" "}
+                <a href="/profile-setup" className="text-primary hover:underline">Set up your profile</a> for tailored results.
+              </>
+            )}
           </p>
         </div>
         

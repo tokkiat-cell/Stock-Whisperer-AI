@@ -196,6 +196,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         market = req.body.market;
       }
 
+      // Extract profile information for personalized recommendations
+      const profileInfo = {
+        profileType: req.body.profileType || null,
+        riskLevel: req.body.riskLevel || null,
+        traderStyle: req.body.traderStyle || null,
+        riskPerTrade: req.body.riskPerTrade || null,
+        investmentHorizon: req.body.investmentHorizon || null
+      };
+
       // 1. Get stocks based on selected market
       const symbols = marketStocksConfig[market] || marketStocksConfig.US;
       const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
@@ -219,7 +228,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         priceMap,
         timeframe,
         market,
-        5 // Get top 5 recommendations
+        5, // Get top 5 recommendations
+        profileInfo // Pass profile for personalized recommendations
       );
 
       // Convert enhanced analyses to recommendation format for storage
@@ -1572,6 +1582,104 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error('Error fetching subscription:', error);
       res.status(500).json({ error: 'Failed to fetch subscription details' });
+    }
+  });
+
+  // === INVESTOR PROFILE ROUTES ===
+  app.get('/api/investor-profile', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const profile = await storage.getInvestorProfile(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error('Error fetching investor profile:', error);
+      res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+  });
+
+  app.post('/api/investor-profile', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const profileData = { ...req.body, userId };
+      const profile = await storage.upsertInvestorProfile(profileData);
+      res.json(profile);
+    } catch (error) {
+      console.error('Error saving investor profile:', error);
+      res.status(500).json({ error: 'Failed to save profile' });
+    }
+  });
+
+  // === INVESTOR TARGET LIST ROUTES ===
+  app.get('/api/investor-target-list', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const items = await storage.getInvestorTargetList(userId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching target list:', error);
+      res.status(500).json({ error: 'Failed to fetch target list' });
+    }
+  });
+
+  app.post('/api/investor-target-list', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const itemData = { ...req.body, userId };
+      const item = await storage.addInvestorTargetItem(itemData);
+      res.json(item);
+    } catch (error) {
+      console.error('Error adding target item:', error);
+      res.status(500).json({ error: 'Failed to add target item' });
+    }
+  });
+
+  app.post('/api/investor-target-list/bulk', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const { items } = req.body;
+      const results = await storage.bulkAddInvestorTargetItems(userId, items);
+      res.json(results);
+    } catch (error) {
+      console.error('Error bulk adding target items:', error);
+      res.status(500).json({ error: 'Failed to bulk add target items' });
+    }
+  });
+
+  app.delete('/api/investor-target-list/:id', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      await storage.deleteInvestorTargetItem(userId, id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting target item:', error);
+      res.status(500).json({ error: 'Failed to delete target item' });
+    }
+  });
+
+  app.put('/api/investor-target-list/:id', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const item = await storage.updateInvestorTargetItem(userId, id, req.body);
+      res.json(item);
+    } catch (error) {
+      console.error('Error updating target item:', error);
+      res.status(500).json({ error: 'Failed to update target item' });
     }
   });
 

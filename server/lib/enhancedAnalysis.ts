@@ -7,6 +7,14 @@ const gemini = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
 });
 
+export interface ProfileInfo {
+  profileType: string | null;
+  riskLevel: string | null;
+  traderStyle: string | null;
+  riskPerTrade: string | null;
+  investmentHorizon: string | null;
+}
+
 export interface EnhancedStockAnalysis {
   symbol: string;
   currentPrice: number;
@@ -91,7 +99,8 @@ export async function getEnhancedAnalysis(
   symbol: string,
   currentPrice: number,
   timeframe: string = "swing",
-  market: string = "US"
+  market: string = "US",
+  profileInfo?: ProfileInfo
 ): Promise<EnhancedStockAnalysis> {
   const [localPatterns, alphaVantage] = await Promise.all([
     getLocalPatternAnalysis(symbol).catch(err => {
@@ -412,9 +421,12 @@ export async function scanMarketWithEnhancedAnalysis(
   prices: Map<string, number>,
   timeframe: string,
   market: string,
-  limit: number = 5
+  limit: number = 5,
+  profileInfo?: ProfileInfo
 ): Promise<EnhancedStockAnalysis[]> {
   const analyses: EnhancedStockAnalysis[] = [];
+  
+  console.log(`Scanning with profile: ${profileInfo?.profileType || 'default'} ${profileInfo?.riskLevel || profileInfo?.traderStyle || ''}`);
   
   const batchSize = 3;
   for (let i = 0; i < symbols.length && analyses.length < limit * 2; i += batchSize) {
@@ -424,7 +436,7 @@ export async function scanMarketWithEnhancedAnalysis(
       if (!price) return null;
       
       try {
-        return await getEnhancedAnalysis(symbol, price, timeframe, market);
+        return await getEnhancedAnalysis(symbol, price, timeframe, market, profileInfo);
       } catch (error) {
         console.error(`Error analyzing ${symbol}:`, error);
         return null;
@@ -435,9 +447,20 @@ export async function scanMarketWithEnhancedAnalysis(
     analyses.push(...results.filter((a): a is EnhancedStockAnalysis => a !== null));
   }
 
-  const actionable = analyses.filter(a => a.recommendation !== "HOLD");
+  let actionable = analyses.filter(a => a.recommendation !== "HOLD");
   
-  actionable.sort((a, b) => b.confidence - a.confidence);
+  // For investors with conservative risk, prioritize lower volatility stocks
+  if (profileInfo?.profileType === "INVESTOR" && profileInfo?.riskLevel === "CONSERVATIVE") {
+    actionable.sort((a, b) => {
+      // Lower ATR = less volatile = better for conservative investors
+      const aVolatility = a.technicalIndicators.atr / a.currentPrice;
+      const bVolatility = b.technicalIndicators.atr / b.currentPrice;
+      return aVolatility - bVolatility || b.confidence - a.confidence;
+    });
+  } else {
+    // Default: sort by confidence
+    actionable.sort((a, b) => b.confidence - a.confidence);
+  }
   
   return actionable.slice(0, limit);
 }

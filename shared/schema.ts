@@ -311,3 +311,58 @@ export type MarketIndex = {
 
 // Supported markets for movers
 export type MoversMarket = 'US' | 'SG' | 'HK' | 'CN' | 'EU';
+
+// === INVESTOR PROFILES ===
+export const investorProfiles = pgTable("investor_profiles", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  profileType: text("profile_type").notNull(), // 'INVESTOR' or 'TRADER'
+  // Investor fields
+  riskLevel: text("risk_level"), // 'CONSERVATIVE', 'MODERATE', 'AGGRESSIVE'
+  investmentHorizon: text("investment_horizon"), // '1_3_YEARS', '3_5_YEARS', '5_PLUS_YEARS'
+  // Trader fields
+  traderStyle: text("trader_style"), // 'DAY_TRADER', 'SWING_TRADER', 'POSITION_TRADER'
+  riskPerTrade: text("risk_per_trade"), // '1_2_PERCENT', '3_5_PERCENT', '5_PLUS_PERCENT'
+  // Risk assessment answers (JSON stored as text)
+  riskAssessmentAnswers: text("risk_assessment_answers"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInvestorProfileSchema = createInsertSchema(investorProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InvestorProfile = typeof investorProfiles.$inferSelect;
+export type InsertInvestorProfile = z.infer<typeof insertInvestorProfileSchema>;
+
+// Profile type enums for frontend
+export type ProfileType = 'INVESTOR' | 'TRADER';
+export type RiskLevel = 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
+export type InvestmentHorizon = '1_3_YEARS' | '3_5_YEARS' | '5_PLUS_YEARS';
+export type TraderStyle = 'DAY_TRADER' | 'SWING_TRADER' | 'POSITION_TRADER';
+export type RiskPerTrade = '1_2_PERCENT' | '3_5_PERCENT' | '5_PLUS_PERCENT';
+
+// === INVESTOR TARGET LIST (Stocks with Intrinsic Values) ===
+export const investorTargetList = pgTable("investor_target_list", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  companyName: text("company_name"),
+  intrinsicValue: numeric("intrinsic_value").notNull(),
+  notes: text("notes"),
+  source: text("source"), // 'AI_RECOMMENDED' or 'USER_UPLOADED'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInvestorTargetListSchema = createInsertSchema(investorTargetList).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InvestorTargetItem = typeof investorTargetList.$inferSelect;
+export type InsertInvestorTargetItem = z.infer<typeof insertInvestorTargetListSchema>;
