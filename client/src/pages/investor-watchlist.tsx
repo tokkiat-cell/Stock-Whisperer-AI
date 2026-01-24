@@ -703,21 +703,34 @@ export default function InvestorWatchlist() {
                             className={item.valuationPercent > 0 ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" : ""}
                           >
                             {item.valuationPercent > 0 ? (
-                            <TrendingDown className="h-3 w-3 mr-1" />
-                          ) : (
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                          )}
-                          {Math.abs(item.valuationPercent).toFixed(1)}%
-                          {item.valuationPercent > 0 ? " under" : " over"}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm max-w-32 truncate">
-                      {item.notes || "-"}
-                    </TableCell>
-                    <TableCell>
+                              <TrendingDown className="h-3 w-3 mr-1" />
+                            ) : (
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                            )}
+                            {Math.abs(item.valuationPercent).toFixed(1)}%
+                            {item.valuationPercent > 0 ? " under" : " over"}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {item.growthRates || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {item.moat && (
+                          <Badge variant={item.moat === "Wide" ? "default" : item.moat === "Narrow" ? "secondary" : "outline"} className="text-xs">
+                            {item.moat}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">
+                        {item.investmentType || "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {item.supportLevel1 ? `$${parseFloat(item.supportLevel1 as string).toFixed(2)}` : "-"}
+                      </TableCell>
+                      <TableCell>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -731,7 +744,8 @@ export default function InvestorWatchlist() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
