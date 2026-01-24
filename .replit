@@ -45,6 +45,6 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.
 
 [userenv.shared]
 STRIPE_BASIC_PRICE_ID = "price_1St4o28wY9Bno5QsTc9Qqge8"
-STRIPE_PRO_PRICE_ID = "price_1St2UF8wY9Bno5QsC5wdFdpl"
-STRIPE_BASIC_YEARLY_PRICE_ID = "price_1St2UJ8wY9Bno5Qs3kHlenCh"
-STRIPE_PRO_YEARLY_PRICE_ID = "price_1St1irRXsd7HZQSTRYoJdfj5"
+STRIPE_PRO_PRICE_ID = "price_1St4pi8wY9Bno5Qsvq3h5mVl"
+STRIPE_BASIC_YEARLY_PRICE_ID = "price_1St4oY8wY9Bno5Qsx4O5cZcK"
+STRIPE_PRO_YEARLY_PRICE_ID = "price_1St4px8wY9Bno5QsUyJNYqen"
