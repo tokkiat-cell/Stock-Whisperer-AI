@@ -1418,16 +1418,15 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         });
       }
 
-      // Get price ID based on tier from environment or look up from Stripe
-      // For now, create a checkout session with inline price data
-      const priceConfig = {
-        basic: { amount: 990, name: 'stockwhisperer Basic' },
-        pro: { amount: 4999, name: 'stockwhisperer Pro' },
+      // Get price ID based on tier from environment
+      const priceIds: Record<string, string | undefined> = {
+        basic: process.env.STRIPE_BASIC_PRICE_ID,
+        pro: process.env.STRIPE_PRO_PRICE_ID,
       };
 
-      const config = priceConfig[tier as keyof typeof priceConfig];
-      if (!config) {
-        return res.status(400).json({ error: 'Invalid subscription tier' });
+      const priceId = priceIds[tier as string];
+      if (!priceId) {
+        return res.status(400).json({ error: 'Invalid subscription tier or price not configured' });
       }
 
       const baseUrl = process.env.REPLIT_DEV_DOMAIN 
@@ -1438,15 +1437,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [{
-          price_data: {
-            currency: 'usd',
-            unit_amount: config.amount,
-            recurring: { interval: 'month' },
-            product_data: {
-              name: config.name,
-              metadata: { tier },
-            },
-          },
+          price: priceId,
           quantity: 1,
         }],
         mode: 'subscription',
