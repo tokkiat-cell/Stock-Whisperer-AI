@@ -24,10 +24,7 @@ import AuthPage from "@/pages/auth";
 import ProfileSetup from "@/pages/profile-setup";
 import InvestorWatchlist from "@/pages/investor-watchlist";
 import Premarket from "@/pages/premarket";
-import CupidScanner from "@/pages/cupid-scanner";
-import PowerRangerScanner from "@/pages/powerranger-scanner";
-import RollerCoasterScanner from "@/pages/rollercoaster-scanner";
-import TugOfWarScanner from "@/pages/tugofwar-scanner";
+import DayTradingScanner from "@/pages/daytrading-scanner";
 import LayoutShell from "@/components/layout-shell";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -113,20 +110,8 @@ function Router() {
         <ProtectedRoute component={Premarket} />
       </Route>
       
-      <Route path="/cupid-scanner">
-        <ProtectedRoute component={CupidScanner} />
-      </Route>
-      
-      <Route path="/powerranger-scanner">
-        <ProtectedRoute component={PowerRangerScanner} />
-      </Route>
-      
-      <Route path="/rollercoaster-scanner">
-        <ProtectedRoute component={RollerCoasterScanner} />
-      </Route>
-      
-      <Route path="/tugofwar-scanner">
-        <ProtectedRoute component={TugOfWarScanner} />
+      <Route path="/daytrading-scanner">
+        <ProtectedRoute component={DayTradingScanner} />
       </Route>
       
       <Route path="/checkout/success">

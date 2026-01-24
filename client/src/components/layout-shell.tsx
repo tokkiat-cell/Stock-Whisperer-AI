@@ -21,10 +21,7 @@ import {
   Sparkles,
   Target,
   UserCog,
-  TrendingUp,
-  Heart,
-  TrendingDown,
-  Sword
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,10 +55,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/premarket", label: "Premarket Changes", icon: TrendingUp },
     { href: "/profile-setup", label: "My Profile", icon: UserCog },
     { href: "/scan", label: "AI Scanner", icon: Scan },
-    { href: "/cupid-scanner", label: "Cupid Setup Scanner", icon: Heart },
-    { href: "/powerranger-scanner", label: "Power Ranger", icon: Zap },
-    { href: "/rollercoaster-scanner", label: "Roller Coaster", icon: TrendingDown },
-    { href: "/tugofwar-scanner", label: "Tug of War", icon: Sword },
+    { href: "/daytrading-scanner", label: "Day Trading Scanner", icon: TrendingUp },
     { href: "/investor-watchlist", label: "Investor Targets", icon: Target },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/trading", label: "IBKR Trading", icon: Server },

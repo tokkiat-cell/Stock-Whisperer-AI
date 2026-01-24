@@ -346,6 +346,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Day Trading Scanner - Unified scanner using premarket movers
+  app.get(api.market.dayTradingScanner.path, isAuthenticated, async (req, res) => {
+    try {
+      const { scanDayTradingSetups } = await import('./lib/dayTradingScanner');
+      const results = await scanDayTradingSetups();
+      res.json(results);
+    } catch (error) {
+      console.error('Day trading scanner error:', error);
+      res.status(500).json({ message: "Failed to scan for day trading setups" });
+    }
+  });
+
   // Cupid Setup Scanner - Find stocks matching the Cupid Setup pattern
   app.get(api.market.cupidScanner.path, isAuthenticated, async (req, res) => {
     try {
