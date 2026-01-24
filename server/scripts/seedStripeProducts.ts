@@ -12,7 +12,7 @@ async function seedStripeProducts() {
       metadata: { tier: 'basic' },
       prices: [
         { amount: 990, interval: 'month' as const, envKey: 'STRIPE_BASIC_PRICE_ID' },
-        { amount: 19900, interval: 'year' as const, envKey: 'STRIPE_BASIC_YEARLY_PRICE_ID' },
+        { amount: 9900, interval: 'year' as const, envKey: 'STRIPE_BASIC_YEARLY_PRICE_ID' },
       ],
     },
     {
@@ -20,7 +20,8 @@ async function seedStripeProducts() {
       description: 'Advanced AI trading with market scanning and integrations',
       metadata: { tier: 'pro' },
       prices: [
-        { amount: 4999, interval: 'month' as const, envKey: 'STRIPE_PRO_PRICE_ID' },
+        { amount: 2990, interval: 'month' as const, envKey: 'STRIPE_PRO_PRICE_ID' },
+        { amount: 29900, interval: 'year' as const, envKey: 'STRIPE_PRO_YEARLY_PRICE_ID' },
       ],
     },
   ];
