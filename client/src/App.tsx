@@ -24,6 +24,7 @@ import AuthPage from "@/pages/auth";
 import ProfileSetup from "@/pages/profile-setup";
 import InvestorWatchlist from "@/pages/investor-watchlist";
 import Premarket from "@/pages/premarket";
+import CupidScanner from "@/pages/cupid-scanner";
 import LayoutShell from "@/components/layout-shell";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -107,6 +108,10 @@ function Router() {
       
       <Route path="/premarket">
         <ProtectedRoute component={Premarket} />
+      </Route>
+      
+      <Route path="/cupid-scanner">
+        <ProtectedRoute component={CupidScanner} />
       </Route>
       
       <Route path="/checkout/success">

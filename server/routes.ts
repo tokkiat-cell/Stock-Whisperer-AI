@@ -346,6 +346,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Cupid Setup Scanner - Find stocks matching the Cupid Setup pattern
+  app.get(api.market.cupidScanner.path, isAuthenticated, async (req, res) => {
+    try {
+      const { scanForCupidSetups } = await import('./lib/cupidSetup');
+      const results = await scanForCupidSetups();
+      res.json(results);
+    } catch (error) {
+      console.error('Cupid scanner error:', error);
+      res.status(500).json({ message: "Failed to scan for Cupid setups" });
+    }
+  });
+
   // Market Indices - US, Singapore, Hong Kong, China, Europe
   const marketIndicesConfig: Record<string, { symbol: string; name: string }[]> = {
     US: [

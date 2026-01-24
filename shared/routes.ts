@@ -208,6 +208,33 @@ export const api = {
         }),
       },
     },
+    cupidScanner: {
+      method: 'GET' as const,
+      path: '/api/market/cupid-scanner',
+      responses: {
+        200: z.array(z.object({
+          symbol: z.string(),
+          name: z.string(),
+          currentPrice: z.number(),
+          patternDetected: z.boolean(),
+          confidence: z.number(),
+          uptrendStrength: z.number(),
+          pullbackDepth: z.number(),
+          pullbackSmoothness: z.number(),
+          pullbackAngle: z.number(),
+          swingHigh: z.number(),
+          swingLow: z.number(),
+          entryZone: z.object({
+            low: z.number(),
+            high: z.number(),
+          }),
+          stopLoss: z.number(),
+          targetPrice: z.number(),
+          riskRewardRatio: z.number(),
+          details: z.array(z.string()),
+        })),
+      },
+    },
     indices: {
       method: 'GET' as const,
       path: '/api/market/indices',
