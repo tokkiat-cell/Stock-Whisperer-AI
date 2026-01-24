@@ -4,6 +4,8 @@ import Stripe from 'stripe';
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
+    console.log('[WEBHOOK] Received webhook request');
+    
     if (!Buffer.isBuffer(payload)) {
       throw new Error(
         'STRIPE WEBHOOK ERROR: Payload must be a Buffer. ' +
@@ -18,21 +20,27 @@ export class WebhookHandlers {
     
     const webhookSecret = await sync.getWebhookSecret();
     if (!webhookSecret) {
+      console.error('[WEBHOOK] Webhook secret not configured');
       throw new Error('Webhook secret not configured');
     }
 
     const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     
-    console.log(`Received webhook ${event.id}: ${event.type} for ${(event.data.object as any).id}`);
+    console.log(`[WEBHOOK] Event ${event.id}: ${event.type} for ${(event.data.object as any).id}`);
 
     await sync.processWebhook(payload, signature);
+    console.log('[WEBHOOK] Stripe sync processed');
 
     await WebhookHandlers.handleCustomEvents(event, stripe);
+    console.log('[WEBHOOK] Custom event handlers completed');
   }
 
   static async handleCustomEvents(event: Stripe.Event, stripe: Stripe): Promise<void> {
+    console.log(`[WEBHOOK] Processing custom event: ${event.type}`);
+    
     switch (event.type) {
       case 'checkout.session.completed': {
+        console.log('[WEBHOOK] Handling checkout.session.completed');
         const session = event.data.object as Stripe.Checkout.Session;
         await WebhookHandlers.handleCheckoutCompleted(session, stripe);
         break;
@@ -40,38 +48,48 @@ export class WebhookHandlers {
       
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
+        console.log(`[WEBHOOK] Handling ${event.type}`);
         const subscription = event.data.object as Stripe.Subscription;
         await WebhookHandlers.handleSubscriptionUpdate(subscription, stripe);
         break;
       }
       
       case 'customer.subscription.deleted': {
+        console.log('[WEBHOOK] Handling customer.subscription.deleted');
         const subscription = event.data.object as Stripe.Subscription;
         await WebhookHandlers.handleSubscriptionDeleted(subscription, stripe);
         break;
       }
+      
+      default:
+        console.log(`[WEBHOOK] Unhandled event type: ${event.type}`);
     }
   }
 
   static async handleCheckoutCompleted(session: Stripe.Checkout.Session, stripe: Stripe): Promise<void> {
+    console.log(`[WEBHOOK] Checkout session: ${session.id}`);
+    console.log(`[WEBHOOK] Session metadata: ${JSON.stringify(session.metadata)}`);
+    
     const userId = session.metadata?.userId;
     const subscriptionId = session.subscription as string;
     const customerId = session.customer as string;
 
+    console.log(`[WEBHOOK] userId: ${userId}, subscriptionId: ${subscriptionId}, customerId: ${customerId}`);
+
     if (!userId) {
-      console.error('Checkout completed but no userId in metadata');
+      console.error('[WEBHOOK] Checkout completed but no userId in metadata');
       throw new Error('Missing userId in checkout session metadata');
     }
 
     if (!subscriptionId) {
-      console.error('Checkout completed but no subscription ID');
+      console.error('[WEBHOOK] Checkout completed but no subscription ID');
       throw new Error('Missing subscription ID in checkout session');
     }
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const planTier = await WebhookHandlers.determineTierFromPriceId(subscription, stripe);
 
-    console.log(`Checkout completed for user ${userId}, tier: ${planTier}, subscription: ${subscriptionId}`);
+    console.log(`[WEBHOOK] Checkout completed for user ${userId}, tier: ${planTier}, subscription: ${subscriptionId}`);
 
     const updated = await storage.updateUserSubscription(userId, {
       stripeCustomerId: customerId,
@@ -80,19 +98,26 @@ export class WebhookHandlers {
     });
 
     if (!updated) {
+      console.error(`[WEBHOOK] Failed to update user ${userId} subscription`);
       throw new Error(`Failed to update user ${userId} subscription`);
     }
 
-    console.log(`User ${userId} subscription updated to ${planTier}`);
+    console.log(`[WEBHOOK] SUCCESS: User ${userId} subscription updated to ${planTier}`);
   }
 
   static async handleSubscriptionUpdate(subscription: Stripe.Subscription, stripe: Stripe): Promise<void> {
     const customerId = subscription.customer as string;
     const userId = subscription.metadata?.userId;
     
+    console.log(`[WEBHOOK] Subscription update: ${subscription.id}`);
+    console.log(`[WEBHOOK] Customer: ${customerId}, metadata userId: ${userId}`);
+    console.log(`[WEBHOOK] Subscription metadata: ${JSON.stringify(subscription.metadata)}`);
+    
     let user = await WebhookHandlers.findUserByCustomerId(customerId);
+    console.log(`[WEBHOOK] Found user by customerId: ${user ? user.id : 'null'}`);
     
     if (!user && userId) {
+      console.log(`[WEBHOOK] Using userId from metadata: ${userId}`);
       user = { id: userId };
       await storage.updateUserSubscription(userId, {
         stripeCustomerId: customerId,
@@ -100,14 +125,16 @@ export class WebhookHandlers {
     }
     
     if (!user) {
-      console.log(`No user found for customer ${customerId} and no userId in metadata`);
+      console.log(`[WEBHOOK] No user found for customer ${customerId} and no userId in metadata - skipping`);
       return;
     }
 
     const status = subscription.status;
+    console.log(`[WEBHOOK] Subscription status: ${status}`);
     
     if (status === 'active' || status === 'trialing') {
       const planTier = await WebhookHandlers.determineTierFromPriceId(subscription, stripe);
+      console.log(`[WEBHOOK] Determined plan tier: ${planTier}`);
       
       const updated = await storage.updateUserSubscription(user.id, {
         stripeCustomerId: customerId,
@@ -116,10 +143,11 @@ export class WebhookHandlers {
       });
       
       if (!updated) {
+        console.error(`[WEBHOOK] Failed to update user ${user.id} subscription`);
         throw new Error(`Failed to update user ${user.id} subscription`);
       }
       
-      console.log(`User ${user.id} subscription updated to ${planTier}`);
+      console.log(`[WEBHOOK] SUCCESS: User ${user.id} subscription updated to ${planTier}`);
     } else if (status === 'canceled' || status === 'unpaid' || status === 'past_due') {
       const updated = await storage.updateUserSubscription(user.id, {
         stripeSubscriptionId: null,
@@ -127,10 +155,11 @@ export class WebhookHandlers {
       });
       
       if (!updated) {
+        console.error(`[WEBHOOK] Failed to reset user ${user.id} subscription`);
         throw new Error(`Failed to reset user ${user.id} subscription`);
       }
       
-      console.log(`User ${user.id} subscription status ${status}, reverted to free`);
+      console.log(`[WEBHOOK] User ${user.id} subscription status ${status}, reverted to free`);
     }
   }
 

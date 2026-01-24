@@ -1536,14 +1536,21 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       const priceItem = subscription.items.data[0];
       const price = priceItem.price;
 
+      const periodStart = subscription.current_period_start 
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null;
+      const periodEnd = subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null;
+
       res.json({
         subscription: {
           status: subscription.status,
           interval: price.recurring?.interval || 'month',
           priceAmount: (price.unit_amount || 0) / 100,
           currency: price.currency.toUpperCase(),
-          currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
         },
       });
