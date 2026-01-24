@@ -1405,7 +1405,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
       // Get or create Stripe customer
       const user = await storage.getUser(userId);
-      let customerId = user?.paddleCustomerId; // Reusing field for Stripe customer ID
+      let customerId = user?.stripeCustomerId;
 
       if (!customerId) {
         const customer = await stripe.customers.create({
@@ -1414,7 +1414,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         });
         customerId = customer.id;
         await storage.updateUserSubscription(userId, {
-          paddleCustomerId: customerId,
+          stripeCustomerId: customerId,
         });
       }
 
@@ -1479,7 +1479,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!user?.paddleCustomerId) {
+      if (!user?.stripeCustomerId) {
         return res.status(400).json({ error: 'No subscription found' });
       }
 
@@ -1491,7 +1491,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
 
       const session = await stripe.billingPortal.sessions.create({
-        customer: user.paddleCustomerId,
+        customer: user.stripeCustomerId,
         return_url: `${baseUrl}/subscription`,
       });
 
@@ -1510,7 +1510,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!user?.paddleCustomerId) {
+      if (!user?.stripeCustomerId) {
         return res.json({ subscription: null });
       }
 
@@ -1519,7 +1519,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
       // Fetch active subscriptions for this customer
       const subscriptions = await stripe.subscriptions.list({
-        customer: user.paddleCustomerId,
+        customer: user.stripeCustomerId,
         status: 'active',
         limit: 1,
       });

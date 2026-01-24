@@ -23,8 +23,8 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   totpSecret: varchar("totp_secret"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
-  paddleCustomerId: varchar("paddle_customer_id"),
-  paddleSubscriptionId: varchar("paddle_subscription_id"),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
   planTier: varchar("plan_tier").default("free"), // 'free', 'basic', or 'pro'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
