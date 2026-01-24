@@ -51,6 +51,11 @@ Key features:
   - stockwhisperer Basic ($9.90/month) - Higher limits
   - stockwhisperer Pro ($49.99/month) - Unlimited usage
   - Static pricing page displayed (payment processing to be integrated later)
+- **Legal Pages**: Publicly accessible legal documentation
+  - Terms of Service (/terms) - Service terms, investment disclaimer, liability
+  - Privacy Policy (/privacy) - Data collection, AI processing, user rights
+  - Refund Policy (/refund-policy) - Subscription refund terms
+  - Cross-linked with "Back to Pricing" navigation
 - **AI Usage Limits**: Monthly usage limits vary by tier
   - Free Tier: 10 chats, 3 images, 5 voice, 10 stock analyses per month
   - Basic Tier: 50 chats, 20 images, 20 voice, 60 stock analyses per month
