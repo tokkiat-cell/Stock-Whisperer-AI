@@ -1,6 +1,5 @@
-import { getPatternRecognition, getTechnicalIndicators, CandlestickPattern, TechnicalAnalysisResult } from "./finnhubClient";
+import { getLocalPatternAnalysis, PatternScore, PatternResult } from "./localCandlestickPatterns";
 import { getAlphaVantageAnalysis, calculateDynamicSLTP, AlphaVantageAnalysis } from "./alphaVantageClient";
-import { getTradefeedsAnalysis, TradefeedsAnalysis } from "./tradefeedsClient";
 import OpenAI from "openai";
 
 const gemini = new OpenAI({
@@ -82,9 +81,8 @@ export interface EnhancedStockAnalysis {
   };
   
   dataSources: {
-    finnhub: boolean;
+    localPatterns: boolean;
     alphaVantage: boolean;
-    tradefeeds: boolean;
     geminiAI: boolean;
   };
 }
@@ -95,36 +93,25 @@ export async function getEnhancedAnalysis(
   timeframe: string = "swing",
   market: string = "US"
 ): Promise<EnhancedStockAnalysis> {
-  const [finnhubPattern, finnhubTechnical, alphaVantage, tradefeeds] = await Promise.all([
-    getPatternRecognition(symbol).catch(err => {
-      console.error("Finnhub pattern error:", err);
-      return null;
-    }),
-    getTechnicalIndicators(symbol).catch(err => {
-      console.error("Finnhub technical error:", err);
+  const [localPatterns, alphaVantage] = await Promise.all([
+    getLocalPatternAnalysis(symbol).catch(err => {
+      console.error("Local pattern error:", err);
       return null;
     }),
     getAlphaVantageAnalysis(symbol, currentPrice).catch(err => {
       console.error("Alpha Vantage error:", err);
       return null;
-    }),
-    getTradefeedsAnalysis(symbol, currentPrice, timeframe).catch(err => {
-      console.error("Tradefeeds error:", err);
-      return null;
     })
   ]);
 
   const aggregatedSignals = aggregateSignals(
-    finnhubPattern,
-    finnhubTechnical,
-    alphaVantage,
-    tradefeeds
+    localPatterns,
+    alphaVantage
   );
 
   const sltp = calculateOptimalSLTP(
     currentPrice,
     alphaVantage,
-    tradefeeds,
     timeframe,
     aggregatedSignals.recommendation
   );
@@ -133,11 +120,16 @@ export async function getEnhancedAnalysis(
     symbol,
     currentPrice,
     aggregatedSignals,
-    finnhubPattern,
+    localPatterns,
     alphaVantage,
     timeframe,
     market
   );
+
+  const patternNames = localPatterns?.patterns.map(p => p.pattern).join(", ") || null;
+  const patternSignal = localPatterns ? 
+    (localPatterns.buyScore > localPatterns.sellScore ? "BUY" : 
+     localPatterns.sellScore > localPatterns.buyScore ? "SELL" : "NEUTRAL") : "NEUTRAL";
 
   return {
     symbol,
@@ -151,10 +143,10 @@ export async function getEnhancedAnalysis(
     riskReward: sltp.riskReward,
     
     candlestickPattern: {
-      pattern: finnhubPattern?.dominantPattern || null,
-      signal: finnhubPattern?.patternSignal || "NEUTRAL",
-      buyScore: finnhubPattern?.buyScore || 0,
-      sellScore: finnhubPattern?.sellScore || 0
+      pattern: patternNames,
+      signal: patternSignal,
+      buyScore: localPatterns?.buyScore || 0,
+      sellScore: localPatterns?.sellScore || 0
     },
     
     technicalIndicators: {
@@ -187,10 +179,10 @@ export async function getEnhancedAnalysis(
     },
     
     sentiment: {
-      bullishPercent: tradefeeds?.sentiment.bullishPercent || 50,
-      bearishPercent: tradefeeds?.sentiment.bearishPercent || 30,
-      neutralPercent: tradefeeds?.sentiment.neutralPercent || 20,
-      overall: tradefeeds?.sentiment.overallSentiment || "NEUTRAL"
+      bullishPercent: localPatterns ? (localPatterns.buyScore > 50 ? 60 : 40) : 50,
+      bearishPercent: localPatterns ? (localPatterns.sellScore > 50 ? 60 : 30) : 30,
+      neutralPercent: 20,
+      overall: patternSignal === "BUY" ? "BULLISH" : patternSignal === "SELL" ? "BEARISH" : "NEUTRAL"
     },
     
     aiAnalysis: aiEnhancement,
@@ -200,65 +192,55 @@ export async function getEnhancedAnalysis(
       : undefined,
     
     dataSources: {
-      finnhub: !!finnhubPattern || !!finnhubTechnical,
+      localPatterns: !!localPatterns,
       alphaVantage: !!alphaVantage,
-      tradefeeds: !!tradefeeds,
       geminiAI: true
     }
   };
 }
 
 function aggregateSignals(
-  pattern: CandlestickPattern | null,
-  technical: TechnicalAnalysisResult | null,
-  alpha: AlphaVantageAnalysis | null,
-  tradefeeds: TradefeedsAnalysis | null
+  patterns: PatternScore | null,
+  alpha: AlphaVantageAnalysis | null
 ): { recommendation: "BUY" | "SELL" | "HOLD"; confidence: number } {
   let buySignals = 0;
   let sellSignals = 0;
   let totalWeight = 0;
 
-  if (pattern) {
-    const weight = 25;
+  if (patterns) {
+    const weight = 40;
     totalWeight += weight;
-    if (pattern.patternSignal === "BUY") buySignals += weight;
-    else if (pattern.patternSignal === "SELL") sellSignals += weight;
-  }
-
-  if (technical) {
-    const weight = 20;
-    totalWeight += weight;
-    const signal = technical.technicalAnalysis.signal.toLowerCase();
-    if (signal === "buy" || signal === "strong_buy") buySignals += weight;
-    else if (signal === "sell" || signal === "strong_sell") sellSignals += weight;
+    buySignals += (patterns.buyScore / 100) * weight;
+    sellSignals += (patterns.sellScore / 100) * weight;
   }
 
   if (alpha) {
-    const weight = 30;
+    const weight = 60;
     totalWeight += weight;
     
-    if (alpha.indicators.rsi < 30) buySignals += weight * 0.3;
-    else if (alpha.indicators.rsi > 70) sellSignals += weight * 0.3;
+    if (alpha.indicators.rsi < 30) buySignals += weight * 0.25;
+    else if (alpha.indicators.rsi > 70) sellSignals += weight * 0.25;
+    else if (alpha.indicators.rsi < 40) buySignals += weight * 0.1;
+    else if (alpha.indicators.rsi > 60) sellSignals += weight * 0.1;
     
-    if (alpha.indicators.macd.trend === "BULLISH") buySignals += weight * 0.4;
-    else if (alpha.indicators.macd.trend === "BEARISH") sellSignals += weight * 0.4;
+    if (alpha.indicators.macd.trend === "BULLISH") buySignals += weight * 0.35;
+    else if (alpha.indicators.macd.trend === "BEARISH") sellSignals += weight * 0.35;
     
     const price = alpha.priceHistory[0]?.close || alpha.supportResistance.pivotPoint;
-    if (price && alpha.indicators.sma20 && price > alpha.indicators.sma20) {
-      buySignals += weight * 0.3;
-    } else if (price && alpha.indicators.sma20 && price < alpha.indicators.sma20) {
-      sellSignals += weight * 0.3;
+    if (price && alpha.indicators.sma20) {
+      if (price > alpha.indicators.sma20) buySignals += weight * 0.2;
+      else sellSignals += weight * 0.2;
     }
-  }
-
-  if (tradefeeds) {
-    const weight = 25;
-    totalWeight += weight;
     
-    if (tradefeeds.recommendation === "STRONG_BUY") buySignals += weight;
-    else if (tradefeeds.recommendation === "BUY") buySignals += weight * 0.7;
-    else if (tradefeeds.recommendation === "STRONG_SELL") sellSignals += weight;
-    else if (tradefeeds.recommendation === "SELL") sellSignals += weight * 0.7;
+    if (price && alpha.indicators.sma50) {
+      if (price > alpha.indicators.sma50) buySignals += weight * 0.1;
+      else sellSignals += weight * 0.1;
+    }
+    
+    if (price && alpha.indicators.bollingerBands) {
+      if (price <= alpha.indicators.bollingerBands.lower) buySignals += weight * 0.1;
+      else if (price >= alpha.indicators.bollingerBands.upper) sellSignals += weight * 0.1;
+    }
   }
 
   const buyPct = totalWeight > 0 ? (buySignals / totalWeight) * 100 : 50;
@@ -267,15 +249,15 @@ function aggregateSignals(
   let recommendation: "BUY" | "SELL" | "HOLD" = "HOLD";
   let confidence = 50;
 
-  if (buyPct > sellPct + 15) {
+  if (buyPct > sellPct + 12) {
     recommendation = "BUY";
-    confidence = Math.min(Math.round(buyPct), 95);
-  } else if (sellPct > buyPct + 15) {
+    confidence = Math.min(Math.round(buyPct + 20), 95);
+  } else if (sellPct > buyPct + 12) {
     recommendation = "SELL";
-    confidence = Math.min(Math.round(sellPct), 95);
+    confidence = Math.min(Math.round(sellPct + 20), 95);
   } else {
     recommendation = "HOLD";
-    confidence = Math.round(100 - Math.abs(buyPct - sellPct));
+    confidence = Math.round(60 - Math.abs(buyPct - sellPct));
   }
 
   return { recommendation, confidence };
@@ -284,7 +266,6 @@ function aggregateSignals(
 function calculateOptimalSLTP(
   currentPrice: number,
   alpha: AlphaVantageAnalysis | null,
-  tradefeeds: TradefeedsAnalysis | null,
   timeframe: string,
   direction: "BUY" | "SELL" | "HOLD"
 ): { stopLoss: number; takeProfit: number; riskReward: number } {
@@ -292,43 +273,13 @@ function calculateOptimalSLTP(
   const actualDirection = direction === "HOLD" ? "BUY" : direction;
   
   if (alpha) {
-    const dynamicSLTP = calculateDynamicSLTP(
+    return calculateDynamicSLTP(
       currentPrice,
       alpha.supportResistance,
       alpha.indicators.atr,
       timeframe,
       actualDirection
     );
-    
-    if (tradefeeds) {
-      const tradeSL = tradefeeds.riskManagement.suggestedSL;
-      const tradeTP = tradefeeds.riskManagement.suggestedTP;
-      
-      const avgSL = (dynamicSLTP.stopLoss + tradeSL) / 2;
-      const avgTP = (dynamicSLTP.takeProfit + tradeTP) / 2;
-      
-      const risk = Math.abs(currentPrice - avgSL);
-      const reward = Math.abs(avgTP - currentPrice);
-      
-      return {
-        stopLoss: Math.round(avgSL * 100) / 100,
-        takeProfit: Math.round(avgTP * 100) / 100,
-        riskReward: risk > 0 ? Math.round((reward / risk) * 100) / 100 : 0
-      };
-    }
-    
-    return dynamicSLTP;
-  }
-  
-  if (tradefeeds) {
-    const risk = Math.abs(currentPrice - tradefeeds.riskManagement.suggestedSL);
-    const reward = Math.abs(tradefeeds.riskManagement.suggestedTP - currentPrice);
-    
-    return {
-      stopLoss: tradefeeds.riskManagement.suggestedSL,
-      takeProfit: tradefeeds.riskManagement.suggestedTP,
-      riskReward: risk > 0 ? Math.round((reward / risk) * 100) / 100 : 0
-    };
   }
   
   const timeframeMultipliers: Record<string, { sl: number; tp: number }> = {
@@ -351,18 +302,23 @@ async function getAIEnhancement(
   symbol: string,
   currentPrice: number,
   signals: { recommendation: "BUY" | "SELL" | "HOLD"; confidence: number },
-  pattern: CandlestickPattern | null,
+  patterns: PatternScore | null,
   alpha: AlphaVantageAnalysis | null,
   timeframe: string,
   market: string
 ): Promise<{ rationale: string; trend: string; keyLevels: string; riskFactors: string }> {
+  const patternNames = patterns?.patterns.map(p => p.pattern).join(", ") || "No clear pattern";
+  const patternSignal = patterns ? 
+    (patterns.buyScore > patterns.sellScore ? "Bullish" : 
+     patterns.sellScore > patterns.buyScore ? "Bearish" : "Neutral") : "Neutral";
+
   try {
     const prompt = `
 Analyze ${symbol} at $${currentPrice} for ${timeframe} trading in the ${market} market.
 
 Technical Data:
-- Candlestick Pattern: ${pattern?.dominantPattern || "No clear pattern"}
-- Pattern Signal: ${pattern?.patternSignal || "Neutral"}
+- Candlestick Patterns: ${patternNames}
+- Pattern Signal: ${patternSignal} (Buy Score: ${patterns?.buyScore || 0}, Sell Score: ${patterns?.sellScore || 0})
 - RSI: ${alpha?.indicators.rsi?.toFixed(1) || "N/A"}
 - MACD Trend: ${alpha?.indicators.macd.trend || "N/A"}
 - SMA20: ${alpha?.indicators.sma20?.toFixed(2) || "N/A"}
@@ -401,8 +357,8 @@ Provide a brief JSON analysis:
 
   return {
     rationale: `${signals.recommendation} signal with ${signals.confidence}% confidence based on technical indicators and pattern analysis.`,
-    trend: pattern?.patternSignal === "BUY" ? "Bullish momentum" : 
-           pattern?.patternSignal === "SELL" ? "Bearish pressure" : "Consolidating",
+    trend: patternSignal === "Bullish" ? "Bullish momentum" : 
+           patternSignal === "Bearish" ? "Bearish pressure" : "Consolidating",
     keyLevels: `Watch support at $${(currentPrice * 0.97).toFixed(2)} and resistance at $${(currentPrice * 1.03).toFixed(2)}`,
     riskFactors: "Monitor volume confirmation and broader market conditions."
   };
