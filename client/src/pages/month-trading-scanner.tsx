@@ -2,14 +2,14 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Loader2, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ShoppingCart, ArrowUp, ArrowDown, Zap, Heart, Scale, Waves, Calendar } from "lucide-react";
+import { RefreshCw, Loader2, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ShoppingCart, ArrowUp, ArrowDown, Zap, Heart, Scale, Waves, Calendar, Rocket, BarChart3, Activity, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { StockChart } from "@/components/stock-chart";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-type MonthPatternType = 'powerranger' | 'cupid' | 'tugofwar' | 'rollercoaster';
+type MonthPatternType = 'powerranger' | 'cupid' | 'tugofwar' | 'rollercoaster' | 'breakout' | 'accumulation' | 'momentum' | 'value';
 
 interface MonthTradingSetup {
   symbol: string;
@@ -36,6 +36,10 @@ const patternConfig: Record<MonthPatternType, { icon: typeof Zap; color: string;
   cupid: { icon: Heart, color: "text-pink-500", bgColor: "bg-pink-500/10", label: "Cupid" },
   tugofwar: { icon: Scale, color: "text-blue-500", bgColor: "bg-blue-500/10", label: "Tug of War" },
   rollercoaster: { icon: Waves, color: "text-orange-500", bgColor: "bg-orange-500/10", label: "Rollercoaster" },
+  breakout: { icon: Rocket, color: "text-emerald-500", bgColor: "bg-emerald-500/10", label: "Breakout" },
+  accumulation: { icon: BarChart3, color: "text-cyan-500", bgColor: "bg-cyan-500/10", label: "Accumulation" },
+  momentum: { icon: Activity, color: "text-amber-500", bgColor: "bg-amber-500/10", label: "Momentum" },
+  value: { icon: DollarSign, color: "text-purple-500", bgColor: "bg-purple-500/10", label: "Value" },
 };
 
 export default function MonthTradingScanner() {
@@ -100,10 +104,10 @@ export default function MonthTradingScanner() {
 
   const filteredResults = results?.filter(r => patternFilter === 'all' || r.patternType === patternFilter) || [];
 
-  const patternCounts = results?.reduce((acc, r) => {
+  const patternCounts: Partial<Record<MonthPatternType, number>> = results?.reduce((acc, r) => {
     acc[r.patternType] = (acc[r.patternType] || 0) + 1;
     return acc;
-  }, {} as Record<MonthPatternType, number>) || {};
+  }, {} as Partial<Record<MonthPatternType, number>>) || {};
 
   return (
     <div className="space-y-6 p-6">
@@ -114,7 +118,7 @@ export default function MonthTradingScanner() {
             Month Trading Scanner
           </h1>
           <p className="text-muted-foreground" data-testid="text-month-scanner-description">
-            Scans weekly charts for Power Ranger, Cupid, Tug of War & Rollercoaster setups
+            Scans weekly charts for 8 pattern types including Breakout, Momentum, Value & more
           </p>
         </div>
         <Button
@@ -353,11 +357,13 @@ export default function MonthTradingScanner() {
         symbol={chartSymbol}
         open={chartOpen}
         onOpenChange={setChartOpen}
-        supportLevel={chartLevels.support}
-        resistanceLevel={chartLevels.resistance}
-        entryLevel={chartLevels.entry}
-        stopLoss={chartLevels.stopLoss}
-        targetPrice={chartLevels.target}
+        levels={{
+          support: chartLevels.support,
+          resistance: chartLevels.resistance,
+          entry: chartLevels.entry,
+          stopLoss: chartLevels.stopLoss,
+          target: chartLevels.target,
+        }}
       />
     </div>
   );

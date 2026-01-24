@@ -9,6 +9,9 @@ import { getEnhancedAnalysis, scanMarketWithEnhancedAnalysis } from "./lib/enhan
 import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance();
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // Setup Auth

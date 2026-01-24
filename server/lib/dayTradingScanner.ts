@@ -2,7 +2,9 @@ import { getPremarketGainersAndLosers } from "./marketData";
 import { detectCupidSetup, CupidSetupResult } from "./cupidSetup";
 import { analyzeRollerCoasterSetup, RollerCoasterSetup } from "./rollerCoasterSetup";
 import { analyzeTugOfWarSetup, TugOfWarSetup } from "./tugOfWarSetup";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance();
 
 export type PatternType = 'cupid' | 'powerRanger' | 'rollerCoaster' | 'tugOfWar';
 

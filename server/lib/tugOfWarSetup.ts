@@ -1,5 +1,7 @@
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
 import { detectMarketStage, calculateSupportResistance, getTrendDirection } from './rollerCoasterSetup';
+
+const yahooFinance = new YahooFinance();
 
 interface CandleData {
   date: Date;
