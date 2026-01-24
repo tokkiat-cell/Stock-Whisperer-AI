@@ -269,21 +269,6 @@ export default function MarketScan() {
               TradingView
             </a>
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            asChild
-            data-testid="button-moomoo-header"
-          >
-            <a 
-              href="https://www.moomoo.com/trade"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Moomoo
-            </a>
-          </Button>
         </div>
       </div>
 
@@ -372,7 +357,7 @@ export default function MarketScan() {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Top 5 Trade Recommendations
+              Top 10 Trade Recommendations
             </h3>
             <span className="text-xs text-muted-foreground">
               Based on technical analysis and market conditions
@@ -380,7 +365,7 @@ export default function MarketScan() {
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-            {recommendations.slice(0, 5).map((rec, idx) => (
+            {recommendations.slice(0, 10).map((rec, idx) => (
               <Card key={`${rec.symbol}-${idx}`} className="overflow-hidden">
                 <div className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -689,21 +674,6 @@ export default function MarketScan() {
                             >
                               <ExternalLink className="w-4 h-4 mr-2" />
                               TradingView
-                            </a>
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            asChild
-                            className="w-full"
-                            data-testid={`button-moomoo-${rec.symbol}`}
-                          >
-                            <a 
-                              href="https://www.moomoo.com/trade"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Moomoo
                             </a>
                           </Button>
                         </div>
