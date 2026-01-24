@@ -64,7 +64,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/tugofwar-scanner", label: "Tug of War", icon: Sword },
     { href: "/investor-watchlist", label: "Investor Targets", icon: Target },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
-    { href: "/trading", label: "Moomoo Trading", icon: Server },
+    { href: "/trading", label: "IBKR Trading", icon: Server },
     { href: "/analysis", label: "Manual Analysis", icon: LineChart },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
     { href: "/subscription", label: "Subscription", icon: Settings },

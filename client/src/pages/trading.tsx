@@ -112,7 +112,7 @@ export default function TradingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ibkr/settings"] });
       setShowSettingsDialog(false);
-      toast({ title: "Settings Saved", description: "Moomoo connection settings updated." });
+      toast({ title: "Settings Saved", description: "IBKR connection settings updated." });
     },
     onError: () => {
       toast({ variant: "destructive", title: "Error", description: "Failed to save settings." });
@@ -300,10 +300,10 @@ export default function TradingPage() {
         <div>
           <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             <Server className="w-6 h-6 text-primary" />
-            Moomoo Trading
+            IBKR Trading
           </h2>
           <p className="text-muted-foreground mt-1">
-            Create and submit orders to Moomoo
+            Create and submit orders to Interactive Brokers
           </p>
         </div>
 
@@ -345,9 +345,9 @@ export default function TradingPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Moomoo Connection Settings</DialogTitle>
+                <DialogTitle>IBKR Connection Settings</DialogTitle>
                 <DialogDescription>
-                  Configure your Moomoo OpenAPI connection settings for trade execution.
+                  Configure your IBKR Client Portal connection settings for trade execution.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -369,7 +369,7 @@ export default function TradingPage() {
                     placeholder="11111"
                     data-testid="input-moomoo-port"
                   />
-                  <p className="text-xs text-muted-foreground">Default Moomoo OpenAPI port: 11111</p>
+                  <p className="text-xs text-muted-foreground">Default IBKR Client Portal port: 5000</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Client ID</Label>
@@ -536,7 +536,7 @@ export default function TradingPage() {
                 )} />
                 <div>
                   <p className="font-medium">
-                    Moomoo: {ibkrSettings.host}:{ibkrSettings.port}
+                    IBKR: {ibkrSettings.host}:{ibkrSettings.port}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Client ID: {ibkrSettings.clientId}
@@ -712,10 +712,10 @@ export default function TradingPage() {
             </div>
             <DialogTitle className="flex items-center gap-2">
               <LogIn className="w-5 h-5 text-primary" />
-              Login to Moomoo
+              Login to IBKR
             </DialogTitle>
             <DialogDescription>
-              Please enter your Moomoo credentials to submit orders. Your login session will persist for this browser session.
+              Please enter your IBKR credentials to submit orders. Your login session will persist for this browser session.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -725,7 +725,7 @@ export default function TradingPage() {
                 type="text"
                 value={moomooCredentials.username}
                 onChange={(e) => setMoomooCredentials(prev => ({ ...prev, username: e.target.value }))}
-                placeholder="Enter your Moomoo username"
+                placeholder="Enter your IBKR username"
                 data-testid="input-moomoo-username"
               />
             </div>
@@ -766,7 +766,7 @@ export default function TradingPage() {
               Confirm Order Submission
             </DialogTitle>
             <DialogDescription>
-              Please review and approve this order before it is submitted to Moomoo for execution.
+              Please review and approve this order before it is submitted to IBKR for execution.
             </DialogDescription>
           </DialogHeader>
           {pendingSubmitOrder && (
@@ -809,7 +809,7 @@ export default function TradingPage() {
               </div>
               <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                 <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                  By approving, this order will be submitted to Moomoo for execution. This action cannot be undone once the order is filled.
+                  By approving, this order will be submitted to IBKR for execution. This action cannot be undone once the order is filled.
                 </p>
               </div>
             </div>
@@ -935,7 +935,7 @@ function OrderCard({
         
         {order.ibkrOrderId && (
           <p className="text-xs text-muted-foreground mt-2">
-            Moomoo Order ID: {order.ibkrOrderId}
+            IBKR Order ID: {order.ibkrOrderId}
           </p>
         )}
       </CardContent>

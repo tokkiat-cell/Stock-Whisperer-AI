@@ -1,11 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Loader2, Zap, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ArrowUpRight } from "lucide-react";
+import { RefreshCw, Loader2, Zap, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ArrowUpRight, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { StockChart } from "@/components/stock-chart";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface PowerRangerResult {
   symbol: string;
@@ -35,6 +37,7 @@ interface ScannerResponse {
 
 export default function PowerRangerScanner() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [chartOpen, setChartOpen] = useState(false);
@@ -43,6 +46,28 @@ export default function PowerRangerScanner() {
   const { data: response, isLoading, isRefetching } = useQuery<ScannerResponse>({
     queryKey: ['/api/market/powerranger-scanner'],
     staleTime: 5 * 60 * 1000,
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (result: PowerRangerResult) => {
+      return apiRequest('POST', '/api/trading-orders', {
+        symbol: result.symbol,
+        action: 'BUY',
+        orderType: 'LIMIT',
+        quantity: 1,
+        entryPrice: result.entryLevel.toString(),
+        stopLoss: result.stopLoss.toString(),
+        takeProfit: result.targetPrice.toString(),
+        notes: `Power Ranger Setup - ${result.confidence}% confidence, Gap: ${result.gapPercent.toFixed(1)}%`,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Draft order created", description: "Go to IBKR Trading to review and submit" });
+      queryClient.invalidateQueries({ queryKey: ['/api/trading-orders'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create order", description: error.message, variant: "destructive" });
+    },
   });
 
   const handleRefresh = () => {
@@ -260,7 +285,7 @@ export default function PowerRangerScanner() {
                       </ul>
                     </div>
 
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2 pt-2 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -272,6 +297,19 @@ export default function PowerRangerScanner() {
                       >
                         <TrendingUp className="w-4 h-4 mr-2" />
                         Full Analysis
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          createOrderMutation.mutate(result);
+                        }}
+                        disabled={createOrderMutation.isPending}
+                        data-testid={`button-trade-${result.symbol}`}
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-1" />
+                        {createOrderMutation.isPending ? 'Creating...' : 'Trade'}
                       </Button>
                     </div>
                   </div>

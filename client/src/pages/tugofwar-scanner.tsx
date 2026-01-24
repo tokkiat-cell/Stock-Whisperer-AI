@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sword, ChevronDown, ChevronUp, Target, TrendingUp, RefreshCw } from 'lucide-react';
+import { Loader2, Sword, ChevronDown, ChevronUp, Target, TrendingUp, RefreshCw, ShoppingCart } from 'lucide-react';
 import { StockChart } from '@/components/stock-chart';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface TugOfWarResult {
   symbol: string;
@@ -68,6 +70,8 @@ interface ChartLevels {
 }
 
 export default function TugOfWarScanner() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
   const [chartOpen, setChartOpen] = useState(false);
@@ -78,8 +82,29 @@ export default function TugOfWarScanner() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const queryClient = useQueryClient();
   const results = response?.results || [];
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (result: TugOfWarResult) => {
+      return apiRequest('POST', '/api/trading-orders', {
+        symbol: result.symbol,
+        action: 'BUY',
+        orderType: 'LIMIT',
+        quantity: 1,
+        entryPrice: result.entryLevel.toString(),
+        stopLoss: result.stopLoss.toString(),
+        takeProfit: result.targetPrice.toString(),
+        notes: `Tug of War Setup - ${result.confidence}% confidence, ${result.marketStage} stage`,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Draft order created", description: "Go to IBKR Trading to review and submit" });
+      queryClient.invalidateQueries({ queryKey: ['/api/trading-orders'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create order", description: error.message, variant: "destructive" });
+    },
+  });
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/market/tugofwar-scanner'] });
@@ -276,6 +301,19 @@ export default function TugOfWarScanner() {
                       data-testid={`button-chart-${result.symbol}`}
                     >
                       View Chart
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        createOrderMutation.mutate(result);
+                      }}
+                      disabled={createOrderMutation.isPending}
+                      data-testid={`button-trade-${result.symbol}`}
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-1" />
+                      {createOrderMutation.isPending ? 'Creating...' : 'Trade'}
                     </Button>
                   </div>
                 )}

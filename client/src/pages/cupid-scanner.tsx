@@ -1,11 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Loader2, Heart, TrendingUp, Target, AlertTriangle, ChevronDown, ChevronUp, LineChart } from "lucide-react";
+import { RefreshCw, Loader2, Heart, TrendingUp, Target, AlertTriangle, ChevronDown, ChevronUp, LineChart, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { StockChart } from "@/components/stock-chart";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface CupidSetupResult {
   symbol: string;
@@ -28,6 +30,7 @@ interface CupidSetupResult {
 
 export default function CupidScanner() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [chartOpen, setChartOpen] = useState(false);
@@ -36,6 +39,28 @@ export default function CupidScanner() {
   const { data: results, isLoading, isRefetching } = useQuery<CupidSetupResult[]>({
     queryKey: ['/api/market/cupid-scanner'],
     staleTime: 5 * 60 * 1000,
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (result: CupidSetupResult) => {
+      return apiRequest('POST', '/api/trading-orders', {
+        symbol: result.symbol,
+        action: 'BUY',
+        orderType: 'LIMIT',
+        quantity: 1,
+        entryPrice: result.entryZone.high.toString(),
+        stopLoss: result.stopLoss.toString(),
+        takeProfit: result.targetPrice.toString(),
+        notes: `Cupid Setup - ${result.confidence}% confidence, R/R: ${result.riskRewardRatio.toFixed(1)}`,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Draft order created", description: "Go to IBKR Trading to review and submit" });
+      queryClient.invalidateQueries({ queryKey: ['/api/trading-orders'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create order", description: error.message, variant: "destructive" });
+    },
   });
 
   const handleRefresh = () => {
@@ -224,7 +249,7 @@ export default function CupidScanner() {
                       ))}
                     </div>
 
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex gap-2 flex-wrap">
                       <Button
                         size="sm"
                         onClick={(e) => {
@@ -241,6 +266,19 @@ export default function CupidScanner() {
                         onClick={(e) => openChart(result.symbol, e)}
                       >
                         View Chart
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          createOrderMutation.mutate(result);
+                        }}
+                        disabled={createOrderMutation.isPending}
+                        data-testid={`button-trade-${result.symbol}`}
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-1" />
+                        {createOrderMutation.isPending ? 'Creating...' : 'Trade'}
                       </Button>
                     </div>
                   </div>
