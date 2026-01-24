@@ -1502,5 +1502,52 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
+  // Get subscription details from Stripe
+  app.get('/api/stripe/subscription', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.paddleCustomerId) {
+        return res.json({ subscription: null });
+      }
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      // Fetch active subscriptions for this customer
+      const subscriptions = await stripe.subscriptions.list({
+        customer: user.paddleCustomerId,
+        status: 'active',
+        limit: 1,
+      });
+
+      if (subscriptions.data.length === 0) {
+        return res.json({ subscription: null });
+      }
+
+      const subscription = subscriptions.data[0];
+      const priceItem = subscription.items.data[0];
+      const price = priceItem.price;
+
+      res.json({
+        subscription: {
+          status: subscription.status,
+          interval: price.recurring?.interval || 'month',
+          priceAmount: (price.unit_amount || 0) / 100,
+          currency: price.currency.toUpperCase(),
+          currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
+          currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+      res.status(500).json({ error: 'Failed to fetch subscription details' });
+    }
+  });
+
   return httpServer;
 }

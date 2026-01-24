@@ -67,7 +67,21 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             <Wallet className="text-primary-foreground w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-xl tracking-tight">stockwhisperer.AI</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display font-bold text-xl tracking-tight">stockwhisperer.AI</h1>
+              <Badge 
+                variant={planInfo.name === 'Free' ? 'secondary' : 'default'}
+                className={cn(
+                  "text-xs px-1.5 py-0.5",
+                  planInfo.name === 'Pro' && "bg-yellow-500/20 text-yellow-500 border-yellow-500/30",
+                  planInfo.name === 'Basic' && "bg-primary/20 text-primary border-primary/30"
+                )}
+                data-testid="badge-plan-tier-logo"
+              >
+                <planInfo.icon className={cn("w-3 h-3 mr-1", planInfo.color)} />
+                {planInfo.name}
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground font-medium">AI Trading Assistant</p>
           </div>
         </div>

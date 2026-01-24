@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart, RefreshCw, Globe } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart, RefreshCw, Globe, Crown, Zap, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -94,14 +95,39 @@ export default function Dashboard() {
     queryKey: ["/api/sp500/recommendations"],
   });
 
+  const { data: usageData } = useQuery<{ planTier: string }>({
+    queryKey: ['/api/usage'],
+  });
+
+  const planTier = usageData?.planTier || 'free';
+  
+  const getPlanInfo = () => {
+    if (planTier === 'pro') return { name: 'Pro', icon: Crown, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' };
+    if (planTier === 'basic') return { name: 'Basic', icon: Zap, color: 'text-primary', bgColor: 'bg-primary/10' };
+    if (planTier === 'subscriber') return { name: 'Subscriber', icon: Crown, color: 'text-primary', bgColor: 'bg-primary/10' };
+    return { name: 'Free', icon: Sparkles, color: 'text-muted-foreground', bgColor: 'bg-muted' };
+  };
+
+  const planInfo = getPlanInfo();
+
   return (
     <div className="space-y-6">
       {/* Welcome & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">
-            Welcome back, <span className="text-primary">{user?.firstName || 'Trader'}</span>
-          </h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl font-semibold text-foreground">
+              Welcome back, <span className="text-primary">{user?.firstName || 'Trader'}</span>
+            </h2>
+            <Badge 
+              variant={planTier === 'free' ? 'secondary' : 'default'}
+              className={planTier === 'pro' ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30' : planTier === 'basic' ? 'bg-primary/20 text-primary border-primary/30' : ''}
+              data-testid="badge-dashboard-plan"
+            >
+              <planInfo.icon className={`w-3 h-3 mr-1 ${planInfo.color}`} />
+              {planInfo.name} Plan
+            </Badge>
+          </div>
           <p className="text-muted-foreground text-sm mt-1">Today's top market movers at a glance.</p>
         </div>
         

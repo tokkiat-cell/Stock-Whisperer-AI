@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +7,15 @@ import {
   Loader2, 
   ArrowRight,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Calendar,
+  DollarSign,
+  Zap,
+  ExternalLink
 } from "lucide-react";
 import { Link } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface UsageData {
   chatCount: number;
@@ -26,26 +32,74 @@ interface UsageData {
   };
 }
 
+interface SubscriptionData {
+  subscription: {
+    status: string;
+    interval: string;
+    priceAmount: number;
+    currency: string;
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+}
+
 export default function SubscriptionPage() {
+  const { toast } = useToast();
+  
   const { data: usageData, isLoading: usageLoading } = useQuery<UsageData>({
     queryKey: ['/api/usage'],
   });
 
+  const { data: subscriptionData, isLoading: subLoading } = useQuery<SubscriptionData>({
+    queryKey: ['/api/stripe/subscription'],
+  });
+
   const planTier = usageData?.planTier || 'free';
+  const subscription = subscriptionData?.subscription;
+
+  const portalMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/stripe/portal');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to open billing portal. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const getPlanName = () => {
     if (planTier === 'pro') return 'Pro';
     if (planTier === 'basic') return 'Basic';
+    if (planTier === 'subscriber') return 'Subscriber';
     return 'Free';
   };
 
   const getPlanIcon = () => {
     if (planTier === 'pro') return <Crown className="w-6 h-6 text-yellow-500" />;
-    if (planTier === 'basic') return <Crown className="w-6 h-6 text-primary" />;
+    if (planTier === 'basic') return <Zap className="w-6 h-6 text-primary" />;
+    if (planTier === 'subscriber') return <Crown className="w-6 h-6 text-primary" />;
     return <Sparkles className="w-6 h-6 text-muted-foreground" />;
   };
 
-  if (usageLoading) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (usageLoading || subLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -75,25 +129,82 @@ export default function SubscriptionPage() {
                 <Badge variant={planTier !== 'free' ? "default" : "secondary"}>
                   {planTier !== 'free' ? "Active" : "Free Tier"}
                 </Badge>
+                {subscription?.cancelAtPeriodEnd && (
+                  <Badge variant="destructive">Canceling</Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {planTier === 'free' 
                   ? "Limited AI features - Upgrade to unlock more"
-                  : "Unlimited access to AI features"
+                  : "Full access to AI features"
                 }
               </p>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {planTier !== 'free' && (
+              <Button 
+                variant="outline" 
+                onClick={() => portalMutation.mutate()}
+                disabled={portalMutation.isPending}
+                data-testid="button-manage-billing"
+              >
+                {portalMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                )}
+                Manage Billing
+              </Button>
+            )}
             <Link href="/pricing">
               <Button data-testid="button-view-plans">
-                View Plans
+                {planTier === 'free' ? 'Upgrade' : 'Change Plan'}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
           </div>
         </div>
+
+        {/* Billing Details for Subscribers */}
+        {subscription && planTier !== 'free' && (
+          <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Price</p>
+                <p className="font-semibold">
+                  ${subscription.priceAmount.toFixed(2)}/{subscription.interval === 'year' ? 'year' : 'month'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Billing Cycle</p>
+                <p className="font-semibold capitalize">{subscription.interval}ly</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  {subscription.cancelAtPeriodEnd ? 'Access Until' : 'Next Billing Date'}
+                </p>
+                <p className="font-semibold">{formatDate(subscription.currentPeriodEnd)}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Usage Statistics */}
@@ -157,7 +268,7 @@ export default function SubscriptionPage() {
       )}
 
       <div className="text-center text-muted-foreground text-sm">
-        <p>Payment integration coming soon. Subscription management will be available shortly.</p>
+        <p>Secure payments powered by Stripe. Cancel or modify your subscription anytime.</p>
       </div>
     </div>
   );
