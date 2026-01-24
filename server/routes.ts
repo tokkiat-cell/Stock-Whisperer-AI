@@ -1428,6 +1428,7 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         },
         pro: {
           month: process.env.STRIPE_PRO_PRICE_ID,
+          year: process.env.STRIPE_PRO_YEARLY_PRICE_ID,
         },
       };
 

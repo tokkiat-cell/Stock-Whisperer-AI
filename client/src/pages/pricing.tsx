@@ -45,7 +45,7 @@ export default function Pricing() {
       return;
     }
 
-    const interval = tier === 'basic' && isAnnual ? 'year' : 'month';
+    const interval = isAnnual ? 'year' : 'month';
     checkoutMutation.mutate({ tier, interval });
   };
 
@@ -53,9 +53,14 @@ export default function Pricing() {
   const isLoading = checkoutMutation.isPending;
 
   const basicMonthlyPrice = 9.90;
-  const basicAnnualPrice = 199;
+  const basicAnnualPrice = 99;
   const basicAnnualMonthly = (basicAnnualPrice / 12).toFixed(2);
   const basicSavings = Math.round((1 - basicAnnualPrice / (basicMonthlyPrice * 12)) * 100);
+
+  const proMonthlyPrice = 29.90;
+  const proAnnualPrice = 299;
+  const proAnnualMonthly = (proAnnualPrice / 12).toFixed(2);
+  const proSavings = Math.round((1 - proAnnualPrice / (proMonthlyPrice * 12)) * 100);
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -230,11 +235,45 @@ export default function Pricing() {
             <p className="text-muted-foreground text-sm">
               Advanced AI trading with market scanning and integrations
             </p>
+            
+            {/* Monthly/Annual Toggle */}
+            <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <Label htmlFor="billing-toggle-pro" className={!isAnnual ? "font-semibold" : "text-muted-foreground"}>
+                Monthly
+              </Label>
+              <Switch
+                id="billing-toggle-pro"
+                checked={isAnnual}
+                onCheckedChange={setIsAnnual}
+                data-testid="switch-billing-toggle-pro"
+              />
+              <Label htmlFor="billing-toggle-pro" className={isAnnual ? "font-semibold" : "text-muted-foreground"}>
+                Annual
+              </Label>
+              {isAnnual && (
+                <Badge variant="secondary" className="ml-1">
+                  Save {proSavings}%
+                </Badge>
+              )}
+            </div>
+
             <div className="space-y-2">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">USD $49.99</span>
-                <span className="text-muted-foreground">/month</span>
-              </div>
+              {isAnnual ? (
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold">USD ${proAnnualMonthly}</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Billed as USD ${proAnnualPrice}/year
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">USD ${proMonthlyPrice.toFixed(2)}</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              )}
             </div>
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-sm">
@@ -279,7 +318,7 @@ export default function Pricing() {
                     Loading...
                   </>
                 ) : (
-                  'Subscribe'
+                  isAnnual ? 'Subscribe Yearly' : 'Subscribe Monthly'
                 )}
               </Button>
             )}

@@ -156,8 +156,9 @@ Key tables:
 
 **Environment Variables (set in Replit Secrets):**
 - `STRIPE_BASIC_PRICE_ID` - Stripe price ID for Basic tier ($9.90/month)
-- `STRIPE_BASIC_YEARLY_PRICE_ID` - Stripe price ID for Basic tier ($199/year)
-- `STRIPE_PRO_PRICE_ID` - Stripe price ID for Pro tier ($49.99/month)
+- `STRIPE_BASIC_YEARLY_PRICE_ID` - Stripe price ID for Basic tier ($99/year)
+- `STRIPE_PRO_PRICE_ID` - Stripe price ID for Pro tier ($29.90/month)
+- `STRIPE_PRO_YEARLY_PRICE_ID` - Stripe price ID for Pro tier ($299/year)
 
 **Setup Steps:**
 1. Stripe Sandbox connection is configured in the Integrations tab
