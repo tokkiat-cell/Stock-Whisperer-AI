@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { createHmac, timingSafeEqual } from "crypto";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
@@ -8,6 +9,20 @@ import { analyzeStockWithAI } from "./lib/aiAnalysis";
 import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
+
+// Verify Lemon Squeezy webhook signature
+function verifyLemonSqueezySignature(rawBody: Buffer, signature: string, secret: string): boolean {
+  if (!signature || !secret) return false;
+  
+  const hmac = createHmac('sha256', secret);
+  const digest = hmac.update(rawBody).digest('hex');
+  
+  try {
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
+  } catch {
+    return false;
+  }
+}
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // Setup Auth
@@ -1487,6 +1502,18 @@ Respond professionally. If asked about specific stocks, provide actionable insig
   // --- Lemon Squeezy Webhook ---
   app.post('/api/lemonsqueezy/webhook', async (req, res) => {
     try {
+      // Verify webhook signature if secret is configured
+      const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+      const signature = req.headers['x-signature'] as string;
+      
+      if (webhookSecret) {
+        const rawBody = req.rawBody as Buffer;
+        if (!rawBody || !verifyLemonSqueezySignature(rawBody, signature, webhookSecret)) {
+          console.error('Invalid Lemon Squeezy webhook signature');
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
+      }
+
       const event = req.body;
       const eventName = event.meta?.event_name;
       console.log('Lemon Squeezy webhook received:', eventName);
