@@ -18,6 +18,10 @@ import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 import { authStorage } from "./replit_integrations/auth/storage";
 
+// In-memory cache for full recommendations with momentum indicators
+// This preserves all fields since the DB schema only stores core fields
+let cachedFullRecommendations: any[] = [];
+
 export interface IStorage {
   // Auth methods
   getUser(id: string): Promise<User | undefined>;
@@ -163,10 +167,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTradeRecommendations(): Promise<any[]> {
+    // Return from memory cache if available (preserves all fields including momentum indicators)
+    if (cachedFullRecommendations.length > 0) {
+      return cachedFullRecommendations;
+    }
+    // Fallback to database (for cold starts - will have fewer fields)
     return await db.select().from(tradeRecommendations).orderBy(desc(tradeRecommendations.createdAt));
   }
 
   async saveTradeRecommendations(recommendations: any[]): Promise<void> {
+    // Store full recommendations in memory cache for retrieval with all fields
+    cachedFullRecommendations = recommendations || [];
+    
     await db.delete(tradeRecommendations);
     if (recommendations && recommendations.length > 0) {
       const validRecs = recommendations
