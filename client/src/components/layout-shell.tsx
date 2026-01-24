@@ -51,10 +51,10 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/chat", label: "stockwhisperer AI", icon: MessageCircle },
+    { href: "/chat", label: "AI Trade Chat", icon: MessageCircle },
     { href: "/premarket", label: "Premarket Changes", icon: TrendingUp },
     { href: "/profile-setup", label: "My Profile", icon: UserCog },
-    { href: "/scan", label: "AI Scanner", icon: Scan },
+    { href: "/scan", label: "AI Market Scanner", icon: Scan },
     { href: "/daytrading-scanner", label: "Day Trading Scanner", icon: TrendingUp },
     { href: "/month-trading-scanner", label: "Month Trading Scanner", icon: TrendingUp },
     { href: "/investor-watchlist", label: "Investor Targets", icon: Target },

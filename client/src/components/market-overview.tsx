@@ -3,20 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { TrendingUp, TrendingDown, Minus, Settings, RefreshCw, Globe } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Settings, RefreshCw, Globe, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import type { MarketIndex, MarketPreferences } from "@shared/schema";
+import { StockChart } from "@/components/stock-chart";
 
-function IndexCard({ index }: { index: MarketIndex }) {
+function IndexCard({ index, onChartClick }: { index: MarketIndex; onChartClick?: (symbol: string) => void }) {
   const isPositive = index.change > 0;
   const isNeutral = index.change === 0;
   const safeSymbol = index.symbol.replace(/[^a-zA-Z0-9]/g, '');
   
   return (
-    <Card className="p-4 hover-elevate transition-all" data-testid={`card-index-${safeSymbol}`}>
+    <Card 
+      className="p-4 hover-elevate transition-all cursor-pointer" 
+      data-testid={`card-index-${safeSymbol}`}
+      onClick={() => onChartClick?.(index.symbol)}
+    >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs font-mono" data-testid={`badge-market-${safeSymbol}`}>
@@ -24,13 +29,16 @@ function IndexCard({ index }: { index: MarketIndex }) {
           </Badge>
           <span className="text-xs text-muted-foreground" data-testid={`text-name-${safeSymbol}`}>{index.name}</span>
         </div>
-        {isNeutral ? (
-          <Minus className="w-4 h-4 text-muted-foreground" />
-        ) : isPositive ? (
-          <TrendingUp className="w-4 h-4 text-green-500" />
-        ) : (
-          <TrendingDown className="w-4 h-4 text-red-500" />
-        )}
+        <div className="flex items-center gap-1">
+          <LineChart className="w-4 h-4 text-primary" />
+          {isNeutral ? (
+            <Minus className="w-4 h-4 text-muted-foreground" />
+          ) : isPositive ? (
+            <TrendingUp className="w-4 h-4 text-green-500" />
+          ) : (
+            <TrendingDown className="w-4 h-4 text-red-500" />
+          )}
+        </div>
       </div>
       
       <div className="flex items-end justify-between">
@@ -197,6 +205,14 @@ function MarketSettingsDialog({ preferences, onUpdate }: {
 }
 
 export function MarketOverview() {
+  const [chartSymbol, setChartSymbol] = useState("");
+  const [chartOpen, setChartOpen] = useState(false);
+
+  const handleChartClick = (symbol: string) => {
+    setChartSymbol(symbol);
+    setChartOpen(true);
+  };
+
   const { data: indices, isLoading, refetch, isFetching } = useQuery<MarketIndex[]>({
     queryKey: ['/api/market/indices'],
     refetchInterval: 60000,
@@ -273,7 +289,7 @@ export function MarketOverview() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {usIndices.map(index => (
-              <IndexCard key={index.symbol} index={index} />
+              <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
           </div>
         </div>
@@ -287,7 +303,7 @@ export function MarketOverview() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {sgIndices.map(index => (
-              <IndexCard key={index.symbol} index={index} />
+              <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
           </div>
         </div>
@@ -301,7 +317,7 @@ export function MarketOverview() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {hkIndices.map(index => (
-              <IndexCard key={index.symbol} index={index} />
+              <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
           </div>
         </div>
@@ -315,7 +331,7 @@ export function MarketOverview() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {cnIndices.map(index => (
-              <IndexCard key={index.symbol} index={index} />
+              <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
           </div>
         </div>
@@ -329,7 +345,7 @@ export function MarketOverview() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {euIndices.map(index => (
-              <IndexCard key={index.symbol} index={index} />
+              <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
           </div>
         </div>
@@ -340,6 +356,12 @@ export function MarketOverview() {
           <p>No market data available. Enable markets in settings.</p>
         </div>
       )}
+
+      <StockChart
+        symbol={chartSymbol}
+        open={chartOpen}
+        onOpenChange={setChartOpen}
+      />
     </Card>
   );
 }

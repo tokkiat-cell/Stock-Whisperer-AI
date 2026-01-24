@@ -2,13 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, TrendingUp, TrendingDown, Activity, Loader2, Sparkles, MessageCircle, Scan, LineChart, Crown, Zap, ArrowRight } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Activity, Loader2, Sparkles, Scan, LineChart, Crown, Zap, ArrowRight, PieChart, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { StockChart } from "@/components/stock-chart";
 import { MarketOverview } from "@/components/market-overview";
+import type { PortfolioHolding, StockQuote } from "@shared/schema";
+import { useEffect } from "react";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -16,6 +18,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
+  const [quotes, setQuotes] = useState<Record<string, number>>({});
 
   const openChart = (symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -37,6 +40,39 @@ export default function Dashboard() {
   const { data: usageData } = useQuery<{ planTier: string }>({
     queryKey: ['/api/usage'],
   });
+
+  const { data: holdings = [] } = useQuery<PortfolioHolding[]>({
+    queryKey: ['/api/portfolio'],
+  });
+
+  useEffect(() => {
+    if (holdings.length > 0) {
+      const fetchQuotes = async () => {
+        const newQuotes: Record<string, number> = {};
+        for (const h of holdings.slice(0, 10)) {
+          try {
+            const res = await fetch(`/api/stocks/quote/${h.symbol}`);
+            if (res.ok) {
+              const data = await res.json();
+              newQuotes[h.symbol] = data.price;
+            }
+          } catch (e) {}
+        }
+        setQuotes(newQuotes);
+      };
+      fetchQuotes();
+    }
+  }, [holdings]);
+
+  const totalCost = holdings.reduce((acc, h) => acc + (parseFloat(h.shares as string) * parseFloat(h.avgCost as string)), 0);
+  const totalMarketValue = holdings.reduce((acc, h) => {
+    const price = quotes[h.symbol] || parseFloat(h.avgCost as string);
+    return acc + (parseFloat(h.shares as string) * price);
+  }, 0);
+  const totalPnL = totalMarketValue - totalCost;
+  const totalPnLPercent = totalCost > 0 ? (totalPnL / totalCost) * 100 : 0;
+  const holdingsCount = holdings.length;
+  const hasQuotes = Object.keys(quotes).length > 0;
 
   const planTier = usageData?.planTier || 'free';
   
@@ -124,19 +160,36 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* stockwhisperer AI CTA */}
+        {/* Portfolio Summary */}
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-              <MessageCircle className="w-7 h-7 text-primary" />
+              <PieChart className="w-7 h-7 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg">stockwhisperer AI</h3>
-              <p className="text-sm text-muted-foreground">Ask questions about stocks & strategies</p>
+              <h3 className="font-semibold text-lg">Portfolio & P&L</h3>
+              {holdingsCount > 0 ? (
+                <div className="flex flex-wrap items-center gap-3 mt-1">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">{holdingsCount} stocks</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Value: </span>
+                    <span className="font-mono font-semibold">${totalMarketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  {hasQuotes && (
+                    <div className={`text-sm font-mono font-semibold ${totalPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {totalPnL >= 0 ? '+' : ''}{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No holdings yet - Add stocks to track P&L</p>
+              )}
             </div>
-            <Button onClick={() => setLocation("/chat")} variant="outline" data-testid="button-go-chat">
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Open Chat
+            <Button onClick={() => setLocation("/portfolio")} variant="outline" data-testid="button-go-portfolio">
+              <DollarSign className="w-4 h-4 mr-2" />
+              View P&L
             </Button>
           </div>
         </Card>
