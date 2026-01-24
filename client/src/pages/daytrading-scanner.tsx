@@ -2,14 +2,14 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Loader2, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ShoppingCart, ArrowUp, ArrowDown, Heart, Zap, Waves, Sword } from "lucide-react";
+import { RefreshCw, Loader2, TrendingUp, Target, ChevronDown, ChevronUp, LineChart, ShoppingCart, ArrowUp, ArrowDown, Heart, Zap, Waves, Sword, Rocket, Layers, Activity, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { StockChart } from "@/components/stock-chart";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-type PatternType = 'cupid' | 'powerRanger' | 'rollerCoaster' | 'tugOfWar';
+type PatternType = 'cupid' | 'powerRanger' | 'rollerCoaster' | 'tugOfWar' | 'breakout' | 'accumulation' | 'momentum' | 'value';
 
 interface DayTradingSetup {
   symbol: string;
@@ -34,6 +34,10 @@ const patternConfig: Record<PatternType, { icon: typeof Heart; color: string; bg
   powerRanger: { icon: Zap, color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
   rollerCoaster: { icon: Waves, color: "text-blue-500", bgColor: "bg-blue-500/10" },
   tugOfWar: { icon: Sword, color: "text-purple-500", bgColor: "bg-purple-500/10" },
+  breakout: { icon: Rocket, color: "text-green-500", bgColor: "bg-green-500/10" },
+  accumulation: { icon: Layers, color: "text-cyan-500", bgColor: "bg-cyan-500/10" },
+  momentum: { icon: Activity, color: "text-orange-500", bgColor: "bg-orange-500/10" },
+  value: { icon: DollarSign, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
 };
 
 export default function DayTradingScanner() {
@@ -112,7 +116,7 @@ export default function DayTradingScanner() {
             Day Trading Setup Scanner
           </h1>
           <p className="text-muted-foreground" data-testid="text-scanner-description">
-            Scans premarket movers for Cupid, Power Ranger, Roller Coaster & Tug of War setups
+            Scans premarket movers for 8 pattern types including weekly chart patterns
           </p>
         </div>
         <Button
@@ -156,7 +160,11 @@ export default function DayTradingScanner() {
                 <Icon className={`w-4 h-4 mr-1 ${patternFilter === pattern ? "" : config.color}`} />
                 {pattern === 'cupid' ? 'Cupid' : 
                  pattern === 'powerRanger' ? 'Power Ranger' : 
-                 pattern === 'rollerCoaster' ? 'Roller Coaster' : 'Tug of War'} ({count})
+                 pattern === 'rollerCoaster' ? 'Roller Coaster' : 
+                 pattern === 'tugOfWar' ? 'Tug of War' :
+                 pattern === 'breakout' ? 'Breakout' :
+                 pattern === 'accumulation' ? 'Accumulation' :
+                 pattern === 'momentum' ? 'Momentum' : 'Value'} ({count})
               </Button>
             );
           })}
@@ -349,11 +357,13 @@ export default function DayTradingScanner() {
         symbol={chartSymbol}
         open={chartOpen}
         onOpenChange={setChartOpen}
-        supportLevel={chartLevels.support}
-        resistanceLevel={chartLevels.resistance}
-        entryLevel={chartLevels.entry}
-        stopLoss={chartLevels.stopLoss}
-        targetPrice={chartLevels.target}
+        levels={{
+          support: chartLevels.support,
+          resistance: chartLevels.resistance,
+          entry: chartLevels.entry,
+          stopLoss: chartLevels.stopLoss,
+          target: chartLevels.target,
+        }}
       />
     </div>
   );
