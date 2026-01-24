@@ -1418,15 +1418,23 @@ Respond professionally. If asked about specific stocks, provide actionable insig
         });
       }
 
-      // Get price ID based on tier from environment
-      const priceIds: Record<string, string | undefined> = {
-        basic: process.env.STRIPE_BASIC_PRICE_ID,
-        pro: process.env.STRIPE_PRO_PRICE_ID,
+      const { interval = 'month' } = req.body;
+      
+      // Get price ID based on tier and interval from environment
+      const priceIds: Record<string, Record<string, string | undefined>> = {
+        basic: {
+          month: process.env.STRIPE_BASIC_PRICE_ID,
+          year: process.env.STRIPE_BASIC_YEARLY_PRICE_ID,
+        },
+        pro: {
+          month: process.env.STRIPE_PRO_PRICE_ID,
+        },
       };
 
-      const priceId = priceIds[tier as string];
+      const tierPrices = priceIds[tier as string];
+      const priceId = tierPrices?.[interval as string];
       if (!priceId) {
-        return res.status(400).json({ error: 'Invalid subscription tier or price not configured' });
+        return res.status(400).json({ error: 'Invalid subscription tier/interval or price not configured' });
       }
 
       const baseUrl = process.env.REPLIT_DEV_DOMAIN 

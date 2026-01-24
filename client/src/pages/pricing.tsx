@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Check, Crown, Zap, Sparkles, Star, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
@@ -11,10 +14,11 @@ import { apiRequest } from "@/lib/queryClient";
 export default function Pricing() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isAnnual, setIsAnnual] = useState(false);
 
   const checkoutMutation = useMutation({
-    mutationFn: async (tier: 'basic' | 'pro') => {
-      const response = await apiRequest('POST', '/api/stripe/checkout', { tier });
+    mutationFn: async ({ tier, interval }: { tier: 'basic' | 'pro'; interval: 'month' | 'year' }) => {
+      const response = await apiRequest('POST', '/api/stripe/checkout', { tier, interval });
       return response.json();
     },
     onSuccess: (data) => {
@@ -41,11 +45,17 @@ export default function Pricing() {
       return;
     }
 
-    checkoutMutation.mutate(tier);
+    const interval = tier === 'basic' && isAnnual ? 'year' : 'month';
+    checkoutMutation.mutate({ tier, interval });
   };
 
   const userPlan = (user as any)?.planTier || 'free';
   const isLoading = checkoutMutation.isPending;
+
+  const basicMonthlyPrice = 9.90;
+  const basicAnnualPrice = 199;
+  const basicAnnualMonthly = (basicAnnualPrice / 12).toFixed(2);
+  const basicSavings = Math.round((1 - basicAnnualPrice / (basicMonthlyPrice * 12)) * 100);
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -69,7 +79,7 @@ export default function Pricing() {
             </p>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">$0</span>
+                <span className="text-3xl font-bold">USD $0</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
             </div>
@@ -121,11 +131,45 @@ export default function Pricing() {
             <p className="text-muted-foreground text-sm">
               Essential AI trading analysis tools for individual traders
             </p>
+            
+            {/* Monthly/Annual Toggle */}
+            <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <Label htmlFor="billing-toggle" className={!isAnnual ? "font-semibold" : "text-muted-foreground"}>
+                Monthly
+              </Label>
+              <Switch
+                id="billing-toggle"
+                checked={isAnnual}
+                onCheckedChange={setIsAnnual}
+                data-testid="switch-billing-toggle"
+              />
+              <Label htmlFor="billing-toggle" className={isAnnual ? "font-semibold" : "text-muted-foreground"}>
+                Annual
+              </Label>
+              {isAnnual && (
+                <Badge variant="secondary" className="ml-1">
+                  Save {basicSavings}%
+                </Badge>
+              )}
+            </div>
+
             <div className="space-y-2">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">$9.90</span>
-                <span className="text-muted-foreground">/month</span>
-              </div>
+              {isAnnual ? (
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold">USD ${basicAnnualMonthly}</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Billed as USD ${basicAnnualPrice}/year
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">USD ${basicMonthlyPrice.toFixed(2)}</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              )}
             </div>
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-sm">
@@ -166,7 +210,7 @@ export default function Pricing() {
                     Loading...
                   </>
                 ) : (
-                  'Subscribe'
+                  isAnnual ? 'Subscribe Yearly' : 'Subscribe Monthly'
                 )}
               </Button>
             )}
@@ -188,7 +232,7 @@ export default function Pricing() {
             </p>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">$49.99</span>
+                <span className="text-3xl font-bold">USD $49.99</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
             </div>
@@ -245,7 +289,7 @@ export default function Pricing() {
 
       <div className="mt-12 text-center text-muted-foreground space-y-4">
         <p className="text-sm">Secure payments powered by Stripe. Cancel anytime.</p>
-        <div className="flex justify-center gap-4 text-sm">
+        <div className="flex justify-center gap-4 text-sm flex-wrap">
           <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           <span>|</span>
           <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
