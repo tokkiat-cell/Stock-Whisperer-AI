@@ -25,6 +25,7 @@ import ProfileSetup from "@/pages/profile-setup";
 import InvestorWatchlist from "@/pages/investor-watchlist";
 import Premarket from "@/pages/premarket";
 import CupidScanner from "@/pages/cupid-scanner";
+import PowerRangerScanner from "@/pages/powerranger-scanner";
 import LayoutShell from "@/components/layout-shell";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -112,6 +113,10 @@ function Router() {
       
       <Route path="/cupid-scanner">
         <ProtectedRoute component={CupidScanner} />
+      </Route>
+      
+      <Route path="/powerranger-scanner">
+        <ProtectedRoute component={PowerRangerScanner} />
       </Route>
       
       <Route path="/checkout/success">

@@ -57,6 +57,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     { href: "/profile-setup", label: "My Profile", icon: UserCog },
     { href: "/scan", label: "AI Scanner", icon: Scan },
     { href: "/cupid-scanner", label: "Cupid Setup Scanner", icon: Heart },
+    { href: "/powerranger-scanner", label: "Power Ranger Scanner", icon: Zap },
     { href: "/investor-watchlist", label: "Investor Targets", icon: Target },
     { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
     { href: "/trading", label: "Moomoo Trading", icon: Server },

@@ -358,6 +358,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Power Ranger Setup Scanner - Find gap-up stocks with consolidation patterns
+  app.get(api.market.powerRangerScanner.path, isAuthenticated, async (req, res) => {
+    try {
+      const { scanPowerRangerSetups } = await import('./lib/powerRangerSetup');
+      const results = await scanPowerRangerSetups();
+      res.json(results);
+    } catch (error) {
+      console.error('Power Ranger scanner error:', error);
+      res.status(500).json({ message: "Failed to scan for Power Ranger setups" });
+    }
+  });
+
   // Market Indices - US, Singapore, Hong Kong, China, Europe
   const marketIndicesConfig: Record<string, { symbol: string; name: string }[]> = {
     US: [
