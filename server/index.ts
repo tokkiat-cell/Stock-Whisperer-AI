@@ -53,6 +53,14 @@ async function initStripe() {
         console.error('Error syncing Stripe data:', err);
       });
 
+    // Validate Stripe price IDs are configured
+    if (!process.env.STRIPE_BASIC_PRICE_ID || !process.env.STRIPE_PRO_PRICE_ID) {
+      console.warn('Warning: STRIPE_BASIC_PRICE_ID and/or STRIPE_PRO_PRICE_ID not set.');
+      console.warn('Run "npx tsx server/scripts/seedStripeProducts.ts" to create products.');
+    } else {
+      console.log('Stripe price IDs configured.');
+    }
+
     return true;
   } catch (error) {
     console.error('Failed to initialize Stripe:', error);

@@ -154,11 +154,16 @@ Key tables:
 - **Webhooks**: Automatically managed by stripe-replit-sync
 - **Data Sync**: Stripe products, prices, and subscriptions are synced to PostgreSQL `stripe` schema
 
-**Setup (already done via Replit Stripe integration):**
+**Environment Variables (set in Replit Secrets):**
+- `STRIPE_BASIC_PRICE_ID` - Stripe price ID for Basic tier ($9.90/month)
+- `STRIPE_PRO_PRICE_ID` - Stripe price ID for Pro tier ($49.99/month)
+
+**Setup Steps:**
 1. Stripe Sandbox connection is configured in the Integrations tab
-2. Webhook is automatically registered at `/api/stripe/webhook`
-3. Subscription data syncs automatically from Stripe
-4. For production, add live Stripe keys in the Publish pane
+2. Run `npx tsx server/scripts/seedStripeProducts.ts` to create products/prices in Stripe
+3. Copy the price IDs to environment variables
+4. Webhook is automatically registered at `/api/stripe/webhook`
+5. For production, add live Stripe keys in the Publish pane
 
 ### Optional Environment Variables (for notifications)
 - `TELEGRAM_BOT_TOKEN` - Telegram Bot API token for sending alerts via Telegram
