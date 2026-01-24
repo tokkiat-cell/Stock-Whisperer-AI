@@ -162,8 +162,15 @@ export default function Pricing() {
         </Card>
       </div>
 
-      <div className="mt-12 text-center text-muted-foreground">
+      <div className="mt-12 text-center text-muted-foreground space-y-4">
         <p>Payment integration coming soon. All plans will be available shortly.</p>
+        <div className="flex justify-center gap-4 text-sm">
+          <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+          <span>|</span>
+          <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+          <span>|</span>
+          <Link href="/refund-policy" className="hover:text-foreground transition-colors">Refund Policy</Link>
+        </div>
       </div>
     </div>
   );

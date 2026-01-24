@@ -17,6 +17,9 @@ import SubscriptionPage from "@/pages/subscription";
 import UserManualPage from "@/pages/user-manual";
 import FeedbackPage from "@/pages/feedback";
 import CheckoutSuccessPage from "@/pages/checkout-success";
+import TermsOfService from "@/pages/terms-of-service";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import RefundPolicy from "@/pages/refund-policy";
 import AuthPage from "@/pages/auth";
 import LayoutShell from "@/components/layout-shell";
 
@@ -75,6 +78,9 @@ function Router() {
       </Route>
       
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/terms" component={TermsOfService} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/refund-policy" component={RefundPolicy} />
       
       <Route path="/subscription">
         <ProtectedRoute component={SubscriptionPage} />
