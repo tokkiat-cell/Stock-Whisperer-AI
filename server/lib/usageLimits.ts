@@ -13,18 +13,18 @@ export const FREE_TIER_LIMITS = {
 } as const;
 
 export const BASIC_TIER_LIMITS = {
-  chat: 50,
-  image: 20,
-  voice: 20,
-  stockAnalysis: 60,
+  chat: 150,
+  image: 50,
+  voice: 80,
+  stockAnalysis: 100,
 } as const;
 
-// Pro tier has unlimited usage (represented by Infinity)
+// Pro tier has high limits to maintain profitability
 export const PRO_TIER_LIMITS = {
-  chat: Infinity,
-  image: Infinity,
-  voice: Infinity,
-  stockAnalysis: Infinity,
+  chat: 5000,
+  image: 1000,
+  voice: 3000,
+  stockAnalysis: 4000,
 } as const;
 
 export interface UsageCheckResult {
@@ -132,18 +132,6 @@ export async function checkUsageLimit(
 ): Promise<UsageCheckResult> {
   const planTier = await getUserPlanTier(userId);
   const limits = getLimitsForTier(planTier);
-  
-  // Pro tier has unlimited usage
-  if (planTier === "pro") {
-    return {
-      allowed: true,
-      currentCount: 0,
-      limit: Infinity,
-      usageType,
-      planTier,
-    };
-  }
-
   const usage = await getOrCreateUserUsage(userId);
   const limit = limits[usageType];
   
@@ -169,10 +157,6 @@ export async function incrementUsage(
   userId: string,
   usageType: UsageType
 ): Promise<void> {
-  const planTier = await getUserPlanTier(userId);
-  // Pro tier doesn't need usage tracking
-  if (planTier === "pro") return;
-
   await getOrCreateUserUsage(userId);
 
   const fieldMap: Record<UsageType, keyof typeof userUsage.$inferSelect> = {
@@ -210,7 +194,7 @@ export async function getUserUsageData(userId: string): Promise<UserUsageData> {
     imageCount: usage.imageCount,
     voiceCount: usage.voiceCount,
     stockAnalysisCount: usage.stockAnalysisCount,
-    limits: planTier === "pro" ? BASIC_TIER_LIMITS : limits, // Return finite limits for display
+    limits,
     planTier,
     periodStart: usage.periodStart,
   };

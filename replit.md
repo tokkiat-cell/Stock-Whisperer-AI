@@ -46,11 +46,12 @@ Key features:
   - Shows highest percentage change stocks for selected market
   - Click to analyze any stock
   - Preference persists across sessions
-- **Subscription Tiers**: Three-tier access model (payment integration coming soon)
-  - Free Tier: Limited monthly usage ($0/month)
-  - stockwhisperer Basic ($9.90/month) - Higher limits
-  - stockwhisperer Pro ($49.99/month) - Unlimited usage
-  - Static pricing page displayed (payment processing to be integrated later)
+- **Subscription Tiers**: Three-tier access model with Stripe payments
+  - Free Tier: Limited monthly usage (SGD $0/month)
+  - stockwhisperer Basic (SGD $8.80/month or $88/year) - Higher limits
+  - stockwhisperer Pro (SGD $28.80/month or $288/year) - Professional usage
+  - Annual plans include 2 months free (10 months pricing)
+  - Stripe checkout integration with webhook sync
 - **Legal Pages**: Publicly accessible legal documentation
   - Terms of Service (/terms) - Service terms, investment disclaimer, liability
   - Privacy Policy (/privacy) - Data collection, AI processing, user rights
@@ -58,8 +59,8 @@ Key features:
   - Cross-linked with "Back to Pricing" navigation
 - **AI Usage Limits**: Monthly usage limits vary by tier
   - Free Tier: 10 chats, 3 images, 5 voice, 10 stock analyses per month
-  - Basic Tier: 50 chats, 20 images, 20 voice, 60 stock analyses per month
-  - Pro Tier: Unlimited usage on all AI features
+  - Basic Tier: 150 chats, 50 images, 80 voice, 100 stock analyses per month
+  - Pro Tier: 5,000 chats, 1,000 images, 3,000 voice, 4,000 stock analyses per month
   - Limits reset on the 1st of each month
   - UpgradeModal prompts users to subscribe when limits are reached
 - AI chat assistant with image analysis capability (analyze charts, extract stocks from screenshots)

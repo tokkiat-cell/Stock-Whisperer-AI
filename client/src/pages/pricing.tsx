@@ -54,14 +54,14 @@ export default function Pricing() {
 
   const userPlan = (user as any)?.planTier || 'free';
 
-  const basicMonthlyPrice = 9.90;
-  const basicAnnualPrice = 99;
-  const basicAnnualMonthly = (basicAnnualPrice / 12).toFixed(2);
+  const basicMonthlyPrice = 8.80;
+  const basicAnnualPrice = 88; // 10 months pricing (2 months free)
+  const basicAnnualMonthly = (basicAnnualPrice / 10).toFixed(2); // Show equivalent monthly for 10 months
   const basicSavings = Math.round((1 - basicAnnualPrice / (basicMonthlyPrice * 12)) * 100);
 
-  const proMonthlyPrice = 29.90;
-  const proAnnualPrice = 299;
-  const proAnnualMonthly = (proAnnualPrice / 12).toFixed(2);
+  const proMonthlyPrice = 28.80;
+  const proAnnualPrice = 288; // 10 months pricing (2 months free)
+  const proAnnualMonthly = (proAnnualPrice / 10).toFixed(2); // Show equivalent monthly for 10 months
   const proSavings = Math.round((1 - proAnnualPrice / (proMonthlyPrice * 12)) * 100);
 
   return (
@@ -107,7 +107,7 @@ export default function Pricing() {
             </p>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">USD $0</span>
+                <span className="text-3xl font-bold">SGD $0</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
             </div>
@@ -163,16 +163,16 @@ export default function Pricing() {
               {isAnnual ? (
                 <>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">USD ${basicAnnualMonthly}</span>
+                    <span className="text-3xl font-bold">SGD ${basicAnnualMonthly}</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Billed as USD ${basicAnnualPrice}/year
+                    Billed as SGD ${basicAnnualPrice}/year (2 months free)
                   </p>
                 </>
               ) : (
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold">USD ${basicMonthlyPrice.toFixed(2)}</span>
+                  <span className="text-3xl font-bold">SGD ${basicMonthlyPrice.toFixed(2)}</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
               )}
@@ -180,15 +180,15 @@ export default function Pricing() {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-sm">
                 <Check className="w-4 h-4 text-green-500 shrink-0" />
-                50 AI chat messages/month
+                150 AI chat messages/month
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Check className="w-4 h-4 text-green-500 shrink-0" />
-                60 stock analyses/month
+                100 stock analyses/month
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Check className="w-4 h-4 text-green-500 shrink-0" />
-                20 AI image generations/month
+                50 AI image analyses/month
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Check className="w-4 h-4 text-green-500 shrink-0" />
@@ -240,16 +240,16 @@ export default function Pricing() {
               {isAnnual ? (
                 <>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">USD ${proAnnualMonthly}</span>
+                    <span className="text-3xl font-bold">SGD ${proAnnualMonthly}</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Billed as USD ${proAnnualPrice}/year
+                    Billed as SGD ${proAnnualPrice}/year (2 months free)
                   </p>
                 </>
               ) : (
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold">USD ${proMonthlyPrice.toFixed(2)}</span>
+                  <span className="text-3xl font-bold">SGD ${proMonthlyPrice.toFixed(2)}</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
               )}
@@ -257,15 +257,15 @@ export default function Pricing() {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
-                Unlimited AI chat messages
+                5,000 AI chat messages/month
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
-                Unlimited stock analyses
+                4,000 stock analyses/month
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
-                Unlimited image generation
+                1,000 image analyses/month
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
