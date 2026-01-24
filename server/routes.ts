@@ -1,6 +1,5 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { createHmac, timingSafeEqual } from "crypto";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
@@ -9,20 +8,6 @@ import { analyzeStockWithAI } from "./lib/aiAnalysis";
 import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
-
-// Verify Lemon Squeezy webhook signature
-function verifyLemonSqueezySignature(rawBody: Buffer, signature: string, secret: string): boolean {
-  if (!signature || !secret) return false;
-  
-  const hmac = createHmac('sha256', secret);
-  const digest = hmac.update(rawBody).digest('hex');
-  
-  try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
-  } catch {
-    return false;
-  }
-}
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // Setup Auth
@@ -1404,179 +1389,116 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
-  // --- Lemon Squeezy Checkout ---
-  app.post('/api/lemonsqueezy/checkout', isAuthenticated, async (req, res) => {
+  // --- Stripe Checkout ---
+  app.post('/api/stripe/checkout', isAuthenticated, async (req, res) => {
     if (!req.user) return res.status(401).send();
     try {
       // @ts-ignore
       const userId = req.user.claims.sub;
-      const { tier, email } = req.body;
+      // @ts-ignore
+      const userEmail = req.user.claims.email;
+      const { tier } = req.body;
 
-      const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-      const apiKey = process.env.LEMONSQUEEZY_API_KEY;
-      
-      if (!storeId || !apiKey) {
-        return res.status(500).json({ error: 'Payment system not configured' });
+      // Import Stripe client
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      // Get or create Stripe customer
+      const user = await storage.getUser(userId);
+      let customerId = user?.paddleCustomerId; // Reusing field for Stripe customer ID
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: userEmail,
+          metadata: { userId },
+        });
+        customerId = customer.id;
+        await storage.updateUserSubscription(userId, {
+          paddleCustomerId: customerId,
+        });
       }
 
-      // Get variant ID based on tier
-      const variantIds: Record<string, string | undefined> = {
-        basic: process.env.LEMONSQUEEZY_BASIC_VARIANT_ID,
-        pro: process.env.LEMONSQUEEZY_PRO_VARIANT_ID,
+      // Get price ID based on tier from environment or look up from Stripe
+      // For now, create a checkout session with inline price data
+      const priceConfig = {
+        basic: { amount: 990, name: 'stockwhisperer Basic' },
+        pro: { amount: 4999, name: 'stockwhisperer Pro' },
       };
 
-      const variantId = variantIds[tier];
-      if (!variantId) {
+      const config = priceConfig[tier as keyof typeof priceConfig];
+      if (!config) {
         return res.status(400).json({ error: 'Invalid subscription tier' });
       }
 
-      // Create checkout via Lemon Squeezy API
-      const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/vnd.api+json',
-          'Accept': 'application/vnd.api+json',
-        },
-        body: JSON.stringify({
-          data: {
-            type: 'checkouts',
-            attributes: {
-              checkout_options: {
-                embed: true,
-                media: false,
-                logo: true,
-                dark: true,
-              },
-              checkout_data: {
-                email: email || undefined,
-                custom: {
-                  user_id: userId,
-                },
-              },
-              product_options: {
-                enabled_variants: [parseInt(variantId)],
-                redirect_url: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/checkout/success`,
-                receipt_button_text: 'Go to Dashboard',
-                receipt_thank_you_note: 'Thank you for subscribing to stockwhisperer.AI!',
-              },
-            },
-            relationships: {
-              store: {
-                data: {
-                  type: 'stores',
-                  id: storeId,
-                },
-              },
-              variant: {
-                data: {
-                  type: 'variants',
-                  id: variantId,
-                },
-              },
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: config.amount,
+            recurring: { interval: 'month' },
+            product_data: {
+              name: config.name,
+              metadata: { tier },
             },
           },
-        }),
+          quantity: 1,
+        }],
+        mode: 'subscription',
+        success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/pricing`,
+        metadata: {
+          userId,
+          tier,
+        },
+        subscription_data: {
+          metadata: {
+            userId,
+            tier,
+          },
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Lemon Squeezy checkout error:', errorData);
-        return res.status(500).json({ error: 'Failed to create checkout' });
-      }
-
-      const data = await response.json();
-      const checkoutUrl = data.data?.attributes?.url;
-
-      if (!checkoutUrl) {
-        return res.status(500).json({ error: 'No checkout URL returned' });
-      }
-
-      res.json({ checkoutUrl });
+      res.json({ url: session.url });
     } catch (error) {
-      console.error('Checkout creation error:', error);
+      console.error('Stripe checkout error:', error);
       res.status(500).json({ error: 'Failed to create checkout' });
     }
   });
 
-  // --- Lemon Squeezy Webhook ---
-  app.post('/api/lemonsqueezy/webhook', async (req, res) => {
+  // --- Stripe Customer Portal ---
+  app.post('/api/stripe/portal', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
     try {
-      // Verify webhook signature if secret is configured
-      const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
-      const signature = req.headers['x-signature'] as string;
-      
-      if (webhookSecret) {
-        const rawBody = req.rawBody as Buffer;
-        if (!rawBody || !verifyLemonSqueezySignature(rawBody, signature, webhookSecret)) {
-          console.error('Invalid Lemon Squeezy webhook signature');
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.paddleCustomerId) {
+        return res.status(400).json({ error: 'No subscription found' });
       }
 
-      const event = req.body;
-      const eventName = event.meta?.event_name;
-      console.log('Lemon Squeezy webhook received:', eventName);
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
 
-      // Handle subscription events
-      if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
-        const subscriptionId = event.data?.id;
-        const customerId = event.data?.attributes?.customer_id;
-        const variantId = event.data?.attributes?.variant_id?.toString();
-        const status = event.data?.attributes?.status;
-        const customData = event.meta?.custom_data;
-        const userId = customData?.user_id;
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
 
-        if (!userId) {
-          console.error('No user_id in custom_data for subscription:', subscriptionId);
-          return res.status(200).json({ received: true });
-        }
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.paddleCustomerId,
+        return_url: `${baseUrl}/subscription`,
+      });
 
-        // Only process active subscriptions
-        if (status !== 'active') {
-          console.log(`Subscription ${subscriptionId} status is ${status}, skipping tier update`);
-          return res.status(200).json({ received: true });
-        }
-
-        // Determine tier from variant ID
-        const basicVariantId = process.env.LEMONSQUEEZY_BASIC_VARIANT_ID;
-        const proVariantId = process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
-        
-        let planTier = 'free';
-        if (variantId === basicVariantId) {
-          planTier = 'basic';
-        } else if (variantId === proVariantId) {
-          planTier = 'pro';
-        }
-
-        // Update user subscription
-        await storage.updateUserSubscription(userId, {
-          paddleCustomerId: customerId?.toString(),
-          paddleSubscriptionId: subscriptionId?.toString(),
-          planTier,
-        });
-
-        console.log(`Updated user ${userId} to ${planTier} tier`);
-      }
-
-      if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
-        const customData = event.meta?.custom_data;
-        const userId = customData?.user_id;
-
-        if (userId) {
-          // Downgrade to free tier
-          await storage.updateUserSubscription(userId, {
-            paddleSubscriptionId: null,
-            planTier: 'free',
-          });
-          console.log(`Downgraded user ${userId} to free tier`);
-        }
-      }
-
-      res.status(200).json({ received: true });
+      res.json({ url: session.url });
     } catch (error) {
-      console.error('Lemon Squeezy webhook error:', error);
-      res.status(500).json({ error: 'Webhook processing failed' });
+      console.error('Stripe portal error:', error);
+      res.status(500).json({ error: 'Failed to create portal session' });
     }
   });
 

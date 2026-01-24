@@ -149,18 +149,16 @@ Key tables:
 - `ISSUER_URL` - Replit OIDC issuer (defaults to `https://replit.com/oidc`)
 - `REPL_ID` - Replit environment identifier
 
-### Lemon Squeezy Payment Integration (Required for Subscriptions)
-- `LEMONSQUEEZY_API_KEY` - Lemon Squeezy API key (from Settings → API)
-- `LEMONSQUEEZY_STORE_ID` - Your Lemon Squeezy store ID
-- `LEMONSQUEEZY_BASIC_VARIANT_ID` - Variant ID for Basic tier subscription ($9.90/month)
-- `LEMONSQUEEZY_PRO_VARIANT_ID` - Variant ID for Pro tier subscription ($49.99/month)
-- `LEMONSQUEEZY_WEBHOOK_SECRET` - Webhook signing secret (optional, for verifying webhook payloads)
+### Stripe Payment Integration (Required for Subscriptions)
+- **Integration**: Uses Replit's Stripe connection (already configured)
+- **Webhooks**: Automatically managed by stripe-replit-sync
+- **Data Sync**: Stripe products, prices, and subscriptions are synced to PostgreSQL `stripe` schema
 
-**Setup Steps in Lemon Squeezy:**
-1. Create two products: "stockwhisperer Basic" ($9.90/month) and "stockwhisperer Pro" ($49.99/month)
-2. Copy the Variant IDs for each subscription (found in product settings)
-3. Configure webhook URL: `https://your-published-app-url/api/lemonsqueezy/webhook`
-4. Select events to listen for: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_expired`
+**Setup (already done via Replit Stripe integration):**
+1. Stripe Sandbox connection is configured in the Integrations tab
+2. Webhook is automatically registered at `/api/stripe/webhook`
+3. Subscription data syncs automatically from Stripe
+4. For production, add live Stripe keys in the Publish pane
 
 ### Optional Environment Variables (for notifications)
 - `TELEGRAM_BOT_TOKEN` - Telegram Bot API token for sending alerts via Telegram

@@ -3,14 +3,33 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Crown, Zap, Sparkles, Star, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLemonSqueezy } from "@/hooks/use-lemonsqueezy";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { openCheckout, isLoading, error: lsError } = useLemonSqueezy();
   const { toast } = useToast();
+
+  const checkoutMutation = useMutation({
+    mutationFn: async (tier: 'basic' | 'pro') => {
+      const response = await apiRequest('POST', '/api/stripe/checkout', { tier });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Checkout Error",
+        description: error.message || "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleSubscribe = (tier: 'basic' | 'pro') => {
     if (!user) {
@@ -22,10 +41,11 @@ export default function Pricing() {
       return;
     }
 
-    openCheckout(tier, user.email || undefined, user.id);
+    checkoutMutation.mutate(tier);
   };
 
   const userPlan = (user as any)?.planTier || 'free';
+  const isLoading = checkoutMutation.isPending;
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -223,14 +243,8 @@ export default function Pricing() {
         </Card>
       </div>
 
-      {lsError && (
-        <div className="mt-6 text-center text-sm text-yellow-600">
-          {lsError}
-        </div>
-      )}
-
       <div className="mt-12 text-center text-muted-foreground space-y-4">
-        <p className="text-sm">Secure payments powered by Lemon Squeezy. Cancel anytime.</p>
+        <p className="text-sm">Secure payments powered by Stripe. Cancel anytime.</p>
         <div className="flex justify-center gap-4 text-sm">
           <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           <span>|</span>
