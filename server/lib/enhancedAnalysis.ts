@@ -132,7 +132,8 @@ export async function getEnhancedAnalysis(
     localPatterns,
     alphaVantage,
     timeframe,
-    market
+    market,
+    profileInfo
   );
 
   const patternNames = localPatterns?.patterns.map(p => p.pattern).join(", ") || null;
@@ -314,16 +315,40 @@ async function getAIEnhancement(
   patterns: PatternScore | null,
   alpha: AlphaVantageAnalysis | null,
   timeframe: string,
-  market: string
+  market: string,
+  profileInfo?: ProfileInfo
 ): Promise<{ rationale: string; trend: string; keyLevels: string; riskFactors: string }> {
   const patternNames = patterns?.patterns.map(p => p.pattern).join(", ") || "No clear pattern";
   const patternSignal = patterns ? 
     (patterns.buyScore > patterns.sellScore ? "Bullish" : 
      patterns.sellScore > patterns.buyScore ? "Bearish" : "Neutral") : "Neutral";
 
+  // Build profile-specific context for the AI prompt
+  let profileContext = "";
+  let systemPrompt = "You are an expert technical analyst. Provide concise, actionable insights.";
+  
+  if (profileInfo?.profileType === "INVESTOR") {
+    const riskLabel = profileInfo.riskLevel?.toLowerCase().replace(/_/g, " ") || "moderate";
+    const horizonLabel = profileInfo.investmentHorizon?.toLowerCase().replace(/_/g, " ") || "medium-term";
+    profileContext = `
+User Profile: Long-term INVESTOR with ${riskLabel} risk tolerance and ${horizonLabel} investment horizon.
+Focus: Value investing, dividend potential, fundamental strength, lower volatility stocks.
+Guidance: Explain why this stock suits their ${riskLabel} risk profile. Emphasize stability, value, and long-term growth potential.`;
+    systemPrompt = "You are an expert investment advisor helping a long-term investor. Focus on value, fundamentals, and risk-adjusted returns.";
+  } else if (profileInfo?.profileType === "TRADER") {
+    const styleLabel = profileInfo.traderStyle?.toLowerCase().replace(/_/g, " ") || "swing";
+    const riskPerTrade = profileInfo.riskPerTrade || "2%";
+    profileContext = `
+User Profile: Active TRADER with ${styleLabel} trading style, risking ${riskPerTrade} per trade.
+Focus: Technical patterns, momentum, volatility, and precise entry/exit timing.
+Guidance: Explain the technical setup for a ${styleLabel} trade. Highlight pattern strength, momentum signals, and key levels.`;
+    systemPrompt = "You are an expert technical trader. Focus on actionable setups, momentum, and precise entry/exit levels.";
+  }
+
   try {
     const prompt = `
 Analyze ${symbol} at $${currentPrice} for ${timeframe} trading in the ${market} market.
+${profileContext}
 
 Technical Data:
 - Candlestick Patterns: ${patternNames}
@@ -338,19 +363,19 @@ Technical Data:
 
 Aggregated Signal: ${signals.recommendation} (${signals.confidence}% confidence)
 
-Provide a brief JSON analysis:
+Provide a brief JSON analysis tailored to the user's profile:
 {
-  "rationale": "2-3 sentence explanation of the trade setup",
+  "rationale": "2-3 sentence explanation of why this setup suits the user's profile and trading style",
   "trend": "Current trend description (e.g., Strong uptrend, Consolidating, Bearish reversal)",
-  "keyLevels": "Key support/resistance to watch",
-  "riskFactors": "Main risks to consider"
+  "keyLevels": "Key support/resistance to watch based on user's timeframe",
+  "riskFactors": "Main risks to consider for their risk profile"
 }
 `;
 
     const response = await gemini.chat.completions.create({
       model: "gemini-2.5-flash",
       messages: [
-        { role: "system", content: "You are an expert technical analyst. Provide concise, actionable insights." },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt }
       ],
       response_format: { type: "json_object" }
