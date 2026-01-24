@@ -13,7 +13,22 @@ Key features:
   - **Tradefeeds Risk Management**: Dynamic SL/TP calculation based on volatility and timeframe
   - **Gemini AI Synthesis**: Combines all data sources into actionable trade recommendations
   - Stop Loss/Take Profit based on support/resistance levels AND timeframe-adjusted ATR
+- **Investor/Trader Profile System**: Personalized experience based on user type
+  - **Investors**: Long-term focus with 5-question risk assessment
+    - Risk levels: Conservative, Moderate, Aggressive
+    - Investment horizons: <1 year, 1-3 years, 5+ years
+    - Conservative investors get stocks sorted by lower volatility (ATR %)
+    - AI prompts focus on value, stability, and risk-adjusted returns
+  - **Traders**: Active trading focus with style selection
+    - Trading styles: Day Trader, Swing Trader, Position Trader
+    - Configurable risk per trade percentage
+    - Momentum indicators displayed: Momentum Score, Volatility %, RSI, MACD Signal
+    - AI prompts focus on patterns, momentum, and precise entry/exit levels
+  - **Investor Target List**: Upload stocks with intrinsic values via CSV
+    - Track % undervalued/overvalued vs current market price
+    - Supports CSV format: Symbol, Intrinsic Value, Notes
 - **Multi-Market AI Scanner**: Market-aligned scanning for US, Singapore, Hong Kong, China, and Europe
+  - Profile-aware recommendations: adapts analysis based on Investor vs Trader mode
   - Scanner syncs with dashboard market preference for seamless workflow
   - Generates trade recommendations for selected market region using multi-source analysis
   - Includes options trading strategies (Bull Call Spread, Bear Put Spread, Iron Condor, etc.) for US stocks
