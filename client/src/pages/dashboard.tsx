@@ -1,62 +1,21 @@
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, Loader2, Sparkles, MessageCircle, Scan, LineChart, RefreshCw, Globe, Crown, Zap, ArrowRight } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Activity, Loader2, Sparkles, MessageCircle, Scan, LineChart, Crown, Zap, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { StockChart } from "@/components/stock-chart";
 import { MarketOverview } from "@/components/market-overview";
-import { apiRequest } from "@/lib/queryClient";
-
-type MoversMarket = 'US' | 'SG' | 'HK' | 'CN' | 'EU';
-
-const MARKET_LABELS: Record<MoversMarket, string> = {
-  US: 'United States',
-  SG: 'Singapore',
-  HK: 'Hong Kong',
-  CN: 'China',
-  EU: 'Europe',
-};
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [, setLocation] = useLocation();
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedMoversMarket, setSelectedMoversMarket] = useState<MoversMarket>('US');
-
-  // Fetch market preferences to get the selected movers market
-  const { data: marketPrefs } = useQuery<{
-    selectedMoversMarket: string;
-  }>({
-    queryKey: ['/api/market/preferences'],
-  });
-
-  // Update local state when preferences load
-  const moversMarket = (marketPrefs?.selectedMoversMarket as MoversMarket) || selectedMoversMarket;
-
-  const updatePreferences = useMutation({
-    mutationFn: async (updates: { selectedMoversMarket: string }) => {
-      return apiRequest('PUT', '/api/market/preferences', updates);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/market/preferences'] });
-    },
-  });
-
-  const handleMarketChange = (market: MoversMarket) => {
-    setSelectedMoversMarket(market);
-    updatePreferences.mutate({ selectedMoversMarket: market });
-    // Invalidate movers query to refetch with new market
-    queryClient.invalidateQueries({ queryKey: ['/api/market/premarket-movers'] });
-  };
 
   const openChart = (symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -70,26 +29,6 @@ export default function Dashboard() {
       setLocation(`/analysis?symbol=${search.trim().toUpperCase()}`);
     }
   };
-
-  const handleRefreshMovers = async () => {
-    setIsRefreshing(true);
-    try {
-      await queryClient.invalidateQueries({ queryKey: ["/api/market/premarket-movers", moversMarket] });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const { data: premarketMovers, isLoading: moversLoading } = useQuery<any[]>({
-    queryKey: ["/api/market/premarket-movers", moversMarket],
-    queryFn: async () => {
-      const res = await fetch(`/api/market/premarket-movers?market=${moversMarket}`, {
-        credentials: 'include'
-      });
-      if (!res.ok) throw new Error('Failed to fetch movers');
-      return res.json();
-    },
-  });
 
   const { data: recommendations } = useQuery<any[]>({
     queryKey: ["/api/sp500/recommendations"],
@@ -203,89 +142,22 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Top 10 Market Movers */}
+      {/* Premarket Changes CTA */}
       <Card className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            Top 10 Market Movers
-          </h3>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-muted-foreground" />
-              <Select value={moversMarket} onValueChange={(value) => handleMarketChange(value as MoversMarket)}>
-                <SelectTrigger className="w-[140px]" data-testid="select-movers-market">
-                  <SelectValue placeholder="Select market" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(MARKET_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key} data-testid={`option-market-${key}`}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <span className="text-xs text-muted-foreground hidden sm:inline">Highest % change today</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshMovers}
-              disabled={isRefreshing || moversLoading}
-              data-testid="button-refresh-movers"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-xl bg-green-500/10 flex items-center justify-center">
+            <Activity className="w-7 h-7 text-green-500" />
           </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg">Premarket Changes</h3>
+            <p className="text-sm text-muted-foreground">View top 20 daily gainers and losers by % change</p>
+          </div>
+          <Button onClick={() => setLocation("/premarket")} variant="outline" data-testid="button-go-premarket">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            View Changes
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
         </div>
-        
-        {moversLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {premarketMovers?.slice(0, 10).map((stock, idx) => (
-              <div 
-                key={stock.symbol} 
-                className="relative p-4 rounded-xl bg-secondary/50 hover-elevate cursor-pointer transition-all"
-                onClick={() => setLocation(`/analysis?symbol=${stock.symbol}`)}
-                data-testid={`card-mover-${stock.symbol}`}
-              >
-                <div className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/50">
-                  #{idx + 1}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 h-6 w-6"
-                  onClick={(e) => openChart(stock.symbol, e)}
-                  data-testid={`button-chart-${stock.symbol}`}
-                >
-                  <LineChart className="w-4 h-4" />
-                </Button>
-                <div className="flex flex-col items-center text-center pt-2">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${stock.changePercent >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                    {stock.changePercent >= 0 ? (
-                      <ArrowUpRight className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <ArrowDownRight className="w-5 h-5 text-red-500" />
-                    )}
-                  </div>
-                  <span className="font-mono font-bold text-lg">{stock.symbol}</span>
-                  <p className="text-xs text-muted-foreground truncate w-full mt-1">{stock.name}</p>
-                  <div className="mt-2 space-y-1">
-                    <p className="font-mono text-sm">${stock.price.toFixed(2)}</p>
-                    <span className={`text-sm font-bold ${stock.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </Card>
 
       <StockChart

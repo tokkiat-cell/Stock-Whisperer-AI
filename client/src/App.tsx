@@ -23,6 +23,7 @@ import RefundPolicy from "@/pages/refund-policy";
 import AuthPage from "@/pages/auth";
 import ProfileSetup from "@/pages/profile-setup";
 import InvestorWatchlist from "@/pages/investor-watchlist";
+import Premarket from "@/pages/premarket";
 import LayoutShell from "@/components/layout-shell";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -102,6 +103,10 @@ function Router() {
       
       <Route path="/investor-watchlist">
         <ProtectedRoute component={InvestorWatchlist} />
+      </Route>
+      
+      <Route path="/premarket">
+        <ProtectedRoute component={Premarket} />
       </Route>
       
       <Route path="/checkout/success">

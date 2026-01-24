@@ -159,3 +159,59 @@ export async function getBatchQuotes(symbols: string[]): Promise<Record<string, 
   
   return results;
 }
+
+export interface PremarketMover {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume?: number;
+}
+
+export async function getPremarketGainersAndLosers(): Promise<{
+  gainers: PremarketMover[];
+  losers: PremarketMover[];
+}> {
+  try {
+    const [gainersResult, losersResult] = await Promise.all([
+      yahooFinance.screener({
+        scrIds: 'day_gainers',
+        count: 25,
+      }),
+      yahooFinance.screener({
+        scrIds: 'day_losers',
+        count: 25,
+      }),
+    ]);
+
+    const mapQuoteToMover = (quote: any): PremarketMover | null => {
+      if (!quote || !quote.symbol || quote.regularMarketPrice === undefined) {
+        return null;
+      }
+      return {
+        symbol: quote.symbol,
+        name: quote.shortName || quote.longName || quote.symbol,
+        price: quote.regularMarketPrice || 0,
+        change: quote.regularMarketChange || 0,
+        changePercent: quote.regularMarketChangePercent || 0,
+        volume: quote.regularMarketVolume,
+      };
+    };
+
+    const gainers = (gainersResult?.quotes || [])
+      .map(mapQuoteToMover)
+      .filter((m): m is PremarketMover => m !== null)
+      .slice(0, 20);
+
+    const losers = (losersResult?.quotes || [])
+      .map(mapQuoteToMover)
+      .filter((m): m is PremarketMover => m !== null)
+      .slice(0, 20);
+
+    return { gainers, losers };
+  } catch (error) {
+    console.error('Yahoo Finance Screener Error:', error);
+    return { gainers: [], losers: [] };
+  }
+}

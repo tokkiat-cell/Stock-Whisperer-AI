@@ -334,6 +334,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Premarket Screener - Top 20 gainers and losers across the market
+  app.get(api.market.premarketScreener.path, isAuthenticated, async (req, res) => {
+    try {
+      const { getPremarketGainersAndLosers } = await import('./lib/marketData');
+      const result = await getPremarketGainersAndLosers();
+      res.json(result);
+    } catch (error) {
+      console.error('Premarket screener error:', error);
+      res.status(500).json({ message: "Failed to fetch premarket data" });
+    }
+  });
+
   // Market Indices - US, Singapore, Hong Kong, China, Europe
   const marketIndicesConfig: Record<string, { symbol: string; name: string }[]> = {
     US: [

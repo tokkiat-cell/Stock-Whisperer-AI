@@ -184,6 +184,30 @@ export const api = {
         })),
       },
     },
+    premarketScreener: {
+      method: 'GET' as const,
+      path: '/api/market/premarket-screener',
+      responses: {
+        200: z.object({
+          gainers: z.array(z.object({
+            symbol: z.string(),
+            name: z.string(),
+            price: z.number(),
+            change: z.number(),
+            changePercent: z.number(),
+            volume: z.number().optional(),
+          })),
+          losers: z.array(z.object({
+            symbol: z.string(),
+            name: z.string(),
+            price: z.number(),
+            change: z.number(),
+            changePercent: z.number(),
+            volume: z.number().optional(),
+          })),
+        }),
+      },
+    },
     indices: {
       method: 'GET' as const,
       path: '/api/market/indices',

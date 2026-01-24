@@ -20,7 +20,8 @@ import {
   Zap,
   Sparkles,
   Target,
-  UserCog
+  UserCog,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/chat", label: "stockwhisperer AI", icon: MessageCircle },
+    { href: "/premarket", label: "Premarket Changes", icon: TrendingUp },
     { href: "/profile-setup", label: "My Profile", icon: UserCog },
     { href: "/scan", label: "AI Scanner", icon: Scan },
     { href: "/investor-watchlist", label: "Investor Targets", icon: Target },
