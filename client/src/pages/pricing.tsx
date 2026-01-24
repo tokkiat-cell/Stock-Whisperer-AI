@@ -36,12 +36,6 @@ export default function Pricing() {
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      // Only reset if we're not redirecting
-      if (!checkoutMutation.data?.url) {
-        setLoadingTier(null);
-      }
-    },
   });
 
   const handleSubscribe = (tier: 'basic' | 'pro') => {

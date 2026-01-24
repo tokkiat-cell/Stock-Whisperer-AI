@@ -16,7 +16,7 @@ async function seedStripeProducts() {
       ],
     },
     {
-      name: 'stockwhisperer Pro',
+      name: 'stockwhisperer Pro Plan',
       description: 'Advanced AI trading with market scanning and integrations',
       metadata: { tier: 'pro' },
       prices: [
