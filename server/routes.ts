@@ -1506,6 +1506,92 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
+  // Sync subscription status from Stripe (fallback for webhook issues)
+  app.post('/api/stripe/sync', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.stripeCustomerId) {
+        console.log(`[SYNC] User ${userId} has no Stripe customer ID`);
+        return res.json({ synced: false, message: 'No Stripe customer linked' });
+      }
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      // Get active subscriptions for this customer
+      const subscriptions = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: 'active',
+        limit: 10,
+      });
+
+      console.log(`[SYNC] Found ${subscriptions.data.length} active subscriptions for user ${userId}`);
+
+      if (subscriptions.data.length === 0) {
+        // No active subscriptions - check if user should be on free tier
+        if (user.planTier !== 'free') {
+          await storage.updateUserSubscription(userId, {
+            stripeSubscriptionId: null,
+            planTier: 'free',
+          });
+          console.log(`[SYNC] User ${userId} reverted to free tier`);
+        }
+        return res.json({ synced: true, planTier: 'free' });
+      }
+
+      // Get the most recent active subscription
+      const subscription = subscriptions.data[0];
+      const priceId = subscription.items.data[0]?.price?.id;
+
+      console.log(`[SYNC] Subscription ${subscription.id} has price ${priceId}`);
+
+      // Determine tier from price ID
+      const basicPriceId = process.env.STRIPE_BASIC_PRICE_ID;
+      const basicYearlyPriceId = process.env.STRIPE_BASIC_YEARLY_PRICE_ID;
+      const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
+      const proYearlyPriceId = process.env.STRIPE_PRO_YEARLY_PRICE_ID;
+
+      let planTier = 'basic'; // default
+      if (priceId === proPriceId || priceId === proYearlyPriceId) {
+        planTier = 'pro';
+      } else if (priceId === basicPriceId || priceId === basicYearlyPriceId) {
+        planTier = 'basic';
+      } else {
+        // Check product name as fallback
+        try {
+          const price = await stripe.prices.retrieve(priceId!, { expand: ['product'] });
+          const product = price.product as any;
+          const productName = product.name?.toLowerCase() || '';
+          if (productName.includes('pro')) planTier = 'pro';
+          else if (productName.includes('basic')) planTier = 'basic';
+          console.log(`[SYNC] Determined tier from product name: ${planTier}`);
+        } catch (e) {
+          console.error('[SYNC] Error fetching price details:', e);
+        }
+      }
+
+      // Update user subscription
+      const updated = await storage.updateUserSubscription(userId, {
+        stripeCustomerId: user.stripeCustomerId,
+        stripeSubscriptionId: subscription.id,
+        planTier: planTier,
+      });
+
+      if (updated) {
+        console.log(`[SYNC] SUCCESS: User ${userId} synced to ${planTier}`);
+      }
+
+      res.json({ synced: true, planTier, subscriptionId: subscription.id });
+    } catch (error) {
+      console.error('[SYNC] Error syncing subscription:', error);
+      res.status(500).json({ error: 'Failed to sync subscription' });
+    }
+  });
+
   // Get subscription details from Stripe
   app.get('/api/stripe/subscription', isAuthenticated, async (req, res) => {
     if (!req.user) return res.status(401).send();
