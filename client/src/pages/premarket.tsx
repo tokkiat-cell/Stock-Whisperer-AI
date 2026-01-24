@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, TrendingUp, TrendingDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, RefreshCw, TrendingUp, TrendingDown, ArrowUp, ArrowDown, LineChart } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   Table,
   TableBody,
@@ -30,6 +31,11 @@ interface PremarketData {
 
 export default function Premarket() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [, setLocation] = useLocation();
+
+  const handleAnalyzeSymbol = (symbol: string) => {
+    setLocation(`/analysis?symbol=${symbol}`);
+  };
 
   const { data: premarketData, isLoading } = useQuery<PremarketData>({
     queryKey: ["/api/market/premarket-screener"],
@@ -66,7 +72,14 @@ export default function Premarket() {
           <TableRow key={mover.symbol} data-testid={`row-${type}-${mover.symbol}`}>
             <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
             <TableCell>
-              <span className="font-semibold">{mover.symbol}</span>
+              <button
+                onClick={() => handleAnalyzeSymbol(mover.symbol)}
+                className="font-semibold text-primary hover:underline cursor-pointer flex items-center gap-1"
+                data-testid={`button-analyze-${mover.symbol}`}
+              >
+                {mover.symbol}
+                <LineChart className="w-3 h-3" />
+              </button>
             </TableCell>
             <TableCell className="hidden md:table-cell text-muted-foreground max-w-[200px] truncate">
               {mover.name}

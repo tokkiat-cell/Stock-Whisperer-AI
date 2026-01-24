@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AnalysisResult } from "@/components/analysis-result";
-import { Search, Sparkles, ArrowRight, Loader2, LineChart, ExternalLink } from "lucide-react";
+import { Search, Sparkles, Loader2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { StockChart } from "@/components/stock-chart";
+import { AnalysisChart } from "@/components/analysis-chart";
 
 const DEFAULT_SYMBOL = "NVDA";
 
@@ -15,14 +15,7 @@ export default function AnalysisPage() {
   const [location] = useLocation();
   const [search, setSearch] = useState(DEFAULT_SYMBOL);
   const { toast } = useToast();
-  const [chartOpen, setChartOpen] = useState(false);
-  const [chartSymbol, setChartSymbol] = useState("");
   const hasAutoAnalyzed = useRef(false);
-
-  const openChart = (symbol: string) => {
-    setChartSymbol(symbol);
-    setChartOpen(true);
-  };
   
   // Parse query param for initial search, default to NVDA
   useEffect(() => {
@@ -96,10 +89,10 @@ export default function AnalysisPage() {
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
         <div className="text-center md:text-left space-y-2">
           <h1 className="text-4xl md:text-5xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-            AI Market Analysis
+            Symbol Analysis Chart
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Get real-time price data and detailed AI-powered trading recommendations.
+            Analyze stocks with interactive charts, trendlines, and support/resistance levels.
           </p>
         </div>
         
@@ -183,18 +176,9 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* View Chart Button */}
+      {/* Inline Chart with Trendlines and S/R */}
       {quote && (
-        <div className="flex justify-center">
-          <Button 
-            variant="outline" 
-            onClick={() => openChart(search)}
-            data-testid="button-view-chart"
-          >
-            <LineChart className="w-4 h-4 mr-2" />
-            View Chart
-          </Button>
-        </div>
+        <AnalysisChart symbol={search} />
       )}
 
       {/* Analysis Results */}
@@ -205,12 +189,6 @@ export default function AnalysisPage() {
           isPending={createTradeMutation.isPending}
         />
       )}
-
-      <StockChart
-        symbol={chartSymbol}
-        open={chartOpen}
-        onOpenChange={setChartOpen}
-      />
     </div>
   );
 }
