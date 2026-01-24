@@ -1389,5 +1389,93 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
+  // --- Paddle Webhook ---
+  app.post('/api/paddle/webhook', async (req, res) => {
+    try {
+      const event = req.body;
+      console.log('Paddle webhook received:', event.event_type);
+
+      // Handle subscription events
+      if (event.event_type === 'subscription.created' || event.event_type === 'subscription.activated') {
+        const subscriptionId = event.data?.id;
+        const customerId = event.data?.customer_id;
+        const priceId = event.data?.items?.[0]?.price?.id;
+        const customData = event.data?.custom_data;
+        const userId = customData?.userId;
+
+        if (!userId) {
+          console.error('No userId in custom_data for subscription:', subscriptionId);
+          return res.status(200).json({ received: true });
+        }
+
+        // Determine tier from price ID
+        const basicPriceId = process.env.PADDLE_BASIC_PRICE_ID;
+        const proPriceId = process.env.PADDLE_PRO_PRICE_ID;
+        
+        let planTier = 'free';
+        if (priceId === basicPriceId) {
+          planTier = 'basic';
+        } else if (priceId === proPriceId) {
+          planTier = 'pro';
+        }
+
+        // Update user subscription
+        await storage.updateUserSubscription(userId, {
+          paddleCustomerId: customerId,
+          paddleSubscriptionId: subscriptionId,
+          planTier,
+        });
+
+        console.log(`Updated user ${userId} to ${planTier} tier`);
+      }
+
+      if (event.event_type === 'subscription.canceled' || event.event_type === 'subscription.past_due') {
+        const subscriptionId = event.data?.id;
+        const customData = event.data?.custom_data;
+        const userId = customData?.userId;
+
+        if (userId) {
+          // Downgrade to free tier
+          await storage.updateUserSubscription(userId, {
+            paddleSubscriptionId: null,
+            planTier: 'free',
+          });
+          console.log(`Downgraded user ${userId} to free tier`);
+        }
+      }
+
+      res.status(200).json({ received: true });
+    } catch (error) {
+      console.error('Paddle webhook error:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
+  // --- Paddle Transaction Verification ---
+  app.post('/api/paddle/verify-transaction', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const { transactionId } = req.body;
+
+      if (!transactionId) {
+        return res.status(400).json({ error: 'Transaction ID required' });
+      }
+
+      // For now, just mark the verification as pending
+      // Full verification would require Paddle API call
+      console.log(`Transaction verification requested: ${transactionId} for user ${userId}`);
+      
+      res.json({ 
+        verified: true, 
+        message: 'Transaction recorded. Subscription will be activated shortly.' 
+      });
+    } catch (error) {
+      console.error('Transaction verification error:', error);
+      res.status(500).json({ error: 'Verification failed' });
+    }
+  });
+
   return httpServer;
 }

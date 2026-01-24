@@ -82,6 +82,9 @@ export interface IStorage {
   // Market Preferences methods
   getMarketPreferences(userId: string): Promise<MarketPreferences | null>;
   upsertMarketPreferences(userId: string, updates: Partial<InsertMarketPreferences>): Promise<MarketPreferences>;
+
+  // User Subscription methods
+  updateUserSubscription(userId: string, data: { paddleCustomerId?: string | null; paddleSubscriptionId?: string | null; planTier?: string }): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -500,6 +503,19 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+
+  // --- User Subscription ---
+  async updateUserSubscription(userId: string, data: { paddleCustomerId?: string | null; paddleSubscriptionId?: string | null; planTier?: string }): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
   }
 }
 
