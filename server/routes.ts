@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { searchStocks, getStockQuote, getStockHistory } from "./lib/marketData";
 import { analyzeStockWithAI } from "./lib/aiAnalysis";
+import { getEnhancedAnalysis, scanMarketWithEnhancedAnalysis } from "./lib/enhancedAnalysis";
 import { sendAlertNotifications, formatAlertMessage } from "./notification-service";
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
@@ -181,7 +182,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.sp500.scan.path, isAuthenticated, async (req, res) => {
     try {
       // Validate input parameters
-      const parsed = api.sp500.scan.input?.safeParse(req.body);
       const validTimeframes = ["day", "month", "swing", "longterm"];
       const validMarkets = ["US", "SG", "HK", "CN", "EU"];
       
@@ -195,148 +195,77 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (req.body.market !== undefined && validMarkets.includes(req.body.market)) {
         market = req.body.market;
       }
-      
-      const timeframeDescriptions: Record<string, string> = {
-        day: "day trading (intraday, holding for minutes to hours)",
-        month: "monthly trading (holding 1-4 weeks)",
-        swing: "swing trading (holding 3-9 months)",
-        longterm: "long-term investing (holding 1+ years)"
-      };
-
-      // Stop loss and take profit guidance based on timeframe
-      const timeframeSLTPGuidance: Record<string, string> = {
-        day: "Use tight stop losses (0.5-2% from entry) and take profits (1-3% from entry). Target 1.5:1 to 2:1 risk/reward ratio.",
-        month: "Use moderate stop losses (3-5% from entry) and take profits (6-10% from entry). Target 2:1 to 3:1 risk/reward ratio.",
-        swing: "Use wider stop losses (5-10% from entry) and take profits (15-25% from entry). Target 2:1 to 3:1 risk/reward ratio.",
-        longterm: "Use wide stop losses (10-20% from entry) and take profits (30-50% from entry). Target 2:1 to 3:1 risk/reward ratio."
-      };
 
       // 1. Get stocks based on selected market
       const symbols = marketStocksConfig[market] || marketStocksConfig.US;
       const quotes = await Promise.all(symbols.map(s => getStockQuote(s)));
-      const validQuotes = quotes.filter(q => q !== null);
+      const validQuotes = quotes.filter(q => q !== null) as any[];
 
-      // 2. Generate 5 recommendations using AI with detailed technical analysis and options
+      // Build price map for enhanced analysis
+      const priceMap = new Map<string, number>();
+      for (const quote of validQuotes) {
+        priceMap.set(quote.symbol, quote.price);
+      }
+
+      // 2. Generate enhanced recommendations using multi-API analysis
+      // Uses Finnhub (pattern recognition), Alpha Vantage (technical indicators), 
+      // Tradefeeds (risk management), and Gemini AI (synthesis)
       const marketName = marketNames[market] || "US";
-      const prompt = `
-You are an expert technical analyst. Analyze the following ${marketName} market stocks: ${JSON.stringify(validQuotes)}.
+      
+      console.log(`Starting enhanced scan for ${marketName} market with ${validQuotes.length} stocks...`);
+      
+      const enhancedAnalyses = await scanMarketWithEnhancedAnalysis(
+        symbols,
+        priceMap,
+        timeframe,
+        market,
+        5 // Get top 5 recommendations
+      );
 
-Trading parameters:
-- Trading style: ${timeframeDescriptions[timeframe] || "day trading"}
-- Market: ${marketName}
-- Stop Loss / Take Profit Guidance: ${timeframeSLTPGuidance[timeframe] || timeframeSLTPGuidance.day}
-
-Generate exactly 5 high-probability trade setups optimized for ${timeframeDescriptions[timeframe] || "day trading"}.
-
-For each recommendation, provide DETAILED technical analysis including:
-1. Candlestick pattern identification (e.g., "Bullish Engulfing", "Hammer", "Doji", "Waterfall pattern", "Roller coaster", "Tow pattern")
-2. Trend type classification (e.g., "Waterfall downtrend", "Roller coaster consolidation", "Tow uptrend", "Channel breakout")
-3. Moving average analysis for 20, 40, 100, 150, and 200-day periods
-4. Support and resistance levels for precise entry/exit points
-5. Options trading recommendation (if the stock has liquid options)
-
-CRITICAL: Determine stop loss and take profit based on the timeframe:
-- For day trading: Use tight stops (0.5-2% from entry), tight targets (1-3% from entry)
-- For monthly trading: Use moderate stops (3-5% from entry), moderate targets (6-10% from entry)
-- For swing trading: Use wider stops (5-10% from entry), wider targets (15-25% from entry)
-- For long-term investing: Use wide stops (10-20% from entry), wide targets (30-50% from entry)
-
-Return a JSON object with this EXACT structure:
-{
-  "recommendations": [
-    {
-      "symbol": "AAPL",
-      "recommendation": "BUY",
-      "entryPrice": "185.50",
-      "takeProfit": "195.00",
-      "stopLoss": "180.00",
-      "riskReward": "1.7",
-      "rationale": "Strong bullish momentum with price breaking above 20-day MA...",
-      "candlePattern": "Bullish Engulfing pattern on daily chart, signaling reversal from recent pullback",
-      "trendType": "Tow uptrend - consistent higher highs and higher lows with steady momentum",
-      "movingAverages": {
-        "ma20": "182.30",
-        "ma40": "178.50",
-        "ma100": "172.00",
-        "ma150": "168.25",
-        "ma200": "165.80"
-      },
-      "technicalSummary": "Price is trading above all major MAs indicating bullish trend. 20 MA > 40 MA > 100 MA confirms uptrend. RSI at 58 shows room for upside. Volume increasing on breakout.",
-      "supportResistance": {
-        "support1": "180.00",
-        "support2": "175.50",
-        "resistance1": "190.00",
-        "resistance2": "195.00"
-      },
-      "optionsStrategy": {
-        "strategy": "Bull Call Spread",
-        "description": "Buy 185 Call, Sell 195 Call expiring in 30 days",
-        "strikePrice": "185.00",
-        "targetStrike": "195.00",
-        "expiry": "30 days",
-        "maxProfit": "Difference between strikes minus premium paid",
-        "maxRisk": "Premium paid for the spread",
-        "rationale": "Limited risk bullish play with defined profit potential"
-      }
-    }
-  ]
-}
-
-CRITICAL RULES:
-- recommendation must be exactly "BUY" or "SELL"
-- All price values must be numeric strings WITHOUT currency symbols (e.g., "185.50" not "$185.50")
-- riskReward must be a single numeric value (e.g., "1.7" not "1:1.7")
-- Include realistic moving average values based on current price levels
-- candlePattern should describe the specific pattern observed
-- trendType should classify as: Waterfall (sharp decline), Roller coaster (high volatility), Tow (steady trend), Channel, or Breakout
-- Stop loss and take profit MUST be calculated based on the timeframe guidance above - this is CRITICAL
-- For optionsStrategy: suggest appropriate strategies like Bull Call Spread, Bear Put Spread, Iron Condor, Covered Call, or Protective Put based on the directional bias
-- Support and resistance levels should be realistic based on recent price action
-- For non-US markets, options may not be available - set optionsStrategy to null in that case
-      `;
-
-      // Use Gemini for AI analysis
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
-        httpOptions: {
-          apiVersion: "",
-          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+      // Convert enhanced analyses to recommendation format for storage
+      const recommendations = enhancedAnalyses.map(analysis => ({
+        symbol: analysis.symbol,
+        recommendation: analysis.recommendation,
+        entryPrice: String(analysis.entryPrice),
+        takeProfit: String(analysis.takeProfit),
+        stopLoss: String(analysis.stopLoss),
+        riskReward: String(analysis.riskReward),
+        rationale: analysis.aiAnalysis.rationale,
+        candlePattern: analysis.candlestickPattern.pattern || "No clear pattern",
+        trendType: analysis.aiAnalysis.trend,
+        movingAverages: {
+          ma20: String(analysis.technicalIndicators.movingAverages.sma20.toFixed(2)),
+          ma40: String(((analysis.technicalIndicators.movingAverages.sma20 + analysis.technicalIndicators.movingAverages.sma50) / 2).toFixed(2)),
+          ma100: String(((analysis.technicalIndicators.movingAverages.sma50 + analysis.technicalIndicators.movingAverages.sma200) / 2).toFixed(2)),
+          ma150: String(((analysis.technicalIndicators.movingAverages.sma50 * 0.25 + analysis.technicalIndicators.movingAverages.sma200 * 0.75)).toFixed(2)),
+          ma200: String(analysis.technicalIndicators.movingAverages.sma200.toFixed(2))
         },
-      });
-
-      const aiResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-      });
-
-      const responseText = aiResponse.text || '{}';
-      // Extract JSON from response (may be wrapped in markdown code blocks)
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      const result = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
-      // Handle both array format and object with recommendations key
-      const recommendations = Array.isArray(result) 
-        ? result 
-        : (Array.isArray(result.recommendations) ? result.recommendations : []);
-      
-      if (recommendations.length === 0) {
-        console.log("AI returned no recommendations. Raw response:", responseText);
-      }
-      
-      // Validate and clean numeric fields
-      const cleanedRecommendations = recommendations.map((rec: any) => ({
-        ...rec,
-        entryPrice: String(rec.entryPrice).replace(/[^0-9.]/g, ''),
-        takeProfit: String(rec.takeProfit).replace(/[^0-9.]/g, ''),
-        stopLoss: String(rec.stopLoss).replace(/[^0-9.]/g, ''),
-        riskReward: String(rec.riskReward).replace(/[^0-9.]/g, ''),
+        technicalSummary: `RSI: ${analysis.technicalIndicators.rsi.toFixed(1)}, MACD: ${analysis.technicalIndicators.macd.trend}, Pattern Signal: ${analysis.candlestickPattern.signal}. Confidence: ${analysis.confidence}%. Data sources: ${Object.entries(analysis.dataSources).filter(([k, v]) => v).map(([k]) => k).join(', ')}`,
+        supportResistance: {
+          support1: String(analysis.supportResistance.support1),
+          support2: String(analysis.supportResistance.support2),
+          resistance1: String(analysis.supportResistance.resistance1),
+          resistance2: String(analysis.supportResistance.resistance2)
+        },
+        optionsStrategy: analysis.optionsStrategy || null,
+        confidence: analysis.confidence,
+        sentiment: analysis.sentiment
       }));
       
-      await storage.saveTradeRecommendations(cleanedRecommendations);
+      if (recommendations.length === 0) {
+        console.log("Enhanced scan returned no actionable recommendations");
+      } else {
+        console.log(`Enhanced scan generated ${recommendations.length} recommendations with multi-API analysis`);
+      }
+      
+      await storage.saveTradeRecommendations(recommendations);
 
-      res.json({ message: `Scan complete. 5 ${marketName} market ${timeframe} trading setups generated.` });
+      res.json({ 
+        message: `Scan complete. ${recommendations.length} ${marketName} market ${timeframe} trading setups generated with enhanced multi-source analysis.`,
+        dataSources: ["Finnhub Pattern Recognition", "Alpha Vantage Technical Indicators", "Tradefeeds Risk Management", "Gemini AI Synthesis"]
+      });
     } catch (error) {
-      console.error(error);
+      console.error("Enhanced scan error:", error);
       res.status(500).json({ message: "Market scan failed" });
     }
   });
