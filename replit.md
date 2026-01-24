@@ -7,12 +7,19 @@ stockwhisperer.AI is an AI-powered stock trading assistant that provides real-ti
 Key features:
 - Real-time stock quotes via Yahoo Finance API
 - AI-powered stock analysis using Gemini AI (gemini-2.5-flash)
+- **Enhanced Multi-API Analysis System**:
+  - **Finnhub Pattern Recognition**: Detects candlestick patterns (Hammer, Engulfing, Doji, etc.) with buy/sell scoring
+  - **Alpha Vantage Technical Indicators**: RSI, MACD, Bollinger Bands, SMA/EMA, ATR, Support/Resistance levels
+  - **Tradefeeds Risk Management**: Dynamic SL/TP calculation based on volatility and timeframe
+  - **Gemini AI Synthesis**: Combines all data sources into actionable trade recommendations
+  - Stop Loss/Take Profit based on support/resistance levels AND timeframe-adjusted ATR
 - **Multi-Market AI Scanner**: Market-aligned scanning for US, Singapore, Hong Kong, China, and Europe
   - Scanner syncs with dashboard market preference for seamless workflow
-  - Generates trade recommendations for selected market region
+  - Generates trade recommendations for selected market region using multi-source analysis
   - Includes options trading strategies (Bull Call Spread, Bear Put Spread, Iron Condor, etc.) for US stocks
   - Provides support and resistance levels for precise entry/exit points
   - Options strategies include strike pricing, expiry, max profit/risk
+  - Confidence scores based on aggregated signals from all data sources
 - Trade setup management with approval workflow
 - User authentication via Replit Auth (OpenID Connect)
 - Portfolio management with holdings tracking, bulk import (Excel/paste/image AI extraction), and watchlist
@@ -136,7 +143,10 @@ Key tables:
 
 ### APIs and Services
 - **Yahoo Finance** (`yahoo-finance2`): Real-time stock quotes and search
-- **OpenAI**: AI-powered stock analysis via Replit AI Integrations
+- **Google Gemini**: AI-powered stock analysis via Replit AI Integrations
+- **Finnhub**: Candlestick pattern recognition and technical indicator aggregation
+- **Alpha Vantage**: Technical indicators (RSI, MACD, Bollinger Bands, SMA, ATR, Support/Resistance)
+- **Tradefeeds**: Dynamic risk management and SL/TP calculation
 - **Replit Auth**: User authentication via OpenID Connect
 
 ### Database
@@ -167,6 +177,11 @@ Key tables:
 3. Copy the price IDs to environment variables
 4. Webhook is automatically registered at `/api/stripe/webhook`
 5. For production, add live Stripe keys in the Publish pane
+
+### Optional Environment Variables (for enhanced analysis)
+- `FINNHUB_API_KEY` - Finnhub API key for candlestick pattern recognition (https://finnhub.io/)
+- `ALPHA_VANTAGE_API_KEY` - Alpha Vantage API key for technical indicators (https://www.alphavantage.co/)
+- `TRADEFEEDS_API_KEY` - Tradefeeds API key for risk management (https://tradefeeds.com/)
 
 ### Optional Environment Variables (for notifications)
 - `TELEGRAM_BOT_TOKEN` - Telegram Bot API token for sending alerts via Telegram
