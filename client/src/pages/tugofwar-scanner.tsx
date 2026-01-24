@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,16 +73,16 @@ export default function TugOfWarScanner() {
   const [chartOpen, setChartOpen] = useState(false);
   const [chartLevels, setChartLevels] = useState<ChartLevels | undefined>(undefined);
 
-  const { data: response, isLoading, refetch, isRefetching } = useQuery<ScanResponse>({
+  const { data: response, isLoading, isRefetching } = useQuery<ScanResponse>({
     queryKey: ['/api/market/tugofwar-scanner'],
-    enabled: false,
     staleTime: 5 * 60 * 1000,
   });
 
+  const queryClient = useQueryClient();
   const results = response?.results || [];
 
-  const handleScan = () => {
-    refetch();
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/market/tugofwar-scanner'] });
   };
 
   const openChart = (symbol: string, levels?: ChartLevels) => {
@@ -104,7 +104,7 @@ export default function TugOfWarScanner() {
           </p>
         </div>
         <Button 
-          onClick={handleScan} 
+          onClick={handleRefresh} 
           disabled={isLoading || isRefetching}
           data-testid="button-scan"
         >
@@ -299,7 +299,7 @@ export default function TugOfWarScanner() {
           <p className="text-muted-foreground mb-4" data-testid="text-ready-message">
             Click "Scan for Setups" to find stocks with tight consolidation patterns
           </p>
-          <Button onClick={handleScan} data-testid="button-scan-initial">
+          <Button onClick={handleRefresh} data-testid="button-scan-initial">
             <Sword className="w-4 h-4 mr-2" />
             Start Scanning
           </Button>

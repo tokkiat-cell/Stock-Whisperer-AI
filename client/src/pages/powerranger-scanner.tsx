@@ -43,12 +43,10 @@ export default function PowerRangerScanner() {
   const { data: response, isLoading, isRefetching } = useQuery<ScannerResponse>({
     queryKey: ['/api/market/powerranger-scanner'],
     staleTime: 5 * 60 * 1000,
-    enabled: false,
   });
 
-  const handleScan = () => {
+  const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/market/powerranger-scanner'] });
-    queryClient.refetchQueries({ queryKey: ['/api/market/powerranger-scanner'] });
   };
 
   const openChart = (symbol: string, e: React.MouseEvent) => {
@@ -101,7 +99,7 @@ export default function PowerRangerScanner() {
           </p>
         </div>
         <Button
-          onClick={handleScan}
+          onClick={handleRefresh}
           disabled={isLoading || isRefetching}
           data-testid="button-scan-powerranger"
         >
@@ -298,7 +296,7 @@ export default function PowerRangerScanner() {
           <p className="text-muted-foreground mb-4" data-testid="text-ready-message">
             Click "Scan for Setups" to find stocks with gap-up breakout patterns
           </p>
-          <Button onClick={handleScan} data-testid="button-scan-powerranger-initial">
+          <Button onClick={handleRefresh} data-testid="button-scan-powerranger-initial">
             <Zap className="w-4 h-4 mr-2" />
             Start Scanning
           </Button>
