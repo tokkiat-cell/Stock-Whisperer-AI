@@ -15,9 +15,11 @@ export default function Pricing() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
+  const [loadingTier, setLoadingTier] = useState<'basic' | 'pro' | null>(null);
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ tier, interval }: { tier: 'basic' | 'pro'; interval: 'month' | 'year' }) => {
+      setLoadingTier(tier);
       const response = await apiRequest('POST', '/api/stripe/checkout', { tier, interval });
       return response.json();
     },
@@ -27,11 +29,18 @@ export default function Pricing() {
       }
     },
     onError: (error: Error) => {
+      setLoadingTier(null);
       toast({
         title: "Checkout Error",
         description: error.message || "Failed to start checkout. Please try again.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Only reset if we're not redirecting
+      if (!checkoutMutation.data?.url) {
+        setLoadingTier(null);
+      }
     },
   });
 
@@ -50,7 +59,6 @@ export default function Pricing() {
   };
 
   const userPlan = (user as any)?.planTier || 'free';
-  const isLoading = checkoutMutation.isPending;
 
   const basicMonthlyPrice = 9.90;
   const basicAnnualPrice = 99;
@@ -205,10 +213,10 @@ export default function Pricing() {
               <Button 
                 className="w-full" 
                 onClick={() => handleSubscribe('basic')}
-                disabled={isLoading}
+                disabled={loadingTier !== null}
                 data-testid="button-subscribe-basic"
               >
-                {isLoading ? (
+                {loadingTier === 'basic' ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Loading...
@@ -286,10 +294,10 @@ export default function Pricing() {
               <Button 
                 className="w-full" 
                 onClick={() => handleSubscribe('pro')}
-                disabled={isLoading}
+                disabled={loadingTier !== null}
                 data-testid="button-subscribe-pro"
               >
-                {isLoading ? (
+                {loadingTier === 'pro' ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Loading...
