@@ -233,34 +233,50 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       );
 
       // Convert enhanced analyses to recommendation format for storage
-      const recommendations = enhancedAnalyses.map(analysis => ({
-        symbol: analysis.symbol,
-        recommendation: analysis.recommendation,
-        entryPrice: String(analysis.entryPrice),
-        takeProfit: String(analysis.takeProfit),
-        stopLoss: String(analysis.stopLoss),
-        riskReward: String(analysis.riskReward),
-        rationale: analysis.aiAnalysis.rationale,
-        candlePattern: analysis.candlestickPattern.pattern || "No clear pattern",
-        trendType: analysis.aiAnalysis.trend,
-        movingAverages: {
-          ma20: String(analysis.technicalIndicators.movingAverages.sma20.toFixed(2)),
-          ma40: String(((analysis.technicalIndicators.movingAverages.sma20 + analysis.technicalIndicators.movingAverages.sma50) / 2).toFixed(2)),
-          ma100: String(((analysis.technicalIndicators.movingAverages.sma50 + analysis.technicalIndicators.movingAverages.sma200) / 2).toFixed(2)),
-          ma150: String(((analysis.technicalIndicators.movingAverages.sma50 * 0.25 + analysis.technicalIndicators.movingAverages.sma200 * 0.75)).toFixed(2)),
-          ma200: String(analysis.technicalIndicators.movingAverages.sma200.toFixed(2))
-        },
-        technicalSummary: `RSI: ${analysis.technicalIndicators.rsi.toFixed(1)}, MACD: ${analysis.technicalIndicators.macd.trend}, Pattern Signal: ${analysis.candlestickPattern.signal}. Confidence: ${analysis.confidence}%. Data sources: ${Object.entries(analysis.dataSources).filter(([k, v]) => v).map(([k]) => k).join(', ')}`,
-        supportResistance: {
-          support1: String(analysis.supportResistance.support1),
-          support2: String(analysis.supportResistance.support2),
-          resistance1: String(analysis.supportResistance.resistance1),
-          resistance2: String(analysis.supportResistance.resistance2)
-        },
-        optionsStrategy: analysis.optionsStrategy || null,
-        confidence: analysis.confidence,
-        sentiment: analysis.sentiment
-      }));
+      const recommendations = enhancedAnalyses.map(analysis => {
+        // Calculate momentum score as price distance from 20-day MA as percentage
+        const sma20 = analysis.technicalIndicators.movingAverages.sma20;
+        const momentumScore = sma20 > 0 ? (analysis.currentPrice - sma20) / sma20 : 0;
+        
+        // Calculate volatility as ATR percentage of current price
+        const volatilityPercent = analysis.currentPrice > 0 
+          ? (analysis.technicalIndicators.atr / analysis.currentPrice) * 100 
+          : 0;
+          
+        return {
+          symbol: analysis.symbol,
+          recommendation: analysis.recommendation,
+          entryPrice: String(analysis.entryPrice),
+          takeProfit: String(analysis.takeProfit),
+          stopLoss: String(analysis.stopLoss),
+          riskReward: String(analysis.riskReward),
+          rationale: analysis.aiAnalysis.rationale,
+          candlePattern: analysis.candlestickPattern.pattern || "No clear pattern",
+          trendType: analysis.aiAnalysis.trend,
+          movingAverages: {
+            ma20: String(analysis.technicalIndicators.movingAverages.sma20.toFixed(2)),
+            ma40: String(((analysis.technicalIndicators.movingAverages.sma20 + analysis.technicalIndicators.movingAverages.sma50) / 2).toFixed(2)),
+            ma100: String(((analysis.technicalIndicators.movingAverages.sma50 + analysis.technicalIndicators.movingAverages.sma200) / 2).toFixed(2)),
+            ma150: String(((analysis.technicalIndicators.movingAverages.sma50 * 0.25 + analysis.technicalIndicators.movingAverages.sma200 * 0.75)).toFixed(2)),
+            ma200: String(analysis.technicalIndicators.movingAverages.sma200.toFixed(2))
+          },
+          technicalSummary: `RSI: ${analysis.technicalIndicators.rsi.toFixed(1)}, MACD: ${analysis.technicalIndicators.macd.trend}, Pattern Signal: ${analysis.candlestickPattern.signal}. Confidence: ${analysis.confidence}%. Data sources: ${Object.entries(analysis.dataSources).filter(([k, v]) => v).map(([k]) => k).join(', ')}`,
+          supportResistance: {
+            support1: String(analysis.supportResistance.support1),
+            support2: String(analysis.supportResistance.support2),
+            resistance1: String(analysis.supportResistance.resistance1),
+            resistance2: String(analysis.supportResistance.resistance2)
+          },
+          optionsStrategy: analysis.optionsStrategy || null,
+          confidence: analysis.confidence,
+          sentiment: analysis.sentiment,
+          // Trader-specific momentum indicators
+          momentumScore: momentumScore,
+          volatilityPercent: volatilityPercent,
+          rsiValue: analysis.technicalIndicators.rsi,
+          macdSignal: analysis.technicalIndicators.macd.trend
+        };
+      });
       
       if (recommendations.length === 0) {
         console.log("Enhanced scan returned no actionable recommendations");

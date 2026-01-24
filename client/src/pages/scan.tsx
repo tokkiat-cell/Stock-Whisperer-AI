@@ -79,6 +79,10 @@ interface Recommendation {
     maxRisk: string;
     rationale: string;
   } | null;
+  momentumScore?: number;
+  volatilityPercent?: number;
+  rsiValue?: number;
+  macdSignal?: "BULLISH" | "BEARISH" | "NEUTRAL";
 }
 
 type Timeframe = "day" | "month" | "swing" | "longterm";
@@ -413,6 +417,47 @@ export default function MarketScan() {
                           <p className="text-sm text-muted-foreground mt-1">
                             Pattern: <span className="font-medium text-foreground">{rec.trendType}</span>
                           </p>
+                        )}
+                        {investorProfile?.profileType === "TRADER" && (rec.momentumScore !== undefined || rec.volatilityPercent !== undefined || rec.rsiValue !== undefined) && (
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {rec.momentumScore !== undefined && (
+                              <Badge variant="outline" className={cn(
+                                "text-xs",
+                                rec.momentumScore > 0.5 ? "border-green-500/50 text-green-500" : 
+                                rec.momentumScore < -0.5 ? "border-red-500/50 text-red-500" : "border-muted"
+                              )}>
+                                <Zap className="w-3 h-3 mr-1" />
+                                Momentum: {rec.momentumScore > 0 ? "+" : ""}{(rec.momentumScore * 100).toFixed(0)}%
+                              </Badge>
+                            )}
+                            {rec.volatilityPercent !== undefined && (
+                              <Badge variant="outline" className={cn(
+                                "text-xs",
+                                rec.volatilityPercent > 5 ? "border-orange-500/50 text-orange-500" : "border-muted"
+                              )}>
+                                <Activity className="w-3 h-3 mr-1" />
+                                Vol: {rec.volatilityPercent.toFixed(1)}%
+                              </Badge>
+                            )}
+                            {rec.rsiValue !== undefined && (
+                              <Badge variant="outline" className={cn(
+                                "text-xs",
+                                rec.rsiValue > 70 ? "border-red-500/50 text-red-500" :
+                                rec.rsiValue < 30 ? "border-green-500/50 text-green-500" : "border-muted"
+                              )}>
+                                RSI: {rec.rsiValue.toFixed(0)}
+                              </Badge>
+                            )}
+                            {rec.macdSignal && (
+                              <Badge variant="outline" className={cn(
+                                "text-xs",
+                                rec.macdSignal === "BULLISH" ? "border-green-500/50 text-green-500" :
+                                rec.macdSignal === "BEARISH" ? "border-red-500/50 text-red-500" : "border-muted"
+                              )}>
+                                MACD: {rec.macdSignal}
+                              </Badge>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
