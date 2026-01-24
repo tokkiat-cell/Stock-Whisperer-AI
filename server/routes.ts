@@ -1389,50 +1389,152 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     }
   });
 
-  // --- Paddle Webhook ---
-  app.post('/api/paddle/webhook', async (req, res) => {
+  // --- Lemon Squeezy Checkout ---
+  app.post('/api/lemonsqueezy/checkout', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const { tier, email } = req.body;
+
+      const storeId = process.env.LEMONSQUEEZY_STORE_ID;
+      const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+      
+      if (!storeId || !apiKey) {
+        return res.status(500).json({ error: 'Payment system not configured' });
+      }
+
+      // Get variant ID based on tier
+      const variantIds: Record<string, string | undefined> = {
+        basic: process.env.LEMONSQUEEZY_BASIC_VARIANT_ID,
+        pro: process.env.LEMONSQUEEZY_PRO_VARIANT_ID,
+      };
+
+      const variantId = variantIds[tier];
+      if (!variantId) {
+        return res.status(400).json({ error: 'Invalid subscription tier' });
+      }
+
+      // Create checkout via Lemon Squeezy API
+      const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/vnd.api+json',
+          'Accept': 'application/vnd.api+json',
+        },
+        body: JSON.stringify({
+          data: {
+            type: 'checkouts',
+            attributes: {
+              checkout_options: {
+                embed: true,
+                media: false,
+                logo: true,
+                dark: true,
+              },
+              checkout_data: {
+                email: email || undefined,
+                custom: {
+                  user_id: userId,
+                },
+              },
+              product_options: {
+                enabled_variants: [parseInt(variantId)],
+                redirect_url: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/checkout/success`,
+                receipt_button_text: 'Go to Dashboard',
+                receipt_thank_you_note: 'Thank you for subscribing to stockwhisperer.AI!',
+              },
+            },
+            relationships: {
+              store: {
+                data: {
+                  type: 'stores',
+                  id: storeId,
+                },
+              },
+              variant: {
+                data: {
+                  type: 'variants',
+                  id: variantId,
+                },
+              },
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Lemon Squeezy checkout error:', errorData);
+        return res.status(500).json({ error: 'Failed to create checkout' });
+      }
+
+      const data = await response.json();
+      const checkoutUrl = data.data?.attributes?.url;
+
+      if (!checkoutUrl) {
+        return res.status(500).json({ error: 'No checkout URL returned' });
+      }
+
+      res.json({ checkoutUrl });
+    } catch (error) {
+      console.error('Checkout creation error:', error);
+      res.status(500).json({ error: 'Failed to create checkout' });
+    }
+  });
+
+  // --- Lemon Squeezy Webhook ---
+  app.post('/api/lemonsqueezy/webhook', async (req, res) => {
     try {
       const event = req.body;
-      console.log('Paddle webhook received:', event.event_type);
+      const eventName = event.meta?.event_name;
+      console.log('Lemon Squeezy webhook received:', eventName);
 
       // Handle subscription events
-      if (event.event_type === 'subscription.created' || event.event_type === 'subscription.activated') {
+      if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
         const subscriptionId = event.data?.id;
-        const customerId = event.data?.customer_id;
-        const priceId = event.data?.items?.[0]?.price?.id;
-        const customData = event.data?.custom_data;
-        const userId = customData?.userId;
+        const customerId = event.data?.attributes?.customer_id;
+        const variantId = event.data?.attributes?.variant_id?.toString();
+        const status = event.data?.attributes?.status;
+        const customData = event.meta?.custom_data;
+        const userId = customData?.user_id;
 
         if (!userId) {
-          console.error('No userId in custom_data for subscription:', subscriptionId);
+          console.error('No user_id in custom_data for subscription:', subscriptionId);
           return res.status(200).json({ received: true });
         }
 
-        // Determine tier from price ID
-        const basicPriceId = process.env.PADDLE_BASIC_PRICE_ID;
-        const proPriceId = process.env.PADDLE_PRO_PRICE_ID;
+        // Only process active subscriptions
+        if (status !== 'active') {
+          console.log(`Subscription ${subscriptionId} status is ${status}, skipping tier update`);
+          return res.status(200).json({ received: true });
+        }
+
+        // Determine tier from variant ID
+        const basicVariantId = process.env.LEMONSQUEEZY_BASIC_VARIANT_ID;
+        const proVariantId = process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
         
         let planTier = 'free';
-        if (priceId === basicPriceId) {
+        if (variantId === basicVariantId) {
           planTier = 'basic';
-        } else if (priceId === proPriceId) {
+        } else if (variantId === proVariantId) {
           planTier = 'pro';
         }
 
         // Update user subscription
         await storage.updateUserSubscription(userId, {
-          paddleCustomerId: customerId,
-          paddleSubscriptionId: subscriptionId,
+          paddleCustomerId: customerId?.toString(),
+          paddleSubscriptionId: subscriptionId?.toString(),
           planTier,
         });
 
         console.log(`Updated user ${userId} to ${planTier} tier`);
       }
 
-      if (event.event_type === 'subscription.canceled' || event.event_type === 'subscription.past_due') {
-        const subscriptionId = event.data?.id;
-        const customData = event.data?.custom_data;
-        const userId = customData?.userId;
+      if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
+        const customData = event.meta?.custom_data;
+        const userId = customData?.user_id;
 
         if (userId) {
           // Downgrade to free tier
@@ -1446,34 +1548,8 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
       res.status(200).json({ received: true });
     } catch (error) {
-      console.error('Paddle webhook error:', error);
+      console.error('Lemon Squeezy webhook error:', error);
       res.status(500).json({ error: 'Webhook processing failed' });
-    }
-  });
-
-  // --- Paddle Transaction Verification ---
-  app.post('/api/paddle/verify-transaction', isAuthenticated, async (req, res) => {
-    if (!req.user) return res.status(401).send();
-    try {
-      // @ts-ignore
-      const userId = req.user.claims.sub;
-      const { transactionId } = req.body;
-
-      if (!transactionId) {
-        return res.status(400).json({ error: 'Transaction ID required' });
-      }
-
-      // For now, just mark the verification as pending
-      // Full verification would require Paddle API call
-      console.log(`Transaction verification requested: ${transactionId} for user ${userId}`);
-      
-      res.json({ 
-        verified: true, 
-        message: 'Transaction recorded. Subscription will be activated shortly.' 
-      });
-    } catch (error) {
-      console.error('Transaction verification error:', error);
-      res.status(500).json({ error: 'Verification failed' });
     }
   });
 

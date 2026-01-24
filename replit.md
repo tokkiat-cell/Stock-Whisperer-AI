@@ -149,16 +149,18 @@ Key tables:
 - `ISSUER_URL` - Replit OIDC issuer (defaults to `https://replit.com/oidc`)
 - `REPL_ID` - Replit environment identifier
 
-### Paddle Payment Integration (Required for Subscriptions)
-- `VITE_PADDLE_CLIENT_TOKEN` - Paddle client-side token (from Dashboard → Developer Tools → Authentication)
-- `VITE_PADDLE_ENVIRONMENT` - Set to "sandbox" for testing, "production" for live
-- `VITE_PADDLE_BASIC_PRICE_ID` - Price ID for Basic tier subscription ($9.90/month)
-- `VITE_PADDLE_PRO_PRICE_ID` - Price ID for Pro tier subscription ($49.99/month)
-- `PADDLE_BASIC_PRICE_ID` - Same as VITE_PADDLE_BASIC_PRICE_ID (for backend webhook)
-- `PADDLE_PRO_PRICE_ID` - Same as VITE_PADDLE_PRO_PRICE_ID (for backend webhook)
-- `PADDLE_WEBHOOK_SECRET` - Paddle webhook signing secret (for verifying webhook payloads)
+### Lemon Squeezy Payment Integration (Required for Subscriptions)
+- `LEMONSQUEEZY_API_KEY` - Lemon Squeezy API key (from Settings → API)
+- `LEMONSQUEEZY_STORE_ID` - Your Lemon Squeezy store ID
+- `LEMONSQUEEZY_BASIC_VARIANT_ID` - Variant ID for Basic tier subscription ($9.90/month)
+- `LEMONSQUEEZY_PRO_VARIANT_ID` - Variant ID for Pro tier subscription ($49.99/month)
+- `LEMONSQUEEZY_WEBHOOK_SECRET` - Webhook signing secret (optional, for verifying webhook payloads)
 
-**Note**: You need to configure your Paddle webhook URL to: `https://your-app-url/api/paddle/webhook`
+**Setup Steps in Lemon Squeezy:**
+1. Create two products: "stockwhisperer Basic" ($9.90/month) and "stockwhisperer Pro" ($49.99/month)
+2. Copy the Variant IDs for each subscription (found in product settings)
+3. Configure webhook URL: `https://your-published-app-url/api/lemonsqueezy/webhook`
+4. Select events to listen for: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_expired`
 
 ### Optional Environment Variables (for notifications)
 - `TELEGRAM_BOT_TOKEN` - Telegram Bot API token for sending alerts via Telegram

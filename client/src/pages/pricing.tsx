@@ -3,13 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Crown, Zap, Sparkles, Star, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { usePaddle } from "@/hooks/use-paddle";
+import { useLemonSqueezy } from "@/hooks/use-lemonsqueezy";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { openCheckout, isLoading: paddleLoading, error: paddleError } = usePaddle();
+  const { openCheckout, isLoading, error: lsError } = useLemonSqueezy();
   const { toast } = useToast();
 
   const handleSubscribe = (tier: 'basic' | 'pro') => {
@@ -22,23 +22,7 @@ export default function Pricing() {
       return;
     }
 
-    const priceIds = {
-      basic: import.meta.env.VITE_PADDLE_BASIC_PRICE_ID,
-      pro: import.meta.env.VITE_PADDLE_PRO_PRICE_ID,
-    };
-
-    const priceId = priceIds[tier];
-    
-    if (!priceId) {
-      toast({
-        title: "Configuration Error",
-        description: "Payment system is not fully configured. Please try again later.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    openCheckout(priceId, user.email || undefined, user.id);
+    openCheckout(tier, user.email || undefined, user.id);
   };
 
   const userPlan = (user as any)?.planTier || 'free';
@@ -153,10 +137,10 @@ export default function Pricing() {
               <Button 
                 className="w-full" 
                 onClick={() => handleSubscribe('basic')}
-                disabled={paddleLoading}
+                disabled={isLoading}
                 data-testid="button-subscribe-basic"
               >
-                {paddleLoading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Loading...
@@ -222,10 +206,10 @@ export default function Pricing() {
               <Button 
                 className="w-full" 
                 onClick={() => handleSubscribe('pro')}
-                disabled={paddleLoading}
+                disabled={isLoading}
                 data-testid="button-subscribe-pro"
               >
-                {paddleLoading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Loading...
@@ -239,14 +223,14 @@ export default function Pricing() {
         </Card>
       </div>
 
-      {paddleError && (
+      {lsError && (
         <div className="mt-6 text-center text-sm text-yellow-600">
-          Payment system is initializing. Please try again in a moment.
+          {lsError}
         </div>
       )}
 
       <div className="mt-12 text-center text-muted-foreground space-y-4">
-        <p className="text-sm">Secure payments powered by Paddle. Cancel anytime.</p>
+        <p className="text-sm">Secure payments powered by Lemon Squeezy. Cancel anytime.</p>
         <div className="flex justify-center gap-4 text-sm">
           <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           <span>|</span>
