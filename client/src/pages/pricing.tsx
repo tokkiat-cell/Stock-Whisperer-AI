@@ -66,9 +66,30 @@ export default function Pricing() {
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
           Get access to AI-powered stock analysis and trading insights
         </p>
+        
+        {/* Global Monthly/Annual Toggle */}
+        <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg inline-flex">
+          <Label htmlFor="billing-toggle-global" className={!isAnnual ? "font-semibold" : "text-muted-foreground"}>
+            Monthly
+          </Label>
+          <Switch
+            id="billing-toggle-global"
+            checked={isAnnual}
+            onCheckedChange={setIsAnnual}
+            data-testid="switch-billing-toggle"
+          />
+          <Label htmlFor="billing-toggle-global" className={isAnnual ? "font-semibold" : "text-muted-foreground"}>
+            Annual
+          </Label>
+          {isAnnual && (
+            <Badge variant="secondary" className="ml-1">
+              Save up to {Math.max(basicSavings, proSavings)}%
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -136,28 +157,6 @@ export default function Pricing() {
             <p className="text-muted-foreground text-sm">
               Essential AI trading analysis tools for individual traders
             </p>
-            
-            {/* Monthly/Annual Toggle */}
-            <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <Label htmlFor="billing-toggle" className={!isAnnual ? "font-semibold" : "text-muted-foreground"}>
-                Monthly
-              </Label>
-              <Switch
-                id="billing-toggle"
-                checked={isAnnual}
-                onCheckedChange={setIsAnnual}
-                data-testid="switch-billing-toggle"
-              />
-              <Label htmlFor="billing-toggle" className={isAnnual ? "font-semibold" : "text-muted-foreground"}>
-                Annual
-              </Label>
-              {isAnnual && (
-                <Badge variant="secondary" className="ml-1">
-                  Save {basicSavings}%
-                </Badge>
-              )}
-            </div>
-
             <div className="space-y-2">
               {isAnnual ? (
                 <>
@@ -235,28 +234,6 @@ export default function Pricing() {
             <p className="text-muted-foreground text-sm">
               Advanced AI trading with market scanning and integrations
             </p>
-            
-            {/* Monthly/Annual Toggle */}
-            <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <Label htmlFor="billing-toggle-pro" className={!isAnnual ? "font-semibold" : "text-muted-foreground"}>
-                Monthly
-              </Label>
-              <Switch
-                id="billing-toggle-pro"
-                checked={isAnnual}
-                onCheckedChange={setIsAnnual}
-                data-testid="switch-billing-toggle-pro"
-              />
-              <Label htmlFor="billing-toggle-pro" className={isAnnual ? "font-semibold" : "text-muted-foreground"}>
-                Annual
-              </Label>
-              {isAnnual && (
-                <Badge variant="secondary" className="ml-1">
-                  Save {proSavings}%
-                </Badge>
-              )}
-            </div>
-
             <div className="space-y-2">
               {isAnnual ? (
                 <>
