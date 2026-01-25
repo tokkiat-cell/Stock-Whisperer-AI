@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -35,6 +35,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { StockChart } from "@/components/stock-chart";
 import type { InvestorTargetItem, StockQuote } from "@shared/schema";
 
 type TargetItemWithQuote = InvestorTargetItem & {
@@ -54,6 +55,8 @@ export default function InvestorWatchlist() {
   const [filterMoat, setFilterMoat] = useState<string>("all");
   const [sortField, setSortField] = useState<string>("symbol");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [chartSymbol, setChartSymbol] = useState<string | null>(null);
+  const [hasAutoFetched, setHasAutoFetched] = useState(false);
 
   const { data: targetList = [], isLoading } = useQuery<InvestorTargetItem[]>({
     queryKey: ["/api/investor-target-list"],
@@ -164,12 +167,13 @@ export default function InvestorWatchlist() {
     setIsRefreshing(false);
   };
 
-  // Auto-fetch prices when target list loads
+  // Auto-fetch prices when target list loads (only once on initial load)
   useEffect(() => {
-    if (targetList.length > 0) {
+    if (targetList.length > 0 && !hasAutoFetched && !isRefreshing) {
+      setHasAutoFetched(true);
       fetchQuotes();
     }
-  }, [targetList.length]);
+  }, [targetList.length, hasAutoFetched, isRefreshing]);
 
   const handleAddItem = () => {
     if (!newSymbol || !newIntrinsicValue) {
@@ -788,7 +792,16 @@ export default function InvestorWatchlist() {
                 <TableBody>
                   {itemsWithQuotes.map((item) => (
                     <TableRow key={item.id} data-testid={`row-stock-${item.symbol}`}>
-                      <TableCell className="font-medium">{item.symbol}</TableCell>
+                      <TableCell className="font-medium">
+                        <button
+                          onClick={() => setChartSymbol(item.symbol)}
+                          className="flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                          data-testid={`button-chart-${item.symbol}`}
+                        >
+                          <LineChart className="h-3 w-3" />
+                          {item.symbol}
+                        </button>
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
                         {item.companyName || "-"}
                       </TableCell>
@@ -874,6 +887,15 @@ export default function InvestorWatchlist() {
           </CardContent>
         </Card>
       )}
+
+      {/* Stock Chart Dialog */}
+      <StockChart
+        symbol={chartSymbol || ""}
+        open={!!chartSymbol}
+        onOpenChange={(open) => {
+          if (!open) setChartSymbol(null);
+        }}
+      />
     </div>
   );
 }
