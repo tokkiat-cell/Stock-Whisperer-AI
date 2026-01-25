@@ -129,42 +129,19 @@ export default function InvestorWatchlist() {
     if (targetList.length === 0) return;
     
     setIsRefreshing(true);
-    const newCache: Record<string, StockQuote> = {};
-    
-    // Batch fetch with small delays to avoid rate limiting
-    const batchSize = 5;
-    for (let i = 0; i < targetList.length; i += batchSize) {
-      const batch = targetList.slice(i, i + batchSize);
-      const promises = batch.map(async (item) => {
-        try {
-          const response = await fetch(`/api/stocks/quote/${item.symbol}`);
-          if (response.ok) {
-            const quote = await response.json();
-            return { symbol: item.symbol, quote };
-          }
-        } catch (error) {
-          console.error(`Failed to fetch quote for ${item.symbol}`);
-        }
-        return null;
-      });
-      
-      const results = await Promise.all(promises);
-      results.forEach((result) => {
-        if (result) {
-          newCache[result.symbol] = result.quote;
-        }
-      });
-      
-      // Update cache progressively so user sees prices appearing
-      setQuotesCache(prev => ({ ...prev, ...newCache }));
-      
-      // Small delay between batches to avoid rate limiting
-      if (i + batchSize < targetList.length) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+    try {
+      const response = await fetch('/api/investor-target-list/quotes');
+      if (response.ok) {
+        const quotes = await response.json();
+        setQuotesCache(quotes);
+      } else {
+        console.error('Failed to fetch batch quotes');
       }
+    } catch (error) {
+      console.error('Error fetching quotes:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-    
-    setIsRefreshing(false);
   };
 
   // Auto-fetch prices when target list loads (only once on initial load)

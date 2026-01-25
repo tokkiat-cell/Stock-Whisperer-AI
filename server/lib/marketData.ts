@@ -89,7 +89,44 @@ export interface MovingAverageData {
   value: number;
 }
 
-export async function getStockHistory(symbol: string): Promise<{
+export type ChartInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1wk" | "1mo";
+
+// Get lookback period based on interval
+function getLookbackPeriod(interval: ChartInterval): { period1: Date; period2: Date } {
+  const endDate = new Date();
+  const startDate = new Date();
+  
+  switch (interval) {
+    case "1m":
+      startDate.setDate(startDate.getDate() - 7); // 7 days for 1-minute data
+      break;
+    case "5m":
+      startDate.setDate(startDate.getDate() - 30); // 30 days for 5-minute data
+      break;
+    case "15m":
+      startDate.setDate(startDate.getDate() - 60); // 60 days for 15-minute data
+      break;
+    case "30m":
+      startDate.setDate(startDate.getDate() - 60); // 60 days for 30-minute data
+      break;
+    case "1h":
+      startDate.setDate(startDate.getDate() - 90); // 90 days for 1-hour data
+      break;
+    case "1d":
+      startDate.setFullYear(startDate.getFullYear() - 1); // 1 year for daily data
+      break;
+    case "1wk":
+      startDate.setFullYear(startDate.getFullYear() - 3); // 3 years for weekly data
+      break;
+    case "1mo":
+      startDate.setFullYear(startDate.getFullYear() - 10); // 10 years for monthly data
+      break;
+  }
+  
+  return { period1: startDate, period2: endDate };
+}
+
+export async function getStockHistory(symbol: string, interval: ChartInterval = "1d"): Promise<{
   candles: CandleData[];
   movingAverages: {
     ma20: MovingAverageData[];
@@ -97,16 +134,23 @@ export async function getStockHistory(symbol: string): Promise<{
     ma100: MovingAverageData[];
     ma200: MovingAverageData[];
   };
+  quote?: {
+    bid?: number;
+    ask?: number;
+    bidSize?: number;
+    askSize?: number;
+    regularMarketPrice?: number;
+    regularMarketChange?: number;
+    regularMarketChangePercent?: number;
+  };
 } | null> {
   try {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setFullYear(startDate.getFullYear() - 1);
+    const { period1, period2 } = getLookbackPeriod(interval);
     
     const historical = await yahooFinance.chart(symbol.toUpperCase(), {
-      period1: startDate,
-      period2: endDate,
-      interval: "1d",
+      period1,
+      period2,
+      interval,
     });
     
     if (!historical || !historical.quotes || historical.quotes.length === 0) {
@@ -137,6 +181,25 @@ export async function getStockHistory(symbol: string): Promise<{
       return result;
     };
     
+    // Also fetch current quote for bid/ask data
+    let quote: any = {};
+    try {
+      const quoteData = await yahooFinance.quote(symbol.toUpperCase());
+      if (quoteData) {
+        quote = {
+          bid: quoteData.bid,
+          ask: quoteData.ask,
+          bidSize: quoteData.bidSize,
+          askSize: quoteData.askSize,
+          regularMarketPrice: quoteData.regularMarketPrice,
+          regularMarketChange: quoteData.regularMarketChange,
+          regularMarketChangePercent: quoteData.regularMarketChangePercent,
+        };
+      }
+    } catch (quoteError) {
+      console.error(`Failed to fetch quote for ${symbol}:`, quoteError);
+    }
+    
     return {
       candles,
       movingAverages: {
@@ -145,6 +208,7 @@ export async function getStockHistory(symbol: string): Promise<{
         ma100: calculateMA(100),
         ma200: calculateMA(200),
       },
+      quote,
     };
   } catch (error) {
     console.error(`Yahoo Finance History Error for ${symbol}:`, error);

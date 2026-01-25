@@ -44,7 +44,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get(api.stocks.history.path, isAuthenticated, async (req, res) => {
     try {
       const { symbol } = req.params;
-      const history = await getStockHistory(symbol);
+      const interval = (req.query.interval as string) || "1d";
+      const validIntervals = ["1m", "5m", "15m", "30m", "1h", "1d", "1wk", "1mo"];
+      const chartInterval = validIntervals.includes(interval) ? interval as any : "1d";
+      
+      const history = await getStockHistory(symbol, chartInterval);
       
       if (!history) {
         return res.status(404).json({ message: "No historical data found" });
@@ -1933,6 +1937,29 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error('Error updating target item:', error);
       res.status(500).json({ error: 'Failed to update target item' });
+    }
+  });
+
+  // Batch quotes for investor target list
+  app.get('/api/investor-target-list/quotes', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      const items = await storage.getInvestorTargetList(userId);
+      
+      if (items.length === 0) {
+        return res.json({});
+      }
+      
+      const symbols = items.map(item => item.symbol);
+      const { getBatchQuotes } = await import('./lib/marketData');
+      const quotes = await getBatchQuotes(symbols);
+      
+      res.json(quotes);
+    } catch (error) {
+      console.error('Error fetching target list quotes:', error);
+      res.status(500).json({ error: 'Failed to fetch quotes' });
     }
   });
 
