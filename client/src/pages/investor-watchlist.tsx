@@ -977,7 +977,7 @@ export default function InvestorWatchlist() {
                         {sortField === "supportLevel4" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
-                    <TableHead className="w-16 text-center">Actions</TableHead>
+                    <TableHead className="w-16 text-center" data-testid="header-actions">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1004,7 +1004,10 @@ export default function InvestorWatchlist() {
                           {item.symbol}
                         </button>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground truncate max-w-[100px]">
+                      <TableCell 
+                        className="text-sm text-muted-foreground truncate max-w-[100px]"
+                        data-testid={`text-company-${item.symbol}`}
+                      >
                         {item.companyName || "-"}
                       </TableCell>
                       <TableCell className="text-right text-sm">
@@ -1148,7 +1151,7 @@ export default function InvestorWatchlist() {
                             onClick={() => openEditDialog(item)}
                             data-testid={`button-edit-${item.symbol}`}
                           >
-                            <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1157,7 +1160,7 @@ export default function InvestorWatchlist() {
                             disabled={deleteItemMutation.isPending}
                             data-testid={`button-delete-${item.symbol}`}
                           >
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </div>
                       </TableCell>
