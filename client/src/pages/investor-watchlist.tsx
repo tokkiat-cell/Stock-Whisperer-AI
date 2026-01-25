@@ -53,6 +53,7 @@ export default function InvestorWatchlist() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [quotesCache, setQuotesCache] = useState<Record<string, StockQuote>>({});
   const [filterMoat, setFilterMoat] = useState<string>("all");
+  const [filterValuation, setFilterValuation] = useState<"all" | "undervalued" | "overvalued">("all");
   const [sortField, setSortField] = useState<string>("symbol");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
@@ -355,6 +356,12 @@ export default function InvestorWatchlist() {
       items = items.filter(i => i.moat?.toLowerCase() === filterMoat.toLowerCase());
     }
 
+    if (filterValuation === "undervalued") {
+      items = items.filter(i => i.valuationPercent !== undefined && i.valuationPercent > 0);
+    } else if (filterValuation === "overvalued") {
+      items = items.filter(i => i.valuationPercent !== undefined && i.valuationPercent < 0);
+    }
+
     items.sort((a, b) => {
       let aVal: any, bVal: any;
       switch (sortField) {
@@ -545,7 +552,11 @@ export default function InvestorWatchlist() {
 
       {targetList.length > 0 && Object.keys(quotesCache).length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card 
+            className={`cursor-pointer transition-all hover-elevate ${filterValuation === "undervalued" ? "ring-2 ring-green-500" : ""}`}
+            onClick={() => setFilterValuation(filterValuation === "undervalued" ? "all" : "undervalued")}
+            data-testid="card-undervalued"
+          >
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
@@ -558,7 +569,11 @@ export default function InvestorWatchlist() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card 
+            className={`cursor-pointer transition-all hover-elevate ${filterValuation === "overvalued" ? "ring-2 ring-red-500" : ""}`}
+            onClick={() => setFilterValuation(filterValuation === "overvalued" ? "all" : "overvalued")}
+            data-testid="card-overvalued"
+          >
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
@@ -571,7 +586,11 @@ export default function InvestorWatchlist() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card 
+            className={`cursor-pointer transition-all hover-elevate ${filterValuation === "all" ? "ring-2 ring-primary" : ""}`}
+            onClick={() => setFilterValuation("all")}
+            data-testid="card-total"
+          >
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
