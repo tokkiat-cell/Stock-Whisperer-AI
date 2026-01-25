@@ -134,28 +134,48 @@ export default function InvestorWatchlist() {
     setIsRefreshing(true);
     const newCache: Record<string, StockQuote> = {};
     
-    for (const item of targetList) {
-      try {
-        const response = await fetch(`/api/stocks/quote/${item.symbol}`);
-        if (response.ok) {
-          const quote = await response.json();
-          newCache[item.symbol] = quote;
+    // Batch fetch with small delays to avoid rate limiting
+    const batchSize = 5;
+    for (let i = 0; i < targetList.length; i += batchSize) {
+      const batch = targetList.slice(i, i + batchSize);
+      const promises = batch.map(async (item) => {
+        try {
+          const response = await fetch(`/api/stocks/quote/${item.symbol}`);
+          if (response.ok) {
+            const quote = await response.json();
+            return { symbol: item.symbol, quote };
+          }
+        } catch (error) {
+          console.error(`Failed to fetch quote for ${item.symbol}`);
         }
-      } catch (error) {
-        console.error(`Failed to fetch quote for ${item.symbol}`);
+        return null;
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach((result) => {
+        if (result) {
+          newCache[result.symbol] = result.quote;
+        }
+      });
+      
+      // Update cache progressively so user sees prices appearing
+      setQuotesCache(prev => ({ ...prev, ...newCache }));
+      
+      // Small delay between batches to avoid rate limiting
+      if (i + batchSize < targetList.length) {
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
     
-    setQuotesCache(newCache);
     setIsRefreshing(false);
   };
 
   // Auto-fetch prices when target list loads
   useEffect(() => {
-    if (targetList.length > 0 && Object.keys(quotesCache).length === 0) {
+    if (targetList.length > 0) {
       fetchQuotes();
     }
-  }, [targetList]);
+  }, [targetList.length]);
 
   const handleAddItem = () => {
     if (!newSymbol || !newIntrinsicValue) {
@@ -367,6 +387,10 @@ export default function InvestorWatchlist() {
           aVal = a.symbol || "";
           bVal = b.symbol || "";
           break;
+        case "companyName":
+          aVal = a.companyName || "";
+          bVal = b.companyName || "";
+          break;
         case "intrinsicValue":
           aVal = parseFloat(a.intrinsicValue as string) || 0;
           bVal = parseFloat(b.intrinsicValue as string) || 0;
@@ -382,6 +406,30 @@ export default function InvestorWatchlist() {
         case "moat":
           aVal = a.moat || "";
           bVal = b.moat || "";
+          break;
+        case "investmentType":
+          aVal = a.investmentType || "";
+          bVal = b.investmentType || "";
+          break;
+        case "supportLevel1":
+          aVal = parseFloat(a.supportLevel1 as string) || 0;
+          bVal = parseFloat(b.supportLevel1 as string) || 0;
+          break;
+        case "supportLevel2":
+          aVal = parseFloat(a.supportLevel2 as string) || 0;
+          bVal = parseFloat(b.supportLevel2 as string) || 0;
+          break;
+        case "supportLevel3":
+          aVal = parseFloat(a.supportLevel3 as string) || 0;
+          bVal = parseFloat(b.supportLevel3 as string) || 0;
+          break;
+        case "supportLevel4":
+          aVal = parseFloat(a.supportLevel4 as string) || 0;
+          bVal = parseFloat(b.supportLevel4 as string) || 0;
+          break;
+        case "supportLevel5":
+          aVal = parseFloat(a.supportLevel5 as string) || 0;
+          bVal = parseFloat(b.supportLevel5 as string) || 0;
           break;
         default:
           aVal = a.symbol || "";
@@ -624,14 +672,38 @@ export default function InvestorWatchlist() {
                     <DropdownMenuItem onClick={() => toggleSort("symbol")}>
                       Symbol {sortField === "symbol" && (sortDirection === "asc" ? "↑" : "↓")}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("companyName")}>
+                      Company {sortField === "companyName" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("currentPrice")}>
+                      Price {sortField === "currentPrice" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("intrinsicValue")}>
+                      Avg IV {sortField === "intrinsicValue" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => toggleSort("valuation")}>
-                      Valuation {sortField === "valuation" && (sortDirection === "asc" ? "↑" : "↓")}
+                      Discount {sortField === "valuation" && (sortDirection === "asc" ? "↑" : "↓")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => toggleSort("moat")}>
                       Moat {sortField === "moat" && (sortDirection === "asc" ? "↑" : "↓")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("intrinsicValue")}>
-                      Intrinsic Value {sortField === "intrinsicValue" && (sortDirection === "asc" ? "↑" : "↓")}
+                    <DropdownMenuItem onClick={() => toggleSort("investmentType")}>
+                      Type {sortField === "investmentType" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("supportLevel1")}>
+                      S1 {sortField === "supportLevel1" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("supportLevel2")}>
+                      S2 {sortField === "supportLevel2" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("supportLevel3")}>
+                      S3 {sortField === "supportLevel3" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("supportLevel4")}>
+                      S4 {sortField === "supportLevel4" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toggleSort("supportLevel5")}>
+                      S5 {sortField === "supportLevel5" && (sortDirection === "asc" ? "↑" : "↓")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
