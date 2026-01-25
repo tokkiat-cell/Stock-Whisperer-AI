@@ -34,7 +34,7 @@ interface StockCandle {
   volume: number;
 }
 
-async function getWeeklyData(symbol: string): Promise<StockCandle[] | null> {
+async function getDailyData(symbol: string): Promise<StockCandle[] | null> {
   try {
     const endDate = new Date();
     const startDate = new Date();
@@ -43,11 +43,11 @@ async function getWeeklyData(symbol: string): Promise<StockCandle[] | null> {
     const historical: any = await yahooFinance.chart(symbol.toUpperCase(), {
       period1: startDate,
       period2: endDate,
-      interval: "1wk",
+      interval: "1d",
     });
     
-    if (!historical?.quotes || historical.quotes.length < 8) {
-      console.log(`[MonthScanner] ${symbol}: insufficient weekly data`);
+    if (!historical?.quotes || historical.quotes.length < 20) {
+      console.log(`[MonthScanner] ${symbol}: insufficient daily data`);
       return null;
     }
     
@@ -62,7 +62,7 @@ async function getWeeklyData(symbol: string): Promise<StockCandle[] | null> {
         volume: q.volume || 0,
       }));
     
-    console.log(`[MonthScanner] ${symbol}: got ${candles.length} weekly candles`);
+    console.log(`[MonthScanner] ${symbol}: got ${candles.length} daily candles`);
     return candles;
   } catch (error) {
     console.error(`[MonthScanner] ${symbol}: fetch error`, error);
@@ -84,45 +84,48 @@ async function getQuoteData(symbol: string): Promise<{ price: number; name: stri
 }
 
 function calculateChanges(candles: StockCandle[], currentPrice: number) {
-  const weeklyChange = currentPrice - (candles[candles.length - 2]?.close || currentPrice);
-  const weeklyChangePercent = (weeklyChange / (candles[candles.length - 2]?.close || 1)) * 100;
-  const monthlyChange = currentPrice - (candles[candles.length - 5]?.close || currentPrice);
-  const monthlyChangePercent = (monthlyChange / (candles[candles.length - 5]?.close || 1)) * 100;
+  // For daily candles: weekly = last 5 trading days, monthly = last 22 trading days
+  const weeklyChange = currentPrice - (candles[candles.length - 6]?.close || currentPrice);
+  const weeklyChangePercent = (weeklyChange / (candles[candles.length - 6]?.close || 1)) * 100;
+  const monthlyChange = currentPrice - (candles[candles.length - 23]?.close || currentPrice);
+  const monthlyChangePercent = (monthlyChange / (candles[candles.length - 23]?.close || 1)) * 100;
   return { weeklyChange, weeklyChangePercent, monthlyChange, monthlyChangePercent };
 }
 
-async function detectPowerRangerWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectPowerRangerDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 15) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 30) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const recent = candles.slice(-10);
+    // Look at last 20 daily candles (~1 month)
+    const recent = candles.slice(-20);
     
-    let gapUpWeek = -1;
+    let gapUpDay = -1;
     let gapPercent = 0;
     for (let i = 1; i < recent.length; i++) {
       const gap = ((recent[i].open - recent[i-1].close) / recent[i-1].close) * 100;
-      if (gap >= 2) {
-        gapUpWeek = i;
+      if (gap >= 1.5) {
+        gapUpDay = i;
         gapPercent = gap;
         break;
       }
     }
     
-    if (gapUpWeek < 0) return null;
+    if (gapUpDay < 0) return null;
     
-    const rangeCandles = recent.slice(gapUpWeek);
-    if (rangeCandles.length < 2) return null;
+    const rangeCandles = recent.slice(gapUpDay);
+    if (rangeCandles.length < 3) return null;
     
     const rangeHigh = Math.max(...rangeCandles.map(c => c.high));
     const rangeLow = Math.min(...rangeCandles.map(c => c.low));
     const rangePercent = ((rangeHigh - rangeLow) / rangeLow) * 100;
     
-    if (rangePercent > 20) return null;
+    // Daily consolidation should be tighter: < 12%
+    if (rangePercent > 12) return null;
     
     const changes = calculateChanges(candles, currentPrice);
     
@@ -135,8 +138,8 @@ async function detectPowerRangerWeekly(symbol: string): Promise<MonthTradingSetu
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'powerranger',
-      patternName: 'Power Ranger (Gap & Range)',
-      confidence: Math.min(85, 55 + gapPercent * 4),
+      patternName: 'Power Ranger (Daily)',
+      confidence: Math.min(85, 55 + gapPercent * 5),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel: rangeLow, resistanceLevel: rangeHigh,
       details: [`Gap up: ${gapPercent.toFixed(1)}%`, `Range: ${rangePercent.toFixed(1)}%`, `Entry above $${rangeHigh.toFixed(2)}`],
@@ -145,27 +148,28 @@ async function detectPowerRangerWeekly(symbol: string): Promise<MonthTradingSetu
   } catch { return null; }
 }
 
-async function detectCupidWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectCupidDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 15) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 40) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const recent = candles.slice(-15);
-    const firstHalf = recent.slice(0, 8);
-    const secondHalf = recent.slice(8);
+    // Look at last 40 daily candles (~2 months)
+    const recent = candles.slice(-40);
+    const firstHalf = recent.slice(0, 25);
+    const secondHalf = recent.slice(25);
     
-    const firstHalfTrend = (firstHalf[7].close - firstHalf[0].close) / firstHalf[0].close;
-    if (firstHalfTrend < 0.03) return null;
+    const firstHalfTrend = (firstHalf[24].close - firstHalf[0].close) / firstHalf[0].close;
+    if (firstHalfTrend < 0.05) return null;
     
     const swingHigh = Math.max(...firstHalf.map(c => c.high));
-    const pullbackLow = Math.min(...secondHalf.slice(0, 4).map(c => c.low));
+    const pullbackLow = Math.min(...secondHalf.slice(0, 10).map(c => c.low));
     const pullbackPercent = ((swingHigh - pullbackLow) / swingHigh) * 100;
     
-    if (pullbackPercent < 3 || pullbackPercent > 30) return null;
+    if (pullbackPercent < 3 || pullbackPercent > 25) return null;
     
     const isRecovering = secondHalf[secondHalf.length - 1].close > secondHalf[0].close;
     if (!isRecovering) return null;
@@ -181,8 +185,8 @@ async function detectCupidWeekly(symbol: string): Promise<MonthTradingSetup | nu
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'cupid',
-      patternName: 'Cupid (Uptrend Pullback)',
-      confidence: Math.min(80, 50 + firstHalfTrend * 150),
+      patternName: 'Cupid (Daily Pullback)',
+      confidence: Math.min(80, 50 + firstHalfTrend * 100),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel: pullbackLow, resistanceLevel: swingHigh,
       details: [`Uptrend: ${(firstHalfTrend * 100).toFixed(1)}%`, `Pullback: ${pullbackPercent.toFixed(1)}%`, `Recovering from $${pullbackLow.toFixed(2)}`],
@@ -191,22 +195,24 @@ async function detectCupidWeekly(symbol: string): Promise<MonthTradingSetup | nu
   } catch { return null; }
 }
 
-async function detectTugOfWarWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectTugOfWarDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 10) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 30) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const recent = candles.slice(-8);
+    // Look at last 20 daily candles (~1 month)
+    const recent = candles.slice(-20);
     const rangeHigh = Math.max(...recent.map(c => c.high));
     const rangeLow = Math.min(...recent.map(c => c.low));
     const avgPrice = recent.reduce((sum, c) => sum + c.close, 0) / recent.length;
     const rangePercent = ((rangeHigh - rangeLow) / avgPrice) * 100;
     
-    if (rangePercent > 25) return null;
+    // Daily range threshold: < 15%
+    if (rangePercent > 15) return null;
     
     const changes = calculateChanges(candles, currentPrice);
     
@@ -220,42 +226,44 @@ async function detectTugOfWarWeekly(symbol: string): Promise<MonthTradingSetup |
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'tugofwar',
-      patternName: 'Tug of War (Consolidation)',
-      confidence: Math.min(75, 45 + (15 - rangePercent) * 3),
+      patternName: 'Tug of War (Daily)',
+      confidence: Math.min(75, 45 + (10 - rangePercent) * 3),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel: rangeLow, resistanceLevel: rangeHigh,
-      details: [`8-week range: ${rangePercent.toFixed(1)}%`, `Support: $${rangeLow.toFixed(2)}`, `Resistance: $${rangeHigh.toFixed(2)}`],
+      details: [`20-day range: ${rangePercent.toFixed(1)}%`, `Support: $${rangeLow.toFixed(2)}`, `Resistance: $${rangeHigh.toFixed(2)}`],
       ...changes,
     };
   } catch { return null; }
 }
 
-async function detectRollercoasterWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectRollercoasterDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 20) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 50) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const older = candles.slice(-20, -8);
-    const recent = candles.slice(-8);
+    // Look at 40 days for decline, last 10 for reversal
+    const older = candles.slice(-50, -10);
+    const recent = candles.slice(-10);
     
     const olderHigh = Math.max(...older.map(c => c.high));
     const olderLow = Math.min(...older.map(c => c.low));
     const declinePercent = ((olderHigh - olderLow) / olderHigh) * 100;
     
-    if (declinePercent < 10) return null;
+    // Need at least 8% decline
+    if (declinePercent < 8) return null;
     
     const recentLow = Math.min(...recent.map(c => c.low));
-    const isReversal = currentPrice > recentLow * 1.03;
+    const isReversal = currentPrice > recentLow * 1.02;
     if (!isReversal) return null;
     
     const changes = calculateChanges(candles, currentPrice);
     
     const entryPrice = currentPrice;
-    const stopLoss = recentLow * 0.95;
+    const stopLoss = recentLow * 0.97;
     const targetPrice = olderHigh * 0.85;
     const risk = entryPrice - stopLoss;
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
@@ -263,8 +271,8 @@ async function detectRollercoasterWeekly(symbol: string): Promise<MonthTradingSe
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'rollercoaster',
-      patternName: 'Rollercoaster (Reversal)',
-      confidence: Math.min(70, 40 + declinePercent * 1.5),
+      patternName: 'Rollercoaster (Daily)',
+      confidence: Math.min(70, 40 + declinePercent * 1.2),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel: recentLow, resistanceLevel: olderHigh,
       details: [`Prior decline: ${declinePercent.toFixed(1)}%`, `Reversal from $${recentLow.toFixed(2)}`, `Target: $${targetPrice.toFixed(2)}`],
@@ -273,23 +281,26 @@ async function detectRollercoasterWeekly(symbol: string): Promise<MonthTradingSe
   } catch { return null; }
 }
 
-async function detectBreakoutWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectBreakoutDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 12) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 30) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const older = candles.slice(-12, -2);
-    const recent = candles.slice(-2);
+    // Look at 25 days for base, last 5 for breakout
+    const older = candles.slice(-30, -5);
+    const recent = candles.slice(-5);
     
     const resistanceLevel = Math.max(...older.map(c => c.high));
     const supportLevel = Math.min(...older.map(c => c.low));
     
-    const isBreakingOut = recent.some(c => c.close > resistanceLevel * 0.98);
-    const volumeIncrease = recent[recent.length - 1].volume > older.slice(-3).reduce((sum, c) => sum + c.volume, 0) / 3 * 0.8;
+    const isBreakingOut = recent.some(c => c.close > resistanceLevel * 0.99);
+    const avgVolume = older.slice(-10).reduce((sum, c) => sum + c.volume, 0) / 10;
+    const recentAvgVolume = recent.reduce((sum, c) => sum + c.volume, 0) / recent.length;
+    const volumeIncrease = recentAvgVolume > avgVolume * 1.2;
     
     if (!isBreakingOut) return null;
     
@@ -297,15 +308,15 @@ async function detectBreakoutWeekly(symbol: string): Promise<MonthTradingSetup |
     
     const range = resistanceLevel - supportLevel;
     const entryPrice = resistanceLevel;
-    const stopLoss = resistanceLevel - range * 0.3;
-    const targetPrice = resistanceLevel + range * 0.8;
+    const stopLoss = resistanceLevel - range * 0.25;
+    const targetPrice = resistanceLevel + range * 0.7;
     const risk = entryPrice - stopLoss;
     const riskRewardRatio = (targetPrice - entryPrice) / risk;
     
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'breakout',
-      patternName: 'Breakout (Resistance Break)',
+      patternName: 'Breakout (Daily)',
       confidence: Math.min(80, 55 + (volumeIncrease ? 15 : 0)),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel, resistanceLevel,
@@ -315,24 +326,26 @@ async function detectBreakoutWeekly(symbol: string): Promise<MonthTradingSetup |
   } catch { return null; }
 }
 
-async function detectAccumulationWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectAccumulationDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 12) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 30) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const recent = candles.slice(-10);
+    // Look at last 25 daily candles (~5 weeks)
+    const recent = candles.slice(-25);
     const rangeHigh = Math.max(...recent.map(c => c.high));
     const rangeLow = Math.min(...recent.map(c => c.low));
     const rangePercent = ((rangeHigh - rangeLow) / rangeLow) * 100;
     
-    if (rangePercent > 12) return null;
+    // Daily range threshold: < 10%
+    if (rangePercent > 10) return null;
     
     const avgVolume = recent.reduce((sum, c) => sum + c.volume, 0) / recent.length;
-    const recentVolume = recent.slice(-3).reduce((sum, c) => sum + c.volume, 0) / 3;
+    const recentVolume = recent.slice(-5).reduce((sum, c) => sum + c.volume, 0) / 5;
     const volumeIncreasing = recentVolume > avgVolume * 0.9;
     
     const priceNearHigh = currentPrice > rangeLow + (rangeHigh - rangeLow) * 0.6;
@@ -351,63 +364,65 @@ async function detectAccumulationWeekly(symbol: string): Promise<MonthTradingSet
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'accumulation',
-      patternName: 'Accumulation (Base Building)',
-      confidence: Math.min(75, 50 + (volumeIncreasing ? 15 : 0) + (12 - rangePercent)),
+      patternName: 'Accumulation (Daily)',
+      confidence: Math.min(75, 50 + (volumeIncreasing ? 15 : 0) + (10 - rangePercent)),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel: rangeLow, resistanceLevel: rangeHigh,
-      details: [`10-week base: ${rangePercent.toFixed(1)}% range`, volumeIncreasing ? 'Volume building' : 'Steady volume', `Entry above $${rangeHigh.toFixed(2)}`],
+      details: [`25-day base: ${rangePercent.toFixed(1)}% range`, volumeIncreasing ? 'Volume building' : 'Steady volume', `Entry above $${rangeHigh.toFixed(2)}`],
       ...changes,
     };
   } catch { return null; }
 }
 
-async function detectMomentumWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectMomentumDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 10) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 40) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
     const { price: currentPrice, name, marketCap } = quoteData;
     
-    const recent8 = candles.slice(-8);
-    const older8 = candles.slice(-16, -8);
+    // Look at last 20 days vs prior 20 days
+    const recent20 = candles.slice(-20);
+    const older20 = candles.slice(-40, -20);
     
-    const recentTrend = (recent8[recent8.length-1].close - recent8[0].close) / recent8[0].close * 100;
-    const olderTrend = older8.length >= 8 ? (older8[older8.length-1].close - older8[0].close) / older8[0].close * 100 : 0;
+    const recentTrend = (recent20[recent20.length-1].close - recent20[0].close) / recent20[0].close * 100;
+    const olderTrend = older20.length >= 20 ? (older20[older20.length-1].close - older20[0].close) / older20[0].close * 100 : 0;
     
-    if (recentTrend < 2) return null;
+    // Need at least 3% trend
+    if (recentTrend < 3) return null;
     
     const accelerating = recentTrend > olderTrend;
     
     const changes = calculateChanges(candles, currentPrice);
     
-    const recentHigh = Math.max(...recent8.map(c => c.high));
-    const recentLow = Math.min(...recent8.map(c => c.low));
+    const recentHigh = Math.max(...recent20.map(c => c.high));
+    const recentLow = Math.min(...recent20.map(c => c.low));
     
     const entryPrice = currentPrice;
     const stopLoss = recentLow - (recentHigh - recentLow) * 0.15;
-    const targetPrice = currentPrice * (1 + recentTrend / 100 * 0.7);
+    const targetPrice = currentPrice * (1 + recentTrend / 100 * 0.6);
     const risk = entryPrice - stopLoss;
     const riskRewardRatio = Math.max(0.5, (targetPrice - entryPrice) / risk);
     
     return {
       symbol, name, currentPrice, marketCap,
       patternType: 'momentum',
-      patternName: 'Momentum (Trend Strength)',
-      confidence: Math.min(80, 45 + recentTrend * 1.5 + (accelerating ? 10 : 0)),
+      patternName: 'Momentum (Daily)',
+      confidence: Math.min(80, 45 + recentTrend * 1.2 + (accelerating ? 10 : 0)),
       entryPrice, stopLoss, targetPrice, riskRewardRatio,
       supportLevel: recentLow, resistanceLevel: recentHigh,
-      details: [`8-week gain: ${recentTrend.toFixed(1)}%`, accelerating ? 'Momentum accelerating' : 'Steady momentum', `Target: $${targetPrice.toFixed(2)}`],
+      details: [`20-day gain: ${recentTrend.toFixed(1)}%`, accelerating ? 'Momentum accelerating' : 'Steady momentum', `Target: $${targetPrice.toFixed(2)}`],
       ...changes,
     };
   } catch { return null; }
 }
 
-async function detectValueWeekly(symbol: string): Promise<MonthTradingSetup | null> {
+async function detectValueDaily(symbol: string): Promise<MonthTradingSetup | null> {
   try {
-    const candles = await getWeeklyData(symbol);
-    if (!candles || candles.length < 15) return null;
+    const candles = await getDailyData(symbol);
+    if (!candles || candles.length < 60) return null;
     
     const quoteData = await getQuoteData(symbol);
     if (!quoteData) return null;
@@ -461,14 +476,14 @@ export async function scanMonthTradingSetups(symbols: string[]): Promise<MonthTr
       batch.map(async (symbol) => {
         try {
           const [powerranger, cupid, tugofwar, rollercoaster, breakout, accumulation, momentum, value] = await Promise.all([
-            detectPowerRangerWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} powerranger error:`, e); return null; }),
-            detectCupidWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} cupid error:`, e); return null; }),
-            detectTugOfWarWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} tugofwar error:`, e); return null; }),
-            detectRollercoasterWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} rollercoaster error:`, e); return null; }),
-            detectBreakoutWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} breakout error:`, e); return null; }),
-            detectAccumulationWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} accumulation error:`, e); return null; }),
-            detectMomentumWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} momentum error:`, e); return null; }),
-            detectValueWeekly(symbol).catch((e) => { console.log(`[MonthScanner] ${symbol} value error:`, e); return null; }),
+            detectPowerRangerDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} powerranger error:`, e); return null; }),
+            detectCupidDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} cupid error:`, e); return null; }),
+            detectTugOfWarDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} tugofwar error:`, e); return null; }),
+            detectRollercoasterDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} rollercoaster error:`, e); return null; }),
+            detectBreakoutDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} breakout error:`, e); return null; }),
+            detectAccumulationDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} accumulation error:`, e); return null; }),
+            detectMomentumDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} momentum error:`, e); return null; }),
+            detectValueDaily(symbol).catch((e: any) => { console.log(`[MonthScanner] ${symbol} value error:`, e); return null; }),
           ]);
           
           const results: MonthTradingSetup[] = [];

@@ -25,6 +25,7 @@ async function get5MinuteData(symbol: string, days: number = 5): Promise<Intrada
       period1: startDate,
       period2: endDate,
       interval: "5m",
+      includePrePost: true,
     });
     
     if (!result?.quotes || result.quotes.length < 10) return null;
@@ -54,6 +55,7 @@ async function get2MinuteData(symbol: string, days: number = 3): Promise<Intrada
       period1: startDate,
       period2: endDate,
       interval: "2m",
+      includePrePost: true,
     });
     
     if (!result?.quotes || result.quotes.length < 10) return null;
