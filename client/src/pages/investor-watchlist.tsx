@@ -48,7 +48,13 @@ export default function InvestorWatchlist() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
+  const [newCompanyName, setNewCompanyName] = useState("");
   const [newIntrinsicValue, setNewIntrinsicValue] = useState("");
+  const [newMoat, setNewMoat] = useState("");
+  const [newS1, setNewS1] = useState("");
+  const [newS2, setNewS2] = useState("");
+  const [newS3, setNewS3] = useState("");
+  const [newS4, setNewS4] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [quotesCache, setQuotesCache] = useState<Record<string, StockQuote>>({});
@@ -68,7 +74,17 @@ export default function InvestorWatchlist() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: async (item: { symbol: string; intrinsicValue: string; notes?: string }) => {
+    mutationFn: async (item: { 
+      symbol: string; 
+      intrinsicValue: string; 
+      companyName?: string;
+      moat?: string;
+      supportLevel1?: string;
+      supportLevel2?: string;
+      supportLevel3?: string;
+      supportLevel4?: string;
+      notes?: string;
+    }) => {
       return apiRequest("POST", "/api/investor-target-list", { ...item, source: "USER_UPLOADED" });
     },
     onSuccess: () => {
@@ -76,7 +92,13 @@ export default function InvestorWatchlist() {
       toast({ title: "Stock added to target list" });
       setIsAddDialogOpen(false);
       setNewSymbol("");
+      setNewCompanyName("");
       setNewIntrinsicValue("");
+      setNewMoat("");
+      setNewS1("");
+      setNewS2("");
+      setNewS3("");
+      setNewS4("");
       setNewNotes("");
     },
     onError: () => {
@@ -131,7 +153,7 @@ export default function InvestorWatchlist() {
   });
 
   const updateItemMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Record<string, string | boolean> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Record<string, string | boolean | null> }) => {
       return apiRequest("PUT", `/api/investor-target-list/${id}`, data);
     },
     onSuccess: () => {
@@ -168,9 +190,22 @@ export default function InvestorWatchlist() {
 
   const handleEditDialogSave = () => {
     if (!editDialogItem) return;
+    
+    // Convert empty strings to null for numeric fields to avoid database errors
+    const numericFields = ['intrinsicValue', 'supportLevel1', 'supportLevel2', 'supportLevel3', 'supportLevel4'];
+    const cleanedData: Record<string, string | null> = {};
+    
+    for (const [key, value] of Object.entries(editDialogValues)) {
+      if (numericFields.includes(key) && value === '') {
+        cleanedData[key] = null as any;
+      } else {
+        cleanedData[key] = value;
+      }
+    }
+    
     updateItemMutation.mutate({
       id: editDialogItem.id,
-      data: editDialogValues
+      data: cleanedData
     }, {
       onSuccess: () => {
         setEditDialogItem(null);
@@ -187,10 +222,18 @@ export default function InvestorWatchlist() {
   const handleEditSave = () => {
     if (!editingCell || updateItemMutation.isPending) return;
     const numValue = parseFloat(editValue);
+    // Allow empty values (will be converted to null) or valid numbers
     if (isNaN(numValue) && editValue !== "") return;
+    
+    // For numeric fields, send null if empty, otherwise send the value
+    const numericFields = ['intrinsicValue', 'supportLevel1', 'supportLevel2', 'supportLevel3', 'supportLevel4'];
+    const valueToSend = numericFields.includes(editingCell.field) && editValue === '' 
+      ? null 
+      : editValue;
+    
     updateItemMutation.mutate({ 
       id: editingCell.id, 
-      data: { [editingCell.field]: editValue || "0" } 
+      data: { [editingCell.field]: valueToSend } 
     });
   };
 
@@ -245,6 +288,12 @@ export default function InvestorWatchlist() {
     addItemMutation.mutate({
       symbol: newSymbol.toUpperCase(),
       intrinsicValue: newIntrinsicValue,
+      companyName: newCompanyName || undefined,
+      moat: newMoat || undefined,
+      supportLevel1: newS1 || undefined,
+      supportLevel2: newS2 || undefined,
+      supportLevel3: newS3 || undefined,
+      supportLevel4: newS4 || undefined,
       notes: newNotes || undefined,
     });
   };
@@ -586,34 +635,107 @@ export default function InvestorWatchlist() {
                 Add Stock
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add Stock to Target List</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="symbol">Stock Symbol</Label>
-                  <Input
-                    id="symbol"
-                    placeholder="e.g., AAPL"
-                    value={newSymbol}
-                    onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-                    data-testid="input-symbol"
-                  />
+              <div className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="symbol">Symbol *</Label>
+                    <Input
+                      id="symbol"
+                      placeholder="e.g., AAPL"
+                      value={newSymbol}
+                      onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
+                      data-testid="input-symbol"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName">Company</Label>
+                    <Input
+                      id="companyName"
+                      placeholder="e.g., Apple Inc"
+                      value={newCompanyName}
+                      onChange={(e) => setNewCompanyName(e.target.value)}
+                      data-testid="input-company-name"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="intrinsicValue">Intrinsic Value ($) *</Label>
+                    <Input
+                      id="intrinsicValue"
+                      type="number"
+                      placeholder="e.g., 200.00"
+                      value={newIntrinsicValue}
+                      onChange={(e) => setNewIntrinsicValue(e.target.value)}
+                      data-testid="input-intrinsic-value"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="moat">Moat</Label>
+                    <Select value={newMoat} onValueChange={setNewMoat}>
+                      <SelectTrigger id="moat" data-testid="select-moat">
+                        <SelectValue placeholder="Select moat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Wide">Wide</SelectItem>
+                        <SelectItem value="Narrow">Narrow</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="s1">S1</Label>
+                    <Input
+                      id="s1"
+                      type="number"
+                      placeholder="S1"
+                      value={newS1}
+                      onChange={(e) => setNewS1(e.target.value)}
+                      data-testid="input-s1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s2">S2</Label>
+                    <Input
+                      id="s2"
+                      type="number"
+                      placeholder="S2"
+                      value={newS2}
+                      onChange={(e) => setNewS2(e.target.value)}
+                      data-testid="input-s2"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s3">S3</Label>
+                    <Input
+                      id="s3"
+                      type="number"
+                      placeholder="S3"
+                      value={newS3}
+                      onChange={(e) => setNewS3(e.target.value)}
+                      data-testid="input-s3"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s4">S4</Label>
+                    <Input
+                      id="s4"
+                      type="number"
+                      placeholder="S4"
+                      value={newS4}
+                      onChange={(e) => setNewS4(e.target.value)}
+                      data-testid="input-s4"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="intrinsicValue">Your Intrinsic Value ($)</Label>
-                  <Input
-                    id="intrinsicValue"
-                    type="number"
-                    placeholder="e.g., 200.00"
-                    value={newIntrinsicValue}
-                    onChange={(e) => setNewIntrinsicValue(e.target.value)}
-                    data-testid="input-intrinsic-value"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes (optional)</Label>
+                  <Label htmlFor="notes">Notes</Label>
                   <Input
                     id="notes"
                     placeholder="e.g., DCF analysis"
