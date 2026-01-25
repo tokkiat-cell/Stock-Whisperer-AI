@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart, Pencil, Check, X } from "lucide-react";
+import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart, Pencil, Check, X, Star } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -129,7 +129,7 @@ export default function InvestorWatchlist() {
   });
 
   const updateItemMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Record<string, string> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Record<string, string | boolean> }) => {
       return apiRequest("PUT", `/api/investor-target-list/${id}`, data);
     },
     onSuccess: () => {
@@ -141,6 +141,13 @@ export default function InvestorWatchlist() {
       toast({ title: "Failed to update", variant: "destructive" });
     },
   });
+
+  const toggleFavorite = (item: TargetItemWithQuote) => {
+    updateItemMutation.mutate({
+      id: item.id,
+      data: { isFavorite: !item.isFavorite }
+    });
+  };
 
   const handleEditStart = (id: number, field: string, currentValue: string | number | null) => {
     setEditingCell({ id, field });
@@ -411,6 +418,10 @@ export default function InvestorWatchlist() {
     items.sort((a, b) => {
       let aVal: any, bVal: any;
       switch (sortField) {
+        case "isFavorite":
+          aVal = a.isFavorite ? 1 : 0;
+          bVal = b.isFavorite ? 1 : 0;
+          break;
         case "symbol":
           aVal = a.symbol || "";
           bVal = b.symbol || "";
@@ -709,6 +720,16 @@ export default function InvestorWatchlist() {
                 <TableHeader>
                   <TableRow>
                     <TableHead 
+                      className="w-10 cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("isFavorite")}
+                      data-testid="header-favorite"
+                    >
+                      <div className="flex items-center justify-center">
+                        <Star className="h-4 w-4" />
+                        {sortField === "isFavorite" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
                       className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("symbol")}
                       data-testid="header-symbol"
@@ -804,6 +825,17 @@ export default function InvestorWatchlist() {
                 <TableBody>
                   {itemsWithQuotes.map((item) => (
                     <TableRow key={item.id} data-testid={`row-stock-${item.symbol}`}>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => toggleFavorite(item)}
+                          className="cursor-pointer hover:scale-110 transition-transform"
+                          data-testid={`button-favorite-${item.symbol}`}
+                        >
+                          <Star 
+                            className={`h-4 w-4 ${item.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
+                          />
+                        </button>
+                      </TableCell>
                       <TableCell className="font-medium">
                         <button
                           onClick={() => setChartSymbol(item.symbol)}

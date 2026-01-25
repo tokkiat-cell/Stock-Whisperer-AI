@@ -353,6 +353,7 @@ export const investorTargetList = pgTable("investor_target_list", {
   companyName: text("company_name"),
   adamList: varchar("adam_list", { length: 50 }), // Category: Favorite, HK, US, SG, etc.
   currency: varchar("currency", { length: 10 }), // USD, HKD, SGD, etc.
+  isFavorite: boolean("is_favorite").default(false), // Mark as favorite stock
   supportLevel1: numeric("support_level_1"),
   supportLevel2: numeric("support_level_2"),
   supportLevel3: numeric("support_level_3"),
