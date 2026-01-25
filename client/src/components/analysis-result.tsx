@@ -255,22 +255,7 @@ export function AnalysisResult({ analysis, onApprove, isPending }: AnalysisResul
             View on TradingView
           </a>
         </Button>
-        <Button 
-          variant="outline" 
-          asChild
-          className="w-full"
-          data-testid="button-moomoo-analysis"
-        >
-          <a 
-            href="https://www.moomoo.com/trade"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Trade on Moomoo
-          </a>
-        </Button>
-      </div>
+        </div>
 
       {!isHold && (
         <div className="flex justify-end pt-4">

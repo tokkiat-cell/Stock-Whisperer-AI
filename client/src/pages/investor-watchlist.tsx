@@ -57,7 +57,6 @@ export default function InvestorWatchlist() {
   const [newNotes, setNewNotes] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [quotesCache, setQuotesCache] = useState<Record<string, StockQuote>>({});
-  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterMoat, setFilterMoat] = useState<string>("all");
   const [sortField, setSortField] = useState<string>("symbol");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -337,9 +336,6 @@ export default function InvestorWatchlist() {
       };
     });
 
-    if (filterCategory !== "all") {
-      items = items.filter(i => i.adamList?.toLowerCase() === filterCategory.toLowerCase());
-    }
     if (filterMoat !== "all") {
       items = items.filter(i => i.moat?.toLowerCase() === filterMoat.toLowerCase());
     }
@@ -400,7 +396,6 @@ export default function InvestorWatchlist() {
   const undervaluedCount = allItems.filter(i => i.valuationPercent && i.valuationPercent > 0).length;
   const overvaluedCount = allItems.filter(i => i.valuationPercent && i.valuationPercent < 0).length;
 
-  const categories = Array.from(new Set(targetList.map(i => i.adamList).filter(Boolean))) as string[];
   const moats = Array.from(new Set(targetList.map(i => i.moat).filter(Boolean))) as string[];
 
   const toggleSort = (field: string) => {
@@ -587,20 +582,6 @@ export default function InvestorWatchlist() {
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {categories.length > 0 && (
-                  <Select value={filterCategory} onValueChange={setFilterCategory}>
-                    <SelectTrigger className="w-32" data-testid="select-filter-category">
-                      <Filter className="h-4 w-4 mr-1" />
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {categories.map(cat => (
-                        <SelectItem key={cat} value={cat?.toLowerCase() || ""}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
                 {moats.length > 0 && (
                   <Select value={filterMoat} onValueChange={setFilterMoat}>
                     <SelectTrigger className="w-28" data-testid="select-filter-moat">
@@ -649,7 +630,6 @@ export default function InvestorWatchlist() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[80px]">Category</TableHead>
                     <TableHead className="min-w-[100px]">Symbol</TableHead>
                     <TableHead className="min-w-[150px]">Company</TableHead>
                     <TableHead className="text-right min-w-[80px]">Price</TableHead>
@@ -665,13 +645,6 @@ export default function InvestorWatchlist() {
                 <TableBody>
                   {itemsWithQuotes.map((item) => (
                     <TableRow key={item.id} data-testid={`row-stock-${item.symbol}`}>
-                      <TableCell>
-                        {item.adamList && (
-                          <Badge variant="outline" className="text-xs">
-                            {item.adamList}
-                          </Badge>
-                        )}
-                      </TableCell>
                       <TableCell className="font-medium">{item.symbol}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
                         {item.companyName || "-"}

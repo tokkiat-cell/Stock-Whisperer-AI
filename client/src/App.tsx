@@ -26,7 +26,6 @@ import InvestorWatchlist from "@/pages/investor-watchlist";
 import Premarket from "@/pages/premarket";
 import DayTradingScanner from "@/pages/daytrading-scanner";
 import MonthTradingScanner from "@/pages/month-trading-scanner";
-import MoomooTrading from "@/pages/moomoo-trading";
 import LayoutShell from "@/components/layout-shell";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -118,10 +117,6 @@ function Router() {
       
       <Route path="/month-trading-scanner">
         <ProtectedRoute component={MonthTradingScanner} />
-      </Route>
-      
-      <Route path="/moomoo-trading">
-        <ProtectedRoute component={MoomooTrading} />
       </Route>
       
       <Route path="/checkout/success">

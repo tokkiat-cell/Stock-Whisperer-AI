@@ -76,12 +76,11 @@ export default function TradingPage() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<TradingOrder | null>(null);
-  const [platform, setPlatform] = useState<"ibkr" | "moomoo">("ibkr");
   
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [pendingSubmitOrder, setPendingSubmitOrder] = useState<TradingOrder | null>(null);
-  const [moomooCredentials, setMoomooCredentials] = useState({ username: "", password: "" });
+  const [ibkrCredentials, setIbkrCredentials] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const [settingsForm, setSettingsForm] = useState({
@@ -267,15 +266,15 @@ export default function TradingPage() {
     }
   };
 
-  const handleMoomooLogin = () => {
-    if (!moomooCredentials.username || !moomooCredentials.password) {
-      toast({ variant: "destructive", title: "Login Required", description: "Please enter your Moomoo credentials." });
+  const handleIbkrLogin = () => {
+    if (!ibkrCredentials.username || !ibkrCredentials.password) {
+      toast({ variant: "destructive", title: "Login Required", description: "Please enter your IBKR credentials." });
       return;
     }
     setIsLoggedIn(true);
     setShowLoginDialog(false);
-    setMoomooCredentials({ username: "", password: "" });
-    toast({ title: "Logged In", description: "Successfully connected to Moomoo." });
+    setIbkrCredentials({ username: "", password: "" });
+    toast({ title: "Logged In", description: "Successfully connected to IBKR." });
     setShowApprovalDialog(true);
   };
 
@@ -309,15 +308,9 @@ export default function TradingPage() {
           </p>
         </div>
         
-        <Tabs value={platform} onValueChange={(v) => setPlatform(v as "ibkr" | "moomoo")} className="w-full">
-          <TabsList>
-            <TabsTrigger value="ibkr" data-testid="tab-platform-ibkr">IBKR</TabsTrigger>
-            <TabsTrigger value="moomoo" data-testid="tab-platform-moomoo">Moomoo</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+        </div>
       
-      {platform === "ibkr" && (
+      {true && (
       <>
       <div className="flex items-center justify-between">
         <div>
@@ -356,7 +349,7 @@ export default function TradingPage() {
                     });
                   }
                 }}
-                data-testid="button-moomoo-settings"
+                data-testid="button-ibkr-settings"
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
@@ -376,7 +369,7 @@ export default function TradingPage() {
                     value={settingsForm.host}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, host: e.target.value }))}
                     placeholder="127.0.0.1"
-                    data-testid="input-moomoo-host"
+                    data-testid="input-ibkr-host"
                   />
                 </div>
                 <div className="space-y-2">
@@ -386,7 +379,7 @@ export default function TradingPage() {
                     value={settingsForm.port}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, port: parseInt(e.target.value) || 11111 }))}
                     placeholder="11111"
-                    data-testid="input-moomoo-port"
+                    data-testid="input-ibkr-port"
                   />
                   <p className="text-xs text-muted-foreground">Default IBKR Client Portal port: 5000</p>
                 </div>
@@ -397,7 +390,7 @@ export default function TradingPage() {
                     value={settingsForm.clientId}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, clientId: parseInt(e.target.value) || 1 }))}
                     placeholder="1"
-                    data-testid="input-moomoo-client-id"
+                    data-testid="input-ibkr-client-id"
                   />
                 </div>
               </div>
@@ -406,7 +399,7 @@ export default function TradingPage() {
                 <Button 
                   onClick={handleSaveSettings}
                   disabled={updateSettingsMutation.isPending}
-                  data-testid="button-save-moomoo-settings"
+                  data-testid="button-save-ibkr-settings"
                 >
                   {updateSettingsMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Save Settings
@@ -742,20 +735,20 @@ export default function TradingPage() {
               <Label>Username / Email</Label>
               <Input
                 type="text"
-                value={moomooCredentials.username}
-                onChange={(e) => setMoomooCredentials(prev => ({ ...prev, username: e.target.value }))}
+                value={ibkrCredentials.username}
+                onChange={(e) => setIbkrCredentials(prev => ({ ...prev, username: e.target.value }))}
                 placeholder="Enter your IBKR username"
-                data-testid="input-moomoo-username"
+                data-testid="input-ibkr-username"
               />
             </div>
             <div className="space-y-2">
               <Label>Password</Label>
               <Input
                 type="password"
-                value={moomooCredentials.password}
-                onChange={(e) => setMoomooCredentials(prev => ({ ...prev, password: e.target.value }))}
+                value={ibkrCredentials.password}
+                onChange={(e) => setIbkrCredentials(prev => ({ ...prev, password: e.target.value }))}
                 placeholder="Enter your password"
-                data-testid="input-moomoo-password"
+                data-testid="input-ibkr-password"
               />
             </div>
           </div>
@@ -766,7 +759,7 @@ export default function TradingPage() {
             }}>
               Cancel
             </Button>
-            <Button onClick={handleMoomooLogin} data-testid="button-moomoo-login">
+            <Button onClick={handleIbkrLogin} data-testid="button-ibkr-login">
               <LogIn className="w-4 h-4 mr-2" />
               Login
             </Button>
@@ -853,29 +846,6 @@ export default function TradingPage() {
         </DialogContent>
       </Dialog>
       </>
-      )}
-      
-      {platform === "moomoo" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium text-foreground">
-                Moomoo OpenD
-              </h3>
-            </div>
-          </div>
-          
-          <Card className="p-6">
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">
-                Moomoo integration is accessed via OpenD API. Configure your connection settings and manage orders from the dedicated Moomoo page.
-              </p>
-              <Button asChild data-testid="button-goto-moomoo">
-                <Link href="/moomoo-trading">Go to Moomoo Trading</Link>
-              </Button>
-            </div>
-          </Card>
-        </div>
       )}
     </div>
   );

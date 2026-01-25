@@ -282,10 +282,6 @@ export default function Pricing() {
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
-                Moomoo trading integration
-              </li>
-              <li className="flex items-center gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
                 Priority support
               </li>
             </ul>
