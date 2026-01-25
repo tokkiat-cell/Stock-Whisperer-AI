@@ -457,13 +457,13 @@ export default function InvestorWatchlist() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="max-w-2xl">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Target className="h-6 w-6 text-primary" />
             Growth Stocklist
           </h1>
           <p className="text-muted-foreground">
-            Track growth stocks with intrinsic values, support levels, moat ratings, and growth rates
+            Strong foundation stocks to watch. Avg IV is your calculated intrinsic value. S1-S5 are support levels where you can deploy 20% of your investment at each level touched.
           </p>
         </div>
         
@@ -604,7 +604,7 @@ export default function InvestorWatchlist() {
               </div>
               <div className="pt-4">
                 <p className="text-xs text-muted-foreground">
-                  CSV format: Symbol, Intrinsic Value, Notes (optional)
+                  CSV format: Symbol, Average IV, S1, S2, S3, S4, S5, Notes (optional)
                 </p>
               </div>
             </div>
