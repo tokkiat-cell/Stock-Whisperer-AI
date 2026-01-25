@@ -10,6 +10,7 @@ import { sendAlertNotifications, formatAlertMessage } from "./notification-servi
 import { ibkrService } from "./ibkr-service";
 import { z } from "zod";
 import YahooFinance from "yahoo-finance2";
+import { defaultStocks } from "./data/defaultStocks";
 
 const yahooFinance = new YahooFinance();
 
@@ -1909,6 +1910,33 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error('Error bulk adding target items:', error);
       res.status(500).json({ error: 'Failed to bulk add target items' });
+    }
+  });
+
+  // Seed default stocks for new users
+  app.post('/api/investor-target-list/seed-defaults', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      
+      // Check if user already has stocks
+      const existingItems = await storage.getInvestorTargetList(userId);
+      if (existingItems.length > 0) {
+        return res.json({ seeded: false, message: 'User already has stocks', count: existingItems.length });
+      }
+      
+      // Seed default stocks for new user
+      const itemsToAdd = defaultStocks.map(stock => ({
+        ...stock,
+        source: 'DEFAULT_SEED' as const,
+      }));
+      
+      const results = await storage.bulkAddInvestorTargetItems(userId, itemsToAdd);
+      res.json({ seeded: true, count: results.length });
+    } catch (error) {
+      console.error('Error seeding default stocks:', error);
+      res.status(500).json({ error: 'Failed to seed default stocks' });
     }
   });
 

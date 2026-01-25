@@ -166,6 +166,28 @@ export default function InvestorWatchlist() {
     },
   });
 
+  // Seed default stocks for new users
+  const seedDefaultsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/investor-target-list/seed-defaults", {});
+    },
+    onSuccess: (data: any) => {
+      if (data.seeded) {
+        queryClient.invalidateQueries({ queryKey: ["/api/investor-target-list"] });
+        toast({ title: `Loaded ${data.count} starter stocks for your Growth Stocklist` });
+      }
+    },
+  });
+
+  // Auto-seed defaults for new users on first load
+  const [hasCheckedSeed, setHasCheckedSeed] = useState(false);
+  useEffect(() => {
+    if (!isLoading && !hasCheckedSeed && targetList.length === 0) {
+      setHasCheckedSeed(true);
+      seedDefaultsMutation.mutate();
+    }
+  }, [isLoading, hasCheckedSeed, targetList.length]);
+
   const toggleFavorite = (item: TargetItemWithQuote) => {
     updateItemMutation.mutate({
       id: item.id,
@@ -191,8 +213,25 @@ export default function InvestorWatchlist() {
   const handleEditDialogSave = () => {
     if (!editDialogItem) return;
     
-    // Convert empty strings to null for numeric fields to avoid database errors
+    // Validate numeric fields
     const numericFields = ['intrinsicValue', 'supportLevel1', 'supportLevel2', 'supportLevel3', 'supportLevel4'];
+    const fieldLabels: Record<string, string> = {
+      intrinsicValue: 'Intrinsic Value',
+      supportLevel1: 'S1',
+      supportLevel2: 'S2',
+      supportLevel3: 'S3',
+      supportLevel4: 'S4',
+    };
+    
+    for (const field of numericFields) {
+      const value = editDialogValues[field];
+      if (value && isNaN(parseFloat(value))) {
+        toast({ title: `${fieldLabels[field]} must be a valid number`, variant: "destructive" });
+        return;
+      }
+    }
+    
+    // Convert empty strings to null for numeric fields to avoid database errors
     const cleanedData: Record<string, string | null> = {};
     
     for (const [key, value] of Object.entries(editDialogValues)) {
@@ -284,6 +323,23 @@ export default function InvestorWatchlist() {
       toast({ title: "Please fill in symbol and intrinsic value", variant: "destructive" });
       return;
     }
+    
+    // Validate numeric fields
+    const validateNumeric = (val: string, fieldName: string): boolean => {
+      if (!val) return true; // Empty is ok (optional fields)
+      const num = parseFloat(val);
+      if (isNaN(num)) {
+        toast({ title: `${fieldName} must be a valid number`, variant: "destructive" });
+        return false;
+      }
+      return true;
+    };
+    
+    if (!validateNumeric(newIntrinsicValue, "Intrinsic Value")) return;
+    if (!validateNumeric(newS1, "S1")) return;
+    if (!validateNumeric(newS2, "S2")) return;
+    if (!validateNumeric(newS3, "S3")) return;
+    if (!validateNumeric(newS4, "S4")) return;
     
     addItemMutation.mutate({
       symbol: newSymbol.toUpperCase(),
@@ -667,7 +723,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="intrinsicValue">Intrinsic Value ($) *</Label>
                     <Input
                       id="intrinsicValue"
-                      type="number"
+                      type="text"
                       placeholder="e.g., 200.00"
                       value={newIntrinsicValue}
                       onChange={(e) => setNewIntrinsicValue(e.target.value)}
@@ -693,7 +749,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="s1">S1</Label>
                     <Input
                       id="s1"
-                      type="number"
+                      type="text"
                       placeholder="S1"
                       value={newS1}
                       onChange={(e) => setNewS1(e.target.value)}
@@ -704,7 +760,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="s2">S2</Label>
                     <Input
                       id="s2"
-                      type="number"
+                      type="text"
                       placeholder="S2"
                       value={newS2}
                       onChange={(e) => setNewS2(e.target.value)}
@@ -715,7 +771,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="s3">S3</Label>
                     <Input
                       id="s3"
-                      type="number"
+                      type="text"
                       placeholder="S3"
                       value={newS3}
                       onChange={(e) => setNewS3(e.target.value)}
@@ -726,7 +782,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="s4">S4</Label>
                     <Input
                       id="s4"
-                      type="number"
+                      type="text"
                       placeholder="S4"
                       value={newS4}
                       onChange={(e) => setNewS4(e.target.value)}
@@ -788,7 +844,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="edit-iv">Intrinsic Value ($)</Label>
                     <Input
                       id="edit-iv"
-                      type="number"
+                      type="text"
                       value={editDialogValues.intrinsicValue || ""}
                       onChange={(e) => setEditDialogValues(v => ({ ...v, intrinsicValue: e.target.value }))}
                       data-testid="input-edit-iv"
@@ -816,7 +872,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="edit-s1">S1</Label>
                     <Input
                       id="edit-s1"
-                      type="number"
+                      type="text"
                       value={editDialogValues.supportLevel1 || ""}
                       onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel1: e.target.value }))}
                       data-testid="input-edit-s1"
@@ -826,7 +882,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="edit-s2">S2</Label>
                     <Input
                       id="edit-s2"
-                      type="number"
+                      type="text"
                       value={editDialogValues.supportLevel2 || ""}
                       onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel2: e.target.value }))}
                       data-testid="input-edit-s2"
@@ -836,7 +892,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="edit-s3">S3</Label>
                     <Input
                       id="edit-s3"
-                      type="number"
+                      type="text"
                       value={editDialogValues.supportLevel3 || ""}
                       onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel3: e.target.value }))}
                       data-testid="input-edit-s3"
@@ -846,7 +902,7 @@ export default function InvestorWatchlist() {
                     <Label htmlFor="edit-s4">S4</Label>
                     <Input
                       id="edit-s4"
-                      type="number"
+                      type="text"
                       value={editDialogValues.supportLevel4 || ""}
                       onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel4: e.target.value }))}
                       data-testid="input-edit-s4"
@@ -1143,7 +1199,7 @@ export default function InvestorWatchlist() {
                         {editingCell?.id === item.id && editingCell?.field === "intrinsicValue" ? (
                           <div className="flex items-center gap-1 justify-end">
                             <Input
-                              type="number"
+                              type="text"
                               className="w-20 text-right"
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
@@ -1188,7 +1244,7 @@ export default function InvestorWatchlist() {
                       <TableCell className="text-right text-sm">
                         {editingCell?.id === item.id && editingCell?.field === "supportLevel1" ? (
                           <Input
-                            type="number"
+                            type="text"
                             className="w-16 text-right"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
@@ -1208,7 +1264,7 @@ export default function InvestorWatchlist() {
                       <TableCell className="text-right text-sm">
                         {editingCell?.id === item.id && editingCell?.field === "supportLevel2" ? (
                           <Input
-                            type="number"
+                            type="text"
                             className="w-16 text-right"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
@@ -1228,7 +1284,7 @@ export default function InvestorWatchlist() {
                       <TableCell className="text-right text-sm">
                         {editingCell?.id === item.id && editingCell?.field === "supportLevel3" ? (
                           <Input
-                            type="number"
+                            type="text"
                             className="w-16 text-right"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
@@ -1248,7 +1304,7 @@ export default function InvestorWatchlist() {
                       <TableCell className="text-right text-sm">
                         {editingCell?.id === item.id && editingCell?.field === "supportLevel4" ? (
                           <Input
-                            type="number"
+                            type="text"
                             className="w-16 text-right"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
