@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,6 @@ export default function InvestorWatchlist() {
       symbol: string; 
       intrinsicValue: string; 
       companyName?: string;
-      adamList?: string;
       currency?: string;
       supportLevel1?: string;
       supportLevel2?: string;
@@ -151,6 +150,13 @@ export default function InvestorWatchlist() {
     setIsRefreshing(false);
   };
 
+  // Auto-fetch prices when target list loads
+  useEffect(() => {
+    if (targetList.length > 0 && Object.keys(quotesCache).length === 0) {
+      fetchQuotes();
+    }
+  }, [targetList]);
+
   const handleAddItem = () => {
     if (!newSymbol || !newIntrinsicValue) {
       toast({ title: "Please fill in symbol and intrinsic value", variant: "destructive" });
@@ -189,7 +195,6 @@ export default function InvestorWatchlist() {
           symbol: string; 
           intrinsicValue: string; 
           companyName?: string;
-          adamList?: string;
           currency?: string;
           supportLevel1?: string;
           supportLevel2?: string;
@@ -223,8 +228,8 @@ export default function InvestorWatchlist() {
           !headers.some(h => h.includes("intrinsic") || h.includes("value") || h.includes("target"));
         
         const adamListIdx = headers.findIndex(h => h.includes("adam"));
-        const symbolIdx = headers.findIndex(h => h === "symbol" || h === "ticker");
-        const companyIdx = headers.findIndex(h => h === "company" || h === "name");
+        const symbolIdx = headers.findIndex(h => h === "symbol" || h === "ticker" || h === "stock" || h === "stock symbol" || h.includes("ticker"));
+        const companyIdx = headers.findIndex(h => h === "company" || h === "name" || h === "company name" || h === "stock name");
         const currencyIdx = headers.findIndex(h => h === "currency");
         const support1Idx = headers.findIndex(h => h.includes("support level 1") || h.includes("support 1"));
         const support2Idx = headers.findIndex(h => h.includes("support level 2") || h.includes("support 2"));
@@ -244,7 +249,7 @@ export default function InvestorWatchlist() {
         for (let i = 1; i < lines.length; i++) {
           const parts = lines[i].split(separator).map(p => p.trim().replace(/"/g, ""));
           
-          if (parts.length < 2 || !parts[1]) continue;
+          if (parts.length < 1 || !parts[0]) continue;
           
           const parseNum = (idx: number): string | undefined => {
             if (idx < 0) return undefined;
@@ -252,9 +257,25 @@ export default function InvestorWatchlist() {
             return val && !isNaN(parseFloat(val)) ? val : undefined;
           };
 
+          // Skip category name rows that aren't actual stock symbols
+          const categoryNames = ['ADAM LIST', 'FAVORITE', 'WATCHLIST', 'VALUE TRAP', 'SOLD', 'AVOID', 'HEADER', 'CATEGORY'];
+          
           if (isAdamFormat) {
-            const symbol = stripExchangePrefix(symbolIdx >= 0 ? parts[symbolIdx] : parts[1]);
-            if (!symbol || symbol.length === 0 || symbol.length > 20) continue;
+            // For Adam format, find the actual symbol column more carefully
+            let symbol = "";
+            if (symbolIdx >= 0 && parts[symbolIdx]) {
+              symbol = stripExchangePrefix(parts[symbolIdx]);
+            } else {
+              // Look for a column that looks like a stock symbol (1-5 uppercase letters, possibly with numbers)
+              for (let j = 0; j < parts.length; j++) {
+                const val = parts[j]?.trim().toUpperCase();
+                if (val && /^[A-Z0-9]{1,6}(\.[A-Z0-9]{1,2})?$/.test(val) && !categoryNames.includes(val)) {
+                  symbol = val;
+                  break;
+                }
+              }
+            }
+            if (!symbol || symbol.length === 0 || symbol.length > 20 || categoryNames.includes(symbol.toUpperCase())) continue;
             
             const avgIV = parseNum(averageIVIdx);
             const baseIV = parseNum(baseIVIdx);
@@ -265,7 +286,6 @@ export default function InvestorWatchlist() {
               symbol,
               intrinsicValue,
               companyName: companyIdx >= 0 ? parts[companyIdx] : undefined,
-              adamList: adamListIdx >= 0 ? parts[adamListIdx] : undefined,
               currency: currencyIdx >= 0 ? parts[currencyIdx] : undefined,
               supportLevel1: parseNum(support1Idx),
               supportLevel2: parseNum(support2Idx),
@@ -282,7 +302,7 @@ export default function InvestorWatchlist() {
             });
           } else if (isTradingViewFormat) {
             const symbol = stripExchangePrefix(symbolIdx >= 0 ? parts[symbolIdx] : parts[0]);
-            if (!symbol || symbol.length === 0 || symbol.length > 20) continue;
+            if (!symbol || symbol.length === 0 || symbol.length > 20 || categoryNames.includes(symbol.toUpperCase())) continue;
             
             items.push({ 
               symbol, 
@@ -291,7 +311,7 @@ export default function InvestorWatchlist() {
             });
           } else {
             const symbol = stripExchangePrefix(symbolIdx >= 0 ? parts[symbolIdx] : parts[0]);
-            if (!symbol || symbol.length === 0 || symbol.length > 20) continue;
+            if (!symbol || symbol.length === 0 || symbol.length > 20 || categoryNames.includes(symbol.toUpperCase())) continue;
             
             let intrinsicValue = intrinsicIdx >= 0 ? parseNum(intrinsicIdx) : parseNum(1);
             if (!intrinsicValue) intrinsicValue = "0";
