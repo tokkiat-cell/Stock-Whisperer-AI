@@ -60,6 +60,8 @@ export default function InvestorWatchlist() {
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [editDialogItem, setEditDialogItem] = useState<InvestorTargetItem | null>(null);
+  const [editDialogValues, setEditDialogValues] = useState<Record<string, string>>({});
 
   const { data: targetList = [], isLoading } = useQuery<InvestorTargetItem[]>({
     queryKey: ["/api/investor-target-list"],
@@ -146,6 +148,34 @@ export default function InvestorWatchlist() {
     updateItemMutation.mutate({
       id: item.id,
       data: { isFavorite: !item.isFavorite }
+    });
+  };
+
+  const openEditDialog = (item: InvestorTargetItem) => {
+    setEditDialogItem(item);
+    setEditDialogValues({
+      symbol: item.symbol || "",
+      companyName: item.companyName || "",
+      intrinsicValue: item.intrinsicValue?.toString() || "",
+      moat: item.moat || "",
+      supportLevel1: item.supportLevel1?.toString() || "",
+      supportLevel2: item.supportLevel2?.toString() || "",
+      supportLevel3: item.supportLevel3?.toString() || "",
+      supportLevel4: item.supportLevel4?.toString() || "",
+      notes: item.notes || "",
+    });
+  };
+
+  const handleEditDialogSave = () => {
+    if (!editDialogItem) return;
+    updateItemMutation.mutate({
+      id: editDialogItem.id,
+      data: editDialogValues
+    }, {
+      onSuccess: () => {
+        setEditDialogItem(null);
+        toast({ title: "Stock updated successfully" });
+      }
     });
   };
 
@@ -604,6 +634,124 @@ export default function InvestorWatchlist() {
               </div>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={!!editDialogItem} onOpenChange={(open) => !open && setEditDialogItem(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Stock</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-symbol">Symbol</Label>
+                    <Input
+                      id="edit-symbol"
+                      value={editDialogValues.symbol || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, symbol: e.target.value.toUpperCase() }))}
+                      data-testid="input-edit-symbol"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-company">Company</Label>
+                    <Input
+                      id="edit-company"
+                      value={editDialogValues.companyName || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, companyName: e.target.value }))}
+                      data-testid="input-edit-company"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-iv">Intrinsic Value ($)</Label>
+                    <Input
+                      id="edit-iv"
+                      type="number"
+                      value={editDialogValues.intrinsicValue || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, intrinsicValue: e.target.value }))}
+                      data-testid="input-edit-iv"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-moat">Moat</Label>
+                    <Select
+                      value={editDialogValues.moat || ""}
+                      onValueChange={(value) => setEditDialogValues(v => ({ ...v, moat: value }))}
+                    >
+                      <SelectTrigger id="edit-moat" data-testid="select-edit-moat">
+                        <SelectValue placeholder="Select moat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Wide">Wide</SelectItem>
+                        <SelectItem value="Narrow">Narrow</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-s1">S1</Label>
+                    <Input
+                      id="edit-s1"
+                      type="number"
+                      value={editDialogValues.supportLevel1 || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel1: e.target.value }))}
+                      data-testid="input-edit-s1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-s2">S2</Label>
+                    <Input
+                      id="edit-s2"
+                      type="number"
+                      value={editDialogValues.supportLevel2 || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel2: e.target.value }))}
+                      data-testid="input-edit-s2"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-s3">S3</Label>
+                    <Input
+                      id="edit-s3"
+                      type="number"
+                      value={editDialogValues.supportLevel3 || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel3: e.target.value }))}
+                      data-testid="input-edit-s3"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-s4">S4</Label>
+                    <Input
+                      id="edit-s4"
+                      type="number"
+                      value={editDialogValues.supportLevel4 || ""}
+                      onChange={(e) => setEditDialogValues(v => ({ ...v, supportLevel4: e.target.value }))}
+                      data-testid="input-edit-s4"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-notes">Notes</Label>
+                  <Input
+                    id="edit-notes"
+                    value={editDialogValues.notes || ""}
+                    onChange={(e) => setEditDialogValues(v => ({ ...v, notes: e.target.value }))}
+                    data-testid="input-edit-notes"
+                  />
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleEditDialogSave}
+                  disabled={updateItemMutation.isPending}
+                  data-testid="button-save-edit"
+                >
+                  {updateItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Changes
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -740,6 +888,16 @@ export default function InvestorWatchlist() {
                       </div>
                     </TableHead>
                     <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("companyName")}
+                      data-testid="header-company"
+                    >
+                      <div className="flex items-center gap-1">
+                        Company
+                        {sortField === "companyName" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
                       className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("currentPrice")}
                       data-testid="header-market-price"
@@ -819,7 +977,7 @@ export default function InvestorWatchlist() {
                         {sortField === "supportLevel4" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
-                    <TableHead className="w-8"></TableHead>
+                    <TableHead className="w-16 text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -845,6 +1003,9 @@ export default function InvestorWatchlist() {
                           <LineChart className="h-3 w-3" />
                           {item.symbol}
                         </button>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate max-w-[100px]">
+                        {item.companyName || "-"}
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {item.currentPrice ? (
@@ -979,16 +1140,26 @@ export default function InvestorWatchlist() {
                           </button>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteItemMutation.mutate(item.id)}
-                          disabled={deleteItemMutation.isPending}
-                          data-testid={`button-delete-${item.symbol}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(item)}
+                            data-testid={`button-edit-${item.symbol}`}
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteItemMutation.mutate(item.id)}
+                            disabled={deleteItemMutation.isPending}
+                            data-testid={`button-delete-${item.symbol}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
