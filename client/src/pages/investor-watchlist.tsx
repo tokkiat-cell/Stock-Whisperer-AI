@@ -379,10 +379,6 @@ export default function InvestorWatchlist() {
           aVal = a.valuationPercent || -999;
           bVal = b.valuationPercent || -999;
           break;
-        case "growthRates":
-          aVal = parseFloat(a.growthRates?.replace("%", "") || "0") || 0;
-          bVal = parseFloat(b.growthRates?.replace("%", "") || "0") || 0;
-          break;
         case "moat":
           aVal = a.moat || "";
           bVal = b.moat || "";
@@ -631,9 +627,6 @@ export default function InvestorWatchlist() {
                     <DropdownMenuItem onClick={() => toggleSort("valuation")}>
                       Valuation {sortField === "valuation" && (sortDirection === "asc" ? "↑" : "↓")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("growthRates")}>
-                      Growth Rate {sortField === "growthRates" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => toggleSort("moat")}>
                       Moat {sortField === "moat" && (sortDirection === "asc" ? "↑" : "↓")}
                     </DropdownMenuItem>
@@ -655,10 +648,13 @@ export default function InvestorWatchlist() {
                     <TableHead className="text-right min-w-[80px]">Price</TableHead>
                     <TableHead className="text-right min-w-[80px]">Avg IV</TableHead>
                     <TableHead className="text-right min-w-[100px]">Discount</TableHead>
-                    <TableHead className="min-w-[80px]">Growth</TableHead>
                     <TableHead className="min-w-[70px]">Moat</TableHead>
                     <TableHead className="min-w-[120px]">Type</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Support 1</TableHead>
+                    <TableHead className="text-right min-w-[70px]">S1</TableHead>
+                    <TableHead className="text-right min-w-[70px]">S2</TableHead>
+                    <TableHead className="text-right min-w-[70px]">S3</TableHead>
+                    <TableHead className="text-right min-w-[70px]">S4</TableHead>
+                    <TableHead className="text-right min-w-[70px]">S5</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -707,9 +703,6 @@ export default function InvestorWatchlist() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {item.growthRates || "-"}
-                      </TableCell>
                       <TableCell>
                         {item.moat && (
                           <Badge variant={item.moat === "Wide" ? "default" : item.moat === "Narrow" ? "secondary" : "outline"} className="text-xs">
@@ -721,7 +714,19 @@ export default function InvestorWatchlist() {
                         {item.investmentType || "-"}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        {item.supportLevel1 ? `$${parseFloat(item.supportLevel1 as string).toFixed(2)}` : "-"}
+                        {item.supportLevel1 ? `$${parseFloat(item.supportLevel1 as string).toFixed(0)}` : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {item.supportLevel2 ? `$${parseFloat(item.supportLevel2 as string).toFixed(0)}` : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {item.supportLevel3 ? `$${parseFloat(item.supportLevel3 as string).toFixed(0)}` : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {item.supportLevel4 ? `$${parseFloat(item.supportLevel4 as string).toFixed(0)}` : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {item.supportLevel5 ? `$${parseFloat(item.supportLevel5 as string).toFixed(0)}` : "-"}
                       </TableCell>
                       <TableCell>
                       <Button
