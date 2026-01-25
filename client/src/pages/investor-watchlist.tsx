@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart } from "lucide-react";
+import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart, Pencil, Check, X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -58,6 +58,8 @@ export default function InvestorWatchlist() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
+  const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const { data: targetList = [], isLoading } = useQuery<InvestorTargetItem[]>({
     queryKey: ["/api/investor-target-list"],
@@ -125,6 +127,50 @@ export default function InvestorWatchlist() {
       toast({ title: "Failed to remove stock", variant: "destructive" });
     },
   });
+
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Record<string, string> }) => {
+      return apiRequest("PUT", `/api/investor-target-list/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investor-target-list"] });
+      setEditingCell(null);
+      setEditValue("");
+    },
+    onError: () => {
+      toast({ title: "Failed to update", variant: "destructive" });
+    },
+  });
+
+  const handleEditStart = (id: number, field: string, currentValue: string | number | null) => {
+    setEditingCell({ id, field });
+    setEditValue(currentValue?.toString() || "");
+  };
+
+  const handleEditSave = () => {
+    if (!editingCell || updateItemMutation.isPending) return;
+    const numValue = parseFloat(editValue);
+    if (isNaN(numValue) && editValue !== "") return;
+    updateItemMutation.mutate({ 
+      id: editingCell.id, 
+      data: { [editingCell.field]: editValue || "0" } 
+    });
+  };
+
+  const handleEditCancel = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleEditSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleEditCancel();
+    }
+  };
 
   const fetchQuotes = async () => {
     if (targetList.length === 0) return;
@@ -663,126 +709,96 @@ export default function InvestorWatchlist() {
                 <TableHeader>
                   <TableRow>
                     <TableHead 
-                      className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("symbol")}
                       data-testid="header-symbol"
                     >
                       <div className="flex items-center gap-1">
                         Symbol
-                        {sortField === "symbol" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        {sortField === "symbol" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[150px] cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => toggleSort("companyName")}
-                      data-testid="header-company"
-                    >
-                      <div className="flex items-center gap-1">
-                        Company
-                        {sortField === "companyName" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="text-right min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("currentPrice")}
                       data-testid="header-market-price"
                     >
                       <div className="flex items-center justify-end gap-1">
-                        Market Price
-                        {sortField === "currentPrice" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        Price
+                        {sortField === "currentPrice" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right min-w-[80px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("intrinsicValue")}
                       data-testid="header-avg-iv"
                     >
                       <div className="flex items-center justify-end gap-1">
-                        Avg IV
-                        {sortField === "intrinsicValue" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        IV
+                        {sortField === "intrinsicValue" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("valuation")}
                       data-testid="header-discount"
                     >
                       <div className="flex items-center justify-end gap-1">
-                        Discount
-                        {sortField === "valuation" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        Disc%
+                        {sortField === "valuation" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("moat")}
                       data-testid="header-moat"
                     >
                       <div className="flex items-center gap-1">
                         Moat
-                        {sortField === "moat" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        {sortField === "moat" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[120px] cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => toggleSort("investmentType")}
-                      data-testid="header-type"
-                    >
-                      <div className="flex items-center gap-1">
-                        Type
-                        {sortField === "investmentType" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("supportLevel1")}
                       data-testid="header-s1"
                     >
                       <div className="flex items-center justify-end gap-1">
                         S1
-                        {sortField === "supportLevel1" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        {sortField === "supportLevel1" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("supportLevel2")}
                       data-testid="header-s2"
                     >
                       <div className="flex items-center justify-end gap-1">
                         S2
-                        {sortField === "supportLevel2" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        {sortField === "supportLevel2" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("supportLevel3")}
                       data-testid="header-s3"
                     >
                       <div className="flex items-center justify-end gap-1">
                         S3
-                        {sortField === "supportLevel3" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        {sortField === "supportLevel3" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="text-right cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => toggleSort("supportLevel4")}
                       data-testid="header-s4"
                     >
                       <div className="flex items-center justify-end gap-1">
                         S4
-                        {sortField === "supportLevel4" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        {sortField === "supportLevel4" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => toggleSort("supportLevel5")}
-                      data-testid="header-s5"
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        S5
-                        {sortField === "supportLevel5" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
-                      </div>
-                    </TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -798,42 +814,47 @@ export default function InvestorWatchlist() {
                           {item.symbol}
                         </button>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
-                        {item.companyName || "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-sm">
                         {item.currentPrice ? (
                           `$${item.currentPrice.toFixed(2)}`
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {parseFloat(item.intrinsicValue as string) > 0 
-                          ? `$${parseFloat(item.intrinsicValue as string).toFixed(2)}`
-                          : <span className="text-muted-foreground">-</span>
-                        }
+                      <TableCell className="text-right text-sm">
+                        {editingCell?.id === item.id && editingCell?.field === "intrinsicValue" ? (
+                          <div className="flex items-center gap-1 justify-end">
+                            <Input
+                              type="number"
+                              className="w-20 text-right"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={handleEditKeyDown}
+                              onBlur={handleEditCancel}
+                              autoFocus
+                              data-testid={`input-iv-${item.symbol}`}
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleEditStart(item.id, "intrinsicValue", item.intrinsicValue)}
+                            className="hover:bg-muted/50 px-1 rounded cursor-pointer"
+                            data-testid={`edit-iv-${item.symbol}`}
+                          >
+                            {parseFloat(item.intrinsicValue as string) > 0 
+                              ? `$${parseFloat(item.intrinsicValue as string).toFixed(0)}`
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {item.discountPremium ? (
-                          <Badge 
-                            variant={item.discountPremium.includes("-") ? "destructive" : "default"}
-                            className={!item.discountPremium.includes("-") ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" : ""}
-                          >
-                            {item.discountPremium}
-                          </Badge>
-                        ) : item.valuationPercent !== undefined ? (
+                        {item.valuationPercent !== undefined ? (
                           <Badge 
                             variant={item.valuationPercent > 0 ? "default" : "destructive"}
-                            className={item.valuationPercent > 0 ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" : ""}
+                            className={`text-xs whitespace-nowrap ${item.valuationPercent > 0 ? "bg-green-500/20 text-green-600" : ""}`}
                           >
-                            {item.valuationPercent > 0 ? (
-                              <TrendingDown className="h-3 w-3 mr-1" />
-                            ) : (
-                              <TrendingUp className="h-3 w-3 mr-1" />
-                            )}
-                            {Math.abs(item.valuationPercent).toFixed(1)}%
-                            {item.valuationPercent > 0 ? " under" : " over"}
+                            {Math.abs(item.valuationPercent).toFixed(0)}% {item.valuationPercent > 0 ? "under" : "over"}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
@@ -846,38 +867,100 @@ export default function InvestorWatchlist() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">
-                        {item.investmentType || "-"}
+                      <TableCell className="text-right text-sm">
+                        {editingCell?.id === item.id && editingCell?.field === "supportLevel1" ? (
+                          <Input
+                            type="number"
+                            className="w-16 text-right"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            onBlur={handleEditCancel}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleEditStart(item.id, "supportLevel1", item.supportLevel1)}
+                            className="hover:bg-muted/50 px-1 rounded cursor-pointer"
+                          >
+                            {item.supportLevel1 ? `$${parseFloat(item.supportLevel1 as string).toFixed(0)}` : "-"}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        {item.supportLevel1 ? `$${parseFloat(item.supportLevel1 as string).toFixed(0)}` : "-"}
+                        {editingCell?.id === item.id && editingCell?.field === "supportLevel2" ? (
+                          <Input
+                            type="number"
+                            className="w-16 text-right"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            onBlur={handleEditCancel}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleEditStart(item.id, "supportLevel2", item.supportLevel2)}
+                            className="hover:bg-muted/50 px-1 rounded cursor-pointer"
+                          >
+                            {item.supportLevel2 ? `$${parseFloat(item.supportLevel2 as string).toFixed(0)}` : "-"}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        {item.supportLevel2 ? `$${parseFloat(item.supportLevel2 as string).toFixed(0)}` : "-"}
+                        {editingCell?.id === item.id && editingCell?.field === "supportLevel3" ? (
+                          <Input
+                            type="number"
+                            className="w-16 text-right"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            onBlur={handleEditCancel}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleEditStart(item.id, "supportLevel3", item.supportLevel3)}
+                            className="hover:bg-muted/50 px-1 rounded cursor-pointer"
+                          >
+                            {item.supportLevel3 ? `$${parseFloat(item.supportLevel3 as string).toFixed(0)}` : "-"}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        {item.supportLevel3 ? `$${parseFloat(item.supportLevel3 as string).toFixed(0)}` : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {item.supportLevel4 ? `$${parseFloat(item.supportLevel4 as string).toFixed(0)}` : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {item.supportLevel5 ? `$${parseFloat(item.supportLevel5 as string).toFixed(0)}` : "-"}
+                        {editingCell?.id === item.id && editingCell?.field === "supportLevel4" ? (
+                          <Input
+                            type="number"
+                            className="w-16 text-right"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            onBlur={handleEditCancel}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleEditStart(item.id, "supportLevel4", item.supportLevel4)}
+                            className="hover:bg-muted/50 px-1 rounded cursor-pointer"
+                          >
+                            {item.supportLevel4 ? `$${parseFloat(item.supportLevel4 as string).toFixed(0)}` : "-"}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteItemMutation.mutate(item.id)}
-                        disabled={deleteItemMutation.isPending}
-                        data-testid={`button-delete-${item.symbol}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteItemMutation.mutate(item.id)}
+                          disabled={deleteItemMutation.isPending}
+                          data-testid={`button-delete-${item.symbol}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
               </Table>
             </div>
           </CardContent>
