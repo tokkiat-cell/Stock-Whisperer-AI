@@ -14,6 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PremarketMover {
   symbol: string;
@@ -29,9 +36,12 @@ interface PremarketData {
   losers: PremarketMover[];
 }
 
+const STOCK_COUNT_OPTIONS = [5, 10, 15, 20, 25, 30];
+
 export default function Premarket() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, setLocation] = useLocation();
+  const [stockCount, setStockCount] = useState(20);
 
   const handleAnalyzeSymbol = (symbol: string) => {
     setLocation(`/analysis?symbol=${symbol}`);
@@ -68,7 +78,7 @@ export default function Premarket() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {movers.map((mover, idx) => (
+        {movers.slice(0, stockCount).map((mover, idx) => (
           <TableRow key={mover.symbol} data-testid={`row-${type}-${mover.symbol}`}>
             <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
             <TableCell>
@@ -125,58 +135,79 @@ export default function Premarket() {
             Premarket Changes
           </h1>
           <p className="text-muted-foreground">
-            Top 20 daily gainers and losers by percentage change
+            Top daily gainers and losers by percentage change
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || isLoading}
-          data-testid="button-refresh-premarket"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <Select
+              value={stockCount.toString()}
+              onValueChange={(value) => setStockCount(parseInt(value))}
+            >
+              <SelectTrigger className="w-20" data-testid="select-stock-count">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STOCK_COUNT_OPTIONS.map((count) => (
+                  <SelectItem key={count} value={count.toString()}>
+                    {count}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">stocks</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            data-testid="button-refresh-premarket"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-green-500">
-              <TrendingUp className="h-5 w-5" />
-              Top 20 Gainers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {premarketData?.gainers && premarketData.gainers.length > 0 ? (
-              <MoverTable movers={premarketData.gainers} type="gainers" />
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No gainers data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Gainers section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-green-500">
+            <TrendingUp className="h-5 w-5" />
+            Top {stockCount} Gainers
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {premarketData?.gainers && premarketData.gainers.length > 0 ? (
+            <MoverTable movers={premarketData.gainers} type="gainers" />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No gainers data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-red-500">
-              <TrendingDown className="h-5 w-5" />
-              Top 20 Losers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {premarketData?.losers && premarketData.losers.length > 0 ? (
-              <MoverTable movers={premarketData.losers} type="losers" />
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No losers data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Losers section - stacked below gainers */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-red-500">
+            <TrendingDown className="h-5 w-5" />
+            Top {stockCount} Losers
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {premarketData?.losers && premarketData.losers.length > 0 ? (
+            <MoverTable movers={premarketData.losers} type="losers" />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No losers data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

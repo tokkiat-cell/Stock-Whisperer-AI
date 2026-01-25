@@ -92,7 +92,7 @@ export default function AnalysisPage() {
             Symbol Analysis Chart
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Analyze stocks with interactive charts, trendlines, and support/resistance levels.
+            Analyze stocks with AI-powered insights and interactive charts.
           </p>
         </div>
         
@@ -111,21 +111,6 @@ export default function AnalysisPage() {
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               TradingView
-            </a>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            asChild
-            data-testid="button-moomoo-analysis-header"
-          >
-            <a 
-              href="https://www.moomoo.com/trade"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Moomoo
             </a>
           </Button>
         </div>
@@ -176,11 +161,6 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* Inline Chart with Trendlines and S/R */}
-      {quote && (
-        <AnalysisChart symbol={search} />
-      )}
-
       {/* Analysis Results */}
       {analyzeMutation.data && (
         <AnalysisResult 
@@ -188,6 +168,11 @@ export default function AnalysisPage() {
           onApprove={handleApprove}
           isPending={createTradeMutation.isPending}
         />
+      )}
+
+      {/* Chart - shown after analysis results */}
+      {quote && (
+        <AnalysisChart symbol={search} />
       )}
     </div>
   );
