@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { createChart, ColorType, IChartApi, CandlestickData, LineData, CandlestickSeries, LineSeries } from "lightweight-charts";
+import { createChart, ColorType, IChartApi, CandlestickData, LineData, CandlestickSeries, LineSeries, HistogramSeries, HistogramData } from "lightweight-charts";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+type ChartInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1wk" | "1mo";
 
 interface StockHistoryResponse {
   candles: Array<{
@@ -20,10 +23,30 @@ interface StockHistoryResponse {
     ma100: Array<{ time: number; value: number }>;
     ma200: Array<{ time: number; value: number }>;
   };
+  quote?: {
+    bid?: number;
+    ask?: number;
+    bidSize?: number;
+    askSize?: number;
+    regularMarketPrice?: number;
+    regularMarketChange?: number;
+    regularMarketChangePercent?: number;
+  };
 }
 
 interface AnalysisChartProps {
   symbol: string;
+}
+
+interface OHLCData {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  time: number;
+  change: number;
+  changePercent: number;
 }
 
 const MA_COLORS = {
@@ -33,72 +56,54 @@ const MA_COLORS = {
   ma200: "#ef4444",
 };
 
-function findSwingPoints(candles: StockHistoryResponse['candles']) {
-  const swingHighs: Array<{ time: number; price: number; index: number }> = [];
-  const swingLows: Array<{ time: number; price: number; index: number }> = [];
-  
-  if (candles.length < 5) return { swingHighs, swingLows };
-  
-  for (let i = 2; i < candles.length - 2; i++) {
-    const prev2 = candles[i - 2];
-    const prev1 = candles[i - 1];
-    const current = candles[i];
-    const next1 = candles[i + 1];
-    const next2 = candles[i + 2];
-    
-    if (current.high > prev1.high && current.high > prev2.high &&
-        current.high > next1.high && current.high > next2.high) {
-      swingHighs.push({ time: current.time, price: current.high, index: i });
-    }
-    
-    if (current.low < prev1.low && current.low < prev2.low &&
-        current.low < next1.low && current.low < next2.low) {
-      swingLows.push({ time: current.time, price: current.low, index: i });
-    }
-  }
-  
-  return { swingHighs, swingLows };
+const INTERVALS: { value: ChartInterval; label: string }[] = [
+  { value: "1m", label: "1m" },
+  { value: "5m", label: "5m" },
+  { value: "15m", label: "15m" },
+  { value: "30m", label: "30m" },
+  { value: "1h", label: "1H" },
+  { value: "1d", label: "1D" },
+  { value: "1wk", label: "1W" },
+  { value: "1mo", label: "1M" },
+];
+
+function formatNumber(num: number | undefined, decimals: number = 2): string {
+  if (num === undefined || num === null) return "-";
+  return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function findSupportResistance(candles: StockHistoryResponse['candles']) {
-  if (candles.length < 20) return { support: null, resistance: null };
-  
-  const recentCandles = candles.slice(-60);
-  const highs = recentCandles.map(c => c.high);
-  const lows = recentCandles.map(c => c.low);
-  
-  const sortedHighs = [...highs].sort((a, b) => b - a);
-  const sortedLows = [...lows].sort((a, b) => a - b);
-  
-  const resistance = sortedHighs[Math.floor(sortedHighs.length * 0.1)] || sortedHighs[0];
-  const support = sortedLows[Math.floor(sortedLows.length * 0.1)] || sortedLows[0];
-  
-  return { support, resistance };
+function formatVolume(volume: number | undefined): string {
+  if (volume === undefined || volume === null) return "-";
+  if (volume >= 1000000000) return `${(volume / 1000000000).toFixed(2)}B`;
+  if (volume >= 1000000) return `${(volume / 1000000).toFixed(2)}M`;
+  if (volume >= 1000) return `${(volume / 1000).toFixed(2)}K`;
+  return volume.toString();
 }
 
 export function AnalysisChart({ symbol }: AnalysisChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const candleMapRef = useRef<Map<string, OHLCData>>(new Map());
+
+  const [interval, setInterval] = useState<ChartInterval>("1d");
   const [visibleMAs, setVisibleMAs] = useState({
     ma20: true,
     ma40: false,
     ma100: false,
     ma200: true,
   });
-  const [showTrendlines, setShowTrendlines] = useState(true);
-  const [showSR, setShowSR] = useState(true);
+  const [hoveredCandle, setHoveredCandle] = useState<OHLCData | null>(null);
+  const [chartReady, setChartReady] = useState(false);
 
   const { data, isLoading, error } = useQuery<StockHistoryResponse>({
-    queryKey: ["/api/stocks", symbol, "history"],
+    queryKey: ["/api/stocks", symbol, "history", interval],
     queryFn: async () => {
-      const res = await fetch(`/api/stocks/${symbol}/history`);
+      const res = await fetch(`/api/stocks/${symbol}/history?interval=${interval}`);
       if (!res.ok) throw new Error("Failed to fetch history");
       return res.json();
     },
     enabled: !!symbol,
   });
-
-  const [chartReady, setChartReady] = useState(false);
 
   useEffect(() => {
     if (!data) {
@@ -125,33 +130,60 @@ export function AnalysisChart({ symbol }: AnalysisChartProps) {
 
     const container = chartContainerRef.current;
     if (container.clientWidth === 0) return;
-    
+
+    // Build candle map for crosshair
+    candleMapRef.current.clear();
+    data.candles.forEach((c, i) => {
+      const prevClose = i > 0 ? data.candles[i - 1].close : c.open;
+      const change = c.close - prevClose;
+      const changePercent = (change / prevClose) * 100;
+      candleMapRef.current.set(c.time.toString(), {
+        ...c,
+        volume: c.volume || 0,
+        change,
+        changePercent,
+      });
+    });
+
     const chart = createChart(container, {
       layout: {
-        background: { type: ColorType.Solid, color: "#ffffff" },
-        textColor: "#333333",
+        background: { type: ColorType.Solid, color: "#0a0a0a" },
+        textColor: "#d4d4d4",
       },
       grid: {
-        vertLines: { color: "#e0e0e0" },
-        horzLines: { color: "#e0e0e0" },
+        vertLines: { color: "#1f1f1f" },
+        horzLines: { color: "#1f1f1f" },
       },
       width: container.clientWidth,
       height: 500,
       timeScale: {
-        borderColor: "hsl(var(--border))",
+        borderColor: "#333",
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: interval === "1m",
       },
       rightPriceScale: {
-        borderColor: "hsl(var(--border))",
+        borderColor: "#333",
       },
       crosshair: {
         mode: 1,
+        vertLine: {
+          color: "#555",
+          width: 1,
+          style: 2,
+          labelBackgroundColor: "#333",
+        },
+        horzLine: {
+          color: "#555",
+          width: 1,
+          style: 2,
+          labelBackgroundColor: "#333",
+        },
       },
     });
-    
+
     chartRef.current = chart;
 
+    // Add candlestick series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e",
       downColor: "#ef4444",
@@ -170,6 +202,30 @@ export function AnalysisChart({ symbol }: AnalysisChartProps) {
     }));
     candlestickSeries.setData(candleData);
 
+    // Add volume histogram
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: "#26a69a",
+      priceFormat: {
+        type: "volume",
+      },
+      priceScaleId: "",
+    });
+
+    chart.priceScale("").applyOptions({
+      scaleMargins: {
+        top: 0.8,
+        bottom: 0,
+      },
+    });
+
+    const volumeData: HistogramData[] = data.candles.map((c) => ({
+      time: c.time as any,
+      value: c.volume || 0,
+      color: c.close >= c.open ? "rgba(34, 197, 94, 0.5)" : "rgba(239, 68, 68, 0.5)",
+    }));
+    volumeSeries.setData(volumeData);
+
+    // Add moving averages
     if (visibleMAs.ma20 && data.movingAverages.ma20.length > 0) {
       const series = chart.addSeries(LineSeries, {
         color: MA_COLORS.ma20,
@@ -206,83 +262,38 @@ export function AnalysisChart({ symbol }: AnalysisChartProps) {
       series.setData(data.movingAverages.ma200 as LineData[]);
     }
 
-    if (candleData.length > 0) {
-      const firstTime = candleData[0].time;
-      const lastTime = candleData[candleData.length - 1].time;
-      
-      if (showSR) {
-        const { support, resistance } = findSupportResistance(data.candles);
-        
-        if (support) {
-          const supportLine = chart.addSeries(LineSeries, {
-            color: '#3b82f6',
-            lineWidth: 2,
-            lineStyle: 2,
-            title: 'Support',
-            lastValueVisible: true,
-            priceLineVisible: false,
+    // Crosshair move handler for OHLC display
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.time) {
+        // Reset to latest candle when mouse leaves
+        if (data.candles.length > 0) {
+          const lastCandle = data.candles[data.candles.length - 1];
+          const prevClose = data.candles.length > 1 ? data.candles[data.candles.length - 2].close : lastCandle.open;
+          setHoveredCandle({
+            ...lastCandle,
+            volume: lastCandle.volume || 0,
+            change: lastCandle.close - prevClose,
+            changePercent: ((lastCandle.close - prevClose) / prevClose) * 100,
           });
-          supportLine.setData([
-            { time: firstTime as any, value: support },
-            { time: lastTime as any, value: support }
-          ]);
         }
-        
-        if (resistance) {
-          const resistanceLine = chart.addSeries(LineSeries, {
-            color: '#ef4444',
-            lineWidth: 2,
-            lineStyle: 2,
-            title: 'Resistance',
-            lastValueVisible: true,
-            priceLineVisible: false,
-          });
-          resistanceLine.setData([
-            { time: firstTime as any, value: resistance },
-            { time: lastTime as any, value: resistance }
-          ]);
-        }
+        return;
       }
-      
-      if (showTrendlines) {
-        const { swingHighs, swingLows } = findSwingPoints(data.candles);
-        
-        if (swingHighs.length >= 2) {
-          const recentHighs = swingHighs.slice(-3);
-          if (recentHighs.length >= 2) {
-            const trendlineHigh = chart.addSeries(LineSeries, {
-              color: '#f97316',
-              lineWidth: 2,
-              lineStyle: 0,
-              title: 'Trend (High)',
-              lastValueVisible: false,
-              priceLineVisible: false,
-            });
-            trendlineHigh.setData(recentHighs.map(h => ({
-              time: h.time as any,
-              value: h.price
-            })));
-          }
-        }
-        
-        if (swingLows.length >= 2) {
-          const recentLows = swingLows.slice(-3);
-          if (recentLows.length >= 2) {
-            const trendlineLow = chart.addSeries(LineSeries, {
-              color: '#06b6d4',
-              lineWidth: 2,
-              lineStyle: 0,
-              title: 'Trend (Low)',
-              lastValueVisible: false,
-              priceLineVisible: false,
-            });
-            trendlineLow.setData(recentLows.map(l => ({
-              time: l.time as any,
-              value: l.price
-            })));
-          }
-        }
+      const candleInfo = candleMapRef.current.get(param.time.toString());
+      if (candleInfo) {
+        setHoveredCandle(candleInfo);
       }
+    });
+
+    // Set initial hovered candle to latest
+    if (data.candles.length > 0) {
+      const lastCandle = data.candles[data.candles.length - 1];
+      const prevClose = data.candles.length > 1 ? data.candles[data.candles.length - 2].close : lastCandle.open;
+      setHoveredCandle({
+        ...lastCandle,
+        volume: lastCandle.volume || 0,
+        change: lastCandle.close - prevClose,
+        changePercent: ((lastCandle.close - prevClose) / prevClose) * 100,
+      });
     }
 
     chart.timeScale().fitContent();
@@ -300,96 +311,186 @@ export function AnalysisChart({ symbol }: AnalysisChartProps) {
       chart.remove();
       chartRef.current = null;
     };
-  }, [chartReady, data, visibleMAs, showTrendlines, showSR]);
+  }, [chartReady, data, visibleMAs, interval]);
 
   const toggleMA = (ma: keyof typeof visibleMAs) => {
     setVisibleMAs((prev) => ({ ...prev, [ma]: !prev[ma] }));
   };
 
+  const handleIntervalChange = (newInterval: ChartInterval) => {
+    setInterval(newInterval);
+  };
+
   if (!symbol) {
     return (
-      <Card className="p-8 text-center text-muted-foreground">
+      <Card className="p-8 text-center text-muted-foreground bg-[#0a0a0a] border-[#333]">
         Enter a symbol above to view the chart
       </Card>
     );
   }
 
+  const isPositive = hoveredCandle ? hoveredCandle.change >= 0 : true;
+  const quote = data?.quote;
+
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-sm text-muted-foreground mr-2">MAs:</span>
+    <Card className="p-4 bg-[#0a0a0a] border-[#333]">
+      {/* Header with Price and Bid/Ask */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-[#333]">
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-bold text-white">{symbol}</span>
+          {quote?.regularMarketPrice && (
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold text-white">
+                ${formatNumber(quote.regularMarketPrice)}
+              </span>
+              <span className={cn("text-sm flex items-center gap-1", quote.regularMarketChange && quote.regularMarketChange >= 0 ? "text-green-500" : "text-red-500")}>
+                {quote.regularMarketChange && quote.regularMarketChange >= 0 ? (
+                  <TrendingUp className="w-4 h-4" />
+                ) : (
+                  <TrendingDown className="w-4 h-4" />
+                )}
+                {formatNumber(quote.regularMarketChange)} ({formatNumber(quote.regularMarketChangePercent)}%)
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Bid/Ask Display */}
+        {(quote?.bid || quote?.ask) && (
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Bid:</span>
+              <span className="text-green-500 font-medium">
+                ${formatNumber(quote.bid)} {quote.bidSize ? <span className="text-muted-foreground">x{quote.bidSize}</span> : null}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Ask:</span>
+              <span className="text-red-500 font-medium">
+                ${formatNumber(quote.ask)} {quote.askSize ? <span className="text-muted-foreground">x{quote.askSize}</span> : null}
+              </span>
+            </div>
+            {quote.bid && quote.ask && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Spread:</span>
+                <span className="text-white font-medium">${formatNumber(quote.ask - quote.bid)}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Timeframe Selector and Indicators */}
+      <div className="flex items-center gap-1 flex-wrap mb-4">
+        {INTERVALS.map((int) => (
+          <Button
+            key={int.value}
+            variant={interval === int.value ? "default" : "ghost"}
+            size="sm"
+            className={cn(
+              "h-7 px-3 text-xs",
+              interval === int.value ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-white"
+            )}
+            onClick={() => handleIntervalChange(int.value)}
+            data-testid={`timeframe-${int.value}`}
+          >
+            {int.label}
+          </Button>
+        ))}
+        <div className="flex-1" />
+        {/* Indicator Toggles */}
+        <span className="text-xs text-muted-foreground mr-2">Indicators:</span>
         <Button
-          variant={visibleMAs.ma20 ? "default" : "outline"}
+          variant={visibleMAs.ma20 ? "default" : "ghost"}
           size="sm"
+          className="h-7 px-2 text-xs"
           onClick={() => toggleMA("ma20")}
           style={{ backgroundColor: visibleMAs.ma20 ? MA_COLORS.ma20 : undefined }}
           data-testid="toggle-ma20"
         >
-          MA 20
+          MA20
         </Button>
         <Button
-          variant={visibleMAs.ma40 ? "default" : "outline"}
+          variant={visibleMAs.ma40 ? "default" : "ghost"}
           size="sm"
+          className="h-7 px-2 text-xs"
           onClick={() => toggleMA("ma40")}
           style={{ backgroundColor: visibleMAs.ma40 ? MA_COLORS.ma40 : undefined }}
           data-testid="toggle-ma40"
         >
-          MA 40
+          MA40
         </Button>
         <Button
-          variant={visibleMAs.ma100 ? "default" : "outline"}
+          variant={visibleMAs.ma100 ? "default" : "ghost"}
           size="sm"
+          className="h-7 px-2 text-xs"
           onClick={() => toggleMA("ma100")}
           style={{ backgroundColor: visibleMAs.ma100 ? MA_COLORS.ma100 : undefined }}
           data-testid="toggle-ma100"
         >
-          MA 100
+          MA100
         </Button>
         <Button
-          variant={visibleMAs.ma200 ? "default" : "outline"}
+          variant={visibleMAs.ma200 ? "default" : "ghost"}
           size="sm"
+          className="h-7 px-2 text-xs"
           onClick={() => toggleMA("ma200")}
           style={{ backgroundColor: visibleMAs.ma200 ? MA_COLORS.ma200 : undefined }}
           data-testid="toggle-ma200"
         >
-          MA 200
+          MA200
         </Button>
-        
-        <div className="border-l pl-2 ml-2 flex gap-2">
-          <Button
-            variant={showTrendlines ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowTrendlines(!showTrendlines)}
-            className={showTrendlines ? "bg-orange-500 hover:bg-orange-600" : ""}
-            data-testid="toggle-trendlines"
-          >
-            Trendlines
-          </Button>
-          <Button
-            variant={showSR ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowSR(!showSR)}
-            className={showSR ? "bg-purple-500 hover:bg-purple-600" : ""}
-            data-testid="toggle-sr"
-          >
-            S/R Levels
-          </Button>
-        </div>
       </div>
 
+      {/* OHLC Info Bar */}
+      {hoveredCandle && (
+        <div className="flex items-center gap-4 text-sm bg-[#111] p-2 rounded border border-[#333] mb-4 flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">O:</span>
+            <span className="text-white font-mono">{formatNumber(hoveredCandle.open)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">H:</span>
+            <span className="text-white font-mono">{formatNumber(hoveredCandle.high)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">L:</span>
+            <span className="text-white font-mono">{formatNumber(hoveredCandle.low)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">C:</span>
+            <span className={cn("font-mono", isPositive ? "text-green-500" : "text-red-500")}>
+              {formatNumber(hoveredCandle.close)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">Chg:</span>
+            <span className={cn("font-mono", isPositive ? "text-green-500" : "text-red-500")}>
+              {isPositive ? "+" : ""}{formatNumber(hoveredCandle.change)} ({isPositive ? "+" : ""}{formatNumber(hoveredCandle.changePercent)}%)
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">Vol:</span>
+            <span className="text-white font-mono">{formatVolume(hoveredCandle.volume)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Chart Container */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-[500px]">
+        <div className="flex items-center justify-center h-[500px] bg-[#0a0a0a]">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
-        <div className="flex items-center justify-center h-[500px] text-muted-foreground">
+        <div className="flex items-center justify-center h-[500px] text-muted-foreground bg-[#0a0a0a]">
           Failed to load chart data for {symbol}
         </div>
       ) : (
         <div ref={chartContainerRef} className="w-full h-[500px] relative" data-testid="analysis-chart-container" />
       )}
 
-      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-4 border-t mt-4">
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-4 border-t border-[#333] mt-4 flex-wrap">
         <div className="flex items-center gap-1">
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: MA_COLORS.ma20 }} />
           <span>20-day MA</span>
@@ -406,23 +507,13 @@ export function AnalysisChart({ symbol }: AnalysisChartProps) {
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: MA_COLORS.ma200 }} />
           <span>200-day MA</span>
         </div>
-        <div className="border-l pl-4 flex gap-4">
-          <div className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-orange-500" />
-            <span>Trendline (Highs)</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-cyan-500" />
-            <span>Trendline (Lows)</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-red-500" style={{ borderStyle: 'dashed' }} />
-            <span>Resistance</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-blue-500" style={{ borderStyle: 'dashed' }} />
-            <span>Support</span>
-          </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-1 bg-green-500/50" />
+          <span>Buy Volume</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-1 bg-red-500/50" />
+          <span>Sell Volume</span>
         </div>
       </div>
     </Card>
