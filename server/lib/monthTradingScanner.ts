@@ -169,7 +169,7 @@ async function detectCupidDaily(symbol: string): Promise<MonthTradingSetup | nul
     const pullbackLow = Math.min(...secondHalf.slice(0, 10).map(c => c.low));
     const pullbackPercent = ((swingHigh - pullbackLow) / swingHigh) * 100;
     
-    if (pullbackPercent < 3 || pullbackPercent > 25) return null;
+    if (pullbackPercent < 5 || pullbackPercent > 25) return null;
     
     const isRecovering = secondHalf[secondHalf.length - 1].close > secondHalf[0].close;
     if (!isRecovering) return null;
