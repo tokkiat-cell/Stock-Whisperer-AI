@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ArrowUpDown, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -30,12 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -660,53 +654,6 @@ export default function InvestorWatchlist() {
                     </SelectContent>
                   </Select>
                 )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" data-testid="button-sort">
-                      <ArrowUpDown className="h-4 w-4 mr-1" />
-                      Sort
-                      <ChevronDown className="h-4 w-4 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => toggleSort("symbol")}>
-                      Symbol {sortField === "symbol" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("companyName")}>
-                      Company {sortField === "companyName" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("currentPrice")}>
-                      Price {sortField === "currentPrice" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("intrinsicValue")}>
-                      Avg IV {sortField === "intrinsicValue" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("valuation")}>
-                      Discount {sortField === "valuation" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("moat")}>
-                      Moat {sortField === "moat" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("investmentType")}>
-                      Type {sortField === "investmentType" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("supportLevel1")}>
-                      S1 {sortField === "supportLevel1" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("supportLevel2")}>
-                      S2 {sortField === "supportLevel2" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("supportLevel3")}>
-                      S3 {sortField === "supportLevel3" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("supportLevel4")}>
-                      S4 {sortField === "supportLevel4" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleSort("supportLevel5")}>
-                      S5 {sortField === "supportLevel5" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
@@ -715,18 +662,126 @@ export default function InvestorWatchlist() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[100px]">Symbol</TableHead>
-                    <TableHead className="min-w-[150px]">Company</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Price</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Avg IV</TableHead>
-                    <TableHead className="text-right min-w-[100px]">Discount</TableHead>
-                    <TableHead className="min-w-[70px]">Moat</TableHead>
-                    <TableHead className="min-w-[120px]">Type</TableHead>
-                    <TableHead className="text-right min-w-[70px]">S1</TableHead>
-                    <TableHead className="text-right min-w-[70px]">S2</TableHead>
-                    <TableHead className="text-right min-w-[70px]">S3</TableHead>
-                    <TableHead className="text-right min-w-[70px]">S4</TableHead>
-                    <TableHead className="text-right min-w-[70px]">S5</TableHead>
+                    <TableHead 
+                      className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("symbol")}
+                      data-testid="header-symbol"
+                    >
+                      <div className="flex items-center gap-1">
+                        Symbol
+                        {sortField === "symbol" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="min-w-[150px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("companyName")}
+                      data-testid="header-company"
+                    >
+                      <div className="flex items-center gap-1">
+                        Company
+                        {sortField === "companyName" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("currentPrice")}
+                      data-testid="header-market-price"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Market Price
+                        {sortField === "currentPrice" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[80px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("intrinsicValue")}
+                      data-testid="header-avg-iv"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Avg IV
+                        {sortField === "intrinsicValue" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("valuation")}
+                      data-testid="header-discount"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Discount
+                        {sortField === "valuation" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("moat")}
+                      data-testid="header-moat"
+                    >
+                      <div className="flex items-center gap-1">
+                        Moat
+                        {sortField === "moat" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="min-w-[120px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("investmentType")}
+                      data-testid="header-type"
+                    >
+                      <div className="flex items-center gap-1">
+                        Type
+                        {sortField === "investmentType" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("supportLevel1")}
+                      data-testid="header-s1"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        S1
+                        {sortField === "supportLevel1" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("supportLevel2")}
+                      data-testid="header-s2"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        S2
+                        {sortField === "supportLevel2" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("supportLevel3")}
+                      data-testid="header-s3"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        S3
+                        {sortField === "supportLevel3" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("supportLevel4")}
+                      data-testid="header-s4"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        S4
+                        {sortField === "supportLevel4" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right min-w-[70px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleSort("supportLevel5")}
+                      data-testid="header-s5"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        S5
+                        {sortField === "supportLevel5" && (sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
