@@ -97,10 +97,10 @@ export function StockChart({ symbol, open, onOpenChange, levels }: StockChartPro
   
   const [interval, setInterval] = useState<ChartInterval>("1d");
   const [visibleMAs, setVisibleMAs] = useState({
-    ma20: true,
-    ma40: true,
-    ma100: true,
-    ma200: true,
+    ma20: false,
+    ma40: false,
+    ma100: false,
+    ma200: false,
   });
   const [hoveredCandle, setHoveredCandle] = useState<OHLCData | null>(null);
   const [chartReady, setChartReady] = useState(false);

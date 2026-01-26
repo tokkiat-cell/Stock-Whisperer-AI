@@ -87,10 +87,10 @@ export function AnalysisChart({ symbol }: AnalysisChartProps) {
 
   const [interval, setInterval] = useState<ChartInterval>("1d");
   const [visibleMAs, setVisibleMAs] = useState({
-    ma20: true,
+    ma20: false,
     ma40: false,
     ma100: false,
-    ma200: true,
+    ma200: false,
   });
   const [hoveredCandle, setHoveredCandle] = useState<OHLCData | null>(null);
   const [chartReady, setChartReady] = useState(false);
