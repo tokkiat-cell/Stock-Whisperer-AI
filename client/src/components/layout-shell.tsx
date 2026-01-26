@@ -59,7 +59,7 @@ export default function LayoutShell({ children, isGuest = false }: { children: R
     { href: "/daytrading-scanner", label: "Day Trading Scanner", icon: TrendingUp, guestAllowed: true },
     { href: "/month-trading-scanner", label: "Month Trading Scanner", icon: TrendingUp, guestAllowed: true },
     { href: "/investor-watchlist", label: "Growth Stocklist", icon: Target, guestAllowed: false },
-    { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart, guestAllowed: false },
+    { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart, guestAllowed: true },
     { href: "/trading", label: "Trading Platform", icon: Server, guestAllowed: false },
     { href: "/analysis", label: "Symbol Analysis Chart", icon: LineChart, guestAllowed: true },
     { href: "/pricing", label: "Pricing", icon: CreditCard, guestAllowed: true },

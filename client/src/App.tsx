@@ -97,7 +97,7 @@ function Router() {
       </Route>
       
       <Route path="/portfolio">
-        <ProtectedRoute component={PortfolioPage} />
+        <GuestAllowedRoute component={PortfolioPage} />
       </Route>
       
       <Route path="/trading">

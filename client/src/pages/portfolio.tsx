@@ -14,7 +14,7 @@ import {
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
   DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
   Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain, LineChart,
-  ShieldCheck, ExternalLink, Pencil, Download
+  ShieldCheck, ExternalLink, Pencil, Download, LogIn, Lock, CheckCircle2
 } from "lucide-react";
 import type { PortfolioHolding, WatchlistItem, PriceAlert, UserNotificationSettings } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,7 +23,7 @@ import { SiTelegram, SiWhatsapp } from "react-icons/si";
 import { Settings } from "lucide-react";
 import { StockChart } from "@/components/stock-chart";
 
-export default function PortfolioPage() {
+export default function PortfolioPage({ isGuest = false }: { isGuest?: boolean }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("holdings");
   const [addHoldingOpen, setAddHoldingOpen] = useState(false);
@@ -81,7 +81,24 @@ export default function PortfolioPage() {
 
   const { data: holdings = [], isLoading: holdingsLoading } = useQuery<PortfolioHolding[]>({
     queryKey: ["/api/portfolio"],
+    enabled: !isGuest,
   });
+
+  // Demo data for guest users
+  const demoHoldings: PortfolioHolding[] = isGuest ? [
+    { id: 1, userId: "guest", symbol: "AAPL", shares: "50", avgCost: "175.00", createdAt: null, updatedAt: null },
+    { id: 2, userId: "guest", symbol: "NVDA", shares: "25", avgCost: "485.50", createdAt: null, updatedAt: null },
+    { id: 3, userId: "guest", symbol: "MSFT", shares: "30", avgCost: "378.25", createdAt: null, updatedAt: null },
+    { id: 4, userId: "guest", symbol: "GOOGL", shares: "15", avgCost: "142.80", createdAt: null, updatedAt: null },
+  ] : [];
+
+  const demoWatchlist: WatchlistItem[] = isGuest ? [
+    { id: 1, userId: "guest", symbol: "TSLA", notes: "Watching for pullback", createdAt: null },
+    { id: 2, userId: "guest", symbol: "AMD", notes: "Strong momentum", createdAt: null },
+    { id: 3, userId: "guest", symbol: "META", notes: "AI investments", createdAt: null },
+  ] : [];
+
+  const displayHoldings = isGuest ? demoHoldings : holdings;
 
   interface MarketData {
     symbol: string;
@@ -93,24 +110,30 @@ export default function PortfolioPage() {
 
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
+    enabled: !isGuest,
   });
+
+  const displayWatchlist = isGuest ? demoWatchlist : watchlist;
 
   const { data: portfolioPrices = {}, isLoading: pricesLoading } = useQuery<Record<string, MarketData>>({
     queryKey: ["/api/portfolio/prices"],
-    enabled: holdings.length > 0 || watchlist.length > 0,
+    enabled: displayHoldings.length > 0 || displayWatchlist.length > 0,
     refetchInterval: 60000, // Refresh every minute
   });
 
   const { data: priceAlerts = [] } = useQuery<PriceAlert[]>({
     queryKey: ["/api/price-alerts"],
+    enabled: !isGuest,
   });
 
   const { data: triggeredAlerts = [], refetch: refetchTriggered } = useQuery<PriceAlert[]>({
     queryKey: ["/api/price-alerts/triggered"],
+    enabled: !isGuest,
   });
 
   const { data: notificationSettings } = useQuery<UserNotificationSettings | null>({
     queryKey: ["/api/notification-settings"],
+    enabled: !isGuest,
   });
 
   // Check alerts periodically (every 60 seconds when tab is active and on watchlist tab)
@@ -134,8 +157,10 @@ export default function PortfolioPage() {
     },
   });
 
-  // Check alerts on mount and periodically only when document is visible and on watchlist tab
+  // Check alerts on mount and periodically only when document is visible and on watchlist tab (skip for guests)
   useEffect(() => {
+    if (isGuest) return; // Skip alert polling for guests
+    
     const checkIfActive = () => {
       return !document.hidden && activeTab === "watchlist";
     };
@@ -152,7 +177,7 @@ export default function PortfolioPage() {
     }, 60000); // Check every 60 seconds
     
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [activeTab, isGuest]);
 
   const createAlertMutation = useMutation({
     mutationFn: async (data: { symbol: string; targetPrice: string; direction: string; alertType: string; notifyChannels: string[] }) => {
@@ -664,10 +689,10 @@ export default function PortfolioPage() {
     toast({ title: "Watchlist exported to CSV" });
   };
 
-  const totalValue = holdings.reduce((acc, h) => acc + (parseFloat(h.shares) * parseFloat(h.avgCost)), 0);
-  const totalShares = holdings.reduce((acc, h) => acc + parseFloat(h.shares), 0);
+  const totalValue = displayHoldings.reduce((acc, h) => acc + (parseFloat(h.shares) * parseFloat(h.avgCost)), 0);
+  const totalShares = displayHoldings.reduce((acc, h) => acc + parseFloat(h.shares), 0);
 
-  if (holdingsLoading || watchlistLoading) {
+  if (!isGuest && (holdingsLoading || watchlistLoading)) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -677,6 +702,55 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-6">
+      {/* Guest Mode Feature Limitations Banner */}
+      {isGuest && (
+        <Card className="p-6 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-lg">Guest Preview Mode</h3>
+              </div>
+              <p className="text-muted-foreground text-sm mb-4">
+                You're viewing the Portfolio feature in preview mode. Sign in to unlock all features.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Lock className="w-4 h-4 text-orange-500" />
+                  <span>Add/edit holdings</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Lock className="w-4 h-4 text-orange-500" />
+                  <span>Import from broker</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Lock className="w-4 h-4 text-orange-500" />
+                  <span>Manage watchlist</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Lock className="w-4 h-4 text-orange-500" />
+                  <span>Set price alerts</span>
+                </div>
+                <div className="flex items-center gap-2 text-green-500">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>View demo portfolio</span>
+                </div>
+                <div className="flex items-center gap-2 text-green-500">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>See live prices</span>
+                </div>
+              </div>
+            </div>
+            <a href="/api/login" className="w-full md:w-auto">
+              <Button size="lg" className="w-full md:w-auto gap-2" data-testid="button-guest-signin-portfolio">
+                <LogIn className="w-4 h-4" />
+                Sign In for Full Access
+              </Button>
+            </a>
+          </div>
+        </Card>
+      )}
+
       <div>
         <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
           <Wallet className="w-6 h-6 text-primary" />
@@ -709,7 +783,7 @@ export default function PortfolioPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Holdings</p>
-              <h3 className="text-xl font-mono font-bold text-foreground">{holdings.length}</h3>
+              <h3 className="text-xl font-mono font-bold text-foreground">{displayHoldings.length}</h3>
             </div>
           </div>
         </Card>
@@ -733,7 +807,7 @@ export default function PortfolioPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Watching</p>
-              <h3 className="text-xl font-mono font-bold text-foreground">{watchlist.length}</h3>
+              <h3 className="text-xl font-mono font-bold text-foreground">{displayWatchlist.length}</h3>
             </div>
           </div>
         </Card>
@@ -743,16 +817,17 @@ export default function PortfolioPage() {
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="holdings" data-testid="tab-holdings">
             <Wallet className="w-4 h-4 mr-2" />
-            Holdings ({holdings.length})
+            Holdings ({displayHoldings.length})
           </TabsTrigger>
           <TabsTrigger value="watchlist" data-testid="tab-watchlist">
             <Eye className="w-4 h-4 mr-2" />
-            Watchlist ({watchlist.length})
+            Watchlist ({displayWatchlist.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="holdings" className="mt-6">
           <div className="flex flex-wrap gap-2 mb-4">
+            {!isGuest && (
             <Dialog open={addHoldingOpen} onOpenChange={setAddHoldingOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-holding">
@@ -805,7 +880,9 @@ export default function PortfolioPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
 
+            {!isGuest && (
             <Dialog open={editHoldingOpen} onOpenChange={(open) => {
               setEditHoldingOpen(open);
               if (!open) setEditingHolding(null);
@@ -857,7 +934,9 @@ export default function PortfolioPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
 
+            {!isGuest && (
             <Dialog open={importOpen} onOpenChange={(open) => {
               setImportOpen(open);
               if (!open) clearImageExtraction();
@@ -1037,14 +1116,15 @@ export default function PortfolioPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
             
-            <Button variant="outline" onClick={exportPortfolioToCSV} disabled={holdings.length === 0} data-testid="button-export-portfolio">
+            <Button variant="outline" onClick={exportPortfolioToCSV} disabled={displayHoldings.length === 0 || isGuest} data-testid="button-export-portfolio">
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
           </div>
 
-          {holdings.length === 0 ? (
+          {displayHoldings.length === 0 ? (
             <Card className="p-8 text-center">
               <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <h3 className="font-semibold mb-1">No holdings yet</h3>
@@ -1063,7 +1143,7 @@ export default function PortfolioPage() {
                 <div className="text-right">P&L</div>
                 <div></div>
               </div>
-              {holdings.map((holding) => {
+              {displayHoldings.map((holding) => {
                 const priceData = portfolioPrices[holding.symbol.toUpperCase()];
                 const shares = parseFloat(holding.shares);
                 const avgCost = parseFloat(holding.avgCost);
@@ -1189,6 +1269,8 @@ export default function PortfolioPage() {
           )}
 
           <div className="flex flex-wrap gap-2 mb-4">
+            {!isGuest && (
+            <>
             <Dialog open={addWatchOpen} onOpenChange={setAddWatchOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-watch">
@@ -1276,14 +1358,16 @@ export default function PortfolioPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            </>
+            )}
             
-            <Button variant="outline" onClick={exportWatchlistToCSV} disabled={watchlist.length === 0} data-testid="button-export-watchlist">
+            <Button variant="outline" onClick={exportWatchlistToCSV} disabled={displayWatchlist.length === 0 || isGuest} data-testid="button-export-watchlist">
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
           </div>
 
-          {watchlist.length === 0 ? (
+          {displayWatchlist.length === 0 ? (
             <Card className="p-8 text-center">
               <Eye className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <h3 className="font-semibold mb-1">Watchlist is empty</h3>
@@ -1293,7 +1377,7 @@ export default function PortfolioPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {watchlist.map((item) => {
+              {displayWatchlist.map((item) => {
                 const symbolAlerts = getAlertsForSymbol(item.symbol);
                 const priceData = portfolioPrices[item.symbol.toUpperCase()];
                 const currentPrice = priceData?.price || 0;
