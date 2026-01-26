@@ -158,3 +158,33 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
+
+// Middleware that allows guests to access routes but marks them as guest
+export const allowGuestOrAuth: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+
+  // Check if user is authenticated
+  if (req.isAuthenticated() && user?.expires_at) {
+    const now = Math.floor(Date.now() / 1000);
+    if (now <= user.expires_at) {
+      return next();
+    }
+
+    // Try to refresh token
+    const refreshToken = user.refresh_token;
+    if (refreshToken) {
+      try {
+        const config = await getOidcConfig();
+        const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
+        updateUserSession(user, tokenResponse);
+        return next();
+      } catch (error) {
+        // Fall through to guest mode
+      }
+    }
+  }
+
+  // Mark as guest and continue
+  (req as any).isGuest = true;
+  return next();
+};

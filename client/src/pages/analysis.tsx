@@ -5,17 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AnalysisResult } from "@/components/analysis-result";
-import { Search, Sparkles, Loader2, ExternalLink } from "lucide-react";
+import { Search, Sparkles, Loader2, ExternalLink, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AnalysisChart } from "@/components/analysis-chart";
+import { useGuestUsage } from "@/hooks/use-guest-usage";
 
 const DEFAULT_SYMBOL = "NVDA";
 
-export default function AnalysisPage() {
+export default function AnalysisPage({ isGuest = false }: { isGuest?: boolean }) {
   const [location] = useLocation();
   const [search, setSearch] = useState(DEFAULT_SYMBOL);
   const { toast } = useToast();
   const hasAutoAnalyzed = useRef(false);
+  const guestUsage = useGuestUsage();
   
   // Parse query param for initial search, default to NVDA
   useEffect(() => {
@@ -34,12 +36,40 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (!hasAutoAnalyzed.current && search && !analyzeMutation.data && !analyzeMutation.isPending) {
       hasAutoAnalyzed.current = true;
-      analyzeMutation.mutate(search);
+      // Check guest limits before auto-analyzing
+      if (isGuest) {
+        if (guestUsage.canUseAnalysis) {
+          guestUsage.incrementAnalysis();
+          analyzeMutation.mutate(search);
+        } else {
+          toast({
+            title: "Guest Limit Reached",
+            description: "Sign in to continue analyzing stocks. Guests are limited to 3 analyses per day.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        analyzeMutation.mutate(search);
+      }
     }
-  }, [search]);
+  }, [search, isGuest]);
 
   const handleAnalyze = () => {
     if (!search) return;
+    
+    // Check guest limits before analyzing
+    if (isGuest) {
+      if (!guestUsage.canUseAnalysis) {
+        toast({
+          title: "Guest Limit Reached",
+          description: "Sign in to continue analyzing stocks. Guests are limited to 3 analyses per day.",
+          variant: "destructive",
+        });
+        return;
+      }
+      guestUsage.incrementAnalysis();
+    }
+    
     analyzeMutation.mutate(search, {
       onError: (err) => {
         toast({

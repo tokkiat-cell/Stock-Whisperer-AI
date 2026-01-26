@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { SavedPrompt } from "@shared/schema";
 import { UpgradeModal } from "@/components/upgrade-modal";
+import { useGuestUsage } from "@/hooks/use-guest-usage";
 
 interface UsageData {
   chatCount: number;
@@ -130,7 +131,7 @@ function formatAIResponse(content: string) {
   return elements;
 }
 
-export default function ChatPage() {
+export default function ChatPage({ isGuest = false }: { isGuest?: boolean }) {
   const { toast } = useToast();
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -146,10 +147,12 @@ export default function ChatPage() {
     limit: number;
   } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const guestUsage = useGuestUsage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: usageData } = useQuery<UsageData>({
     queryKey: ["/api/usage"],
+    enabled: !isGuest,
   });
 
   const { data: recommendations } = useQuery<any[]>({
@@ -158,6 +161,7 @@ export default function ChatPage() {
 
   const { data: savedPrompts = [], isLoading: promptsLoading } = useQuery<SavedPrompt[]>({
     queryKey: ["/api/saved-prompts"],
+    enabled: !isGuest,
   });
 
   const createPromptMutation = useMutation({
@@ -240,6 +244,19 @@ export default function ChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!chatInput.trim() && !selectedImage) || chatMutation.isPending) return;
+    
+    // Check guest limits before sending
+    if (isGuest) {
+      if (!guestUsage.canUseChat) {
+        toast({
+          title: "Guest Limit Reached",
+          description: "Sign in to continue chatting. Guests are limited to 2 chats per day.",
+          variant: "destructive",
+        });
+        return;
+      }
+      guestUsage.incrementChat();
+    }
     
     let imageBase64: string | undefined;
     if (selectedImage) {
@@ -365,6 +382,7 @@ export default function ChatPage() {
                 </div>
               </div>
               
+              {!isGuest && (
               <div className="bg-secondary/30 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-xs flex items-center gap-2">
@@ -446,6 +464,7 @@ export default function ChatPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
 
             {messages.length === 0 && (

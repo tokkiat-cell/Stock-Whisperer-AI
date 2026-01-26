@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated, allowGuestOrAuth } from "./replit_integrations/auth";
 import { searchStocks, getStockQuote, getStockHistory } from "./lib/marketData";
 import { analyzeStockWithAI } from "./lib/aiAnalysis";
 import { getEnhancedAnalysis, scanMarketWithEnhancedAnalysis } from "./lib/enhancedAnalysis";
@@ -19,8 +19,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   await setupAuth(app);
   registerAuthRoutes(app);
 
-  // --- Stock Routes ---
-  app.get(api.stocks.search.path, isAuthenticated, async (req, res) => {
+  // --- Stock Routes (allow guests for view-only data) ---
+  app.get(api.stocks.search.path, allowGuestOrAuth, async (req, res) => {
     try {
       const query = req.query.query as string;
       if (!query) return res.json([]);
@@ -31,7 +31,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get(api.stocks.quote.path, isAuthenticated, async (req, res) => {
+  app.get(api.stocks.quote.path, allowGuestOrAuth, async (req, res) => {
     try {
       const { symbol } = req.params;
       const quote = await getStockQuote(symbol);
@@ -42,7 +42,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get(api.stocks.history.path, isAuthenticated, async (req, res) => {
+  app.get(api.stocks.history.path, allowGuestOrAuth, async (req, res) => {
     try {
       const { symbol } = req.params;
       const interval = (req.query.interval as string) || "1d";
@@ -62,23 +62,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // --- Analysis Routes ---
-  app.post(api.analysis.analyze.path, isAuthenticated, async (req, res) => {
+  // --- Analysis Routes (allow guests with client-side rate limiting) ---
+  app.post(api.analysis.analyze.path, allowGuestOrAuth, async (req, res) => {
     try {
-      if (!req.user) return res.status(401).send();
+      const isGuest = (req as any).isGuest;
       // @ts-ignore
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub;
 
-      const { checkUsageLimit, incrementUsage } = await import("./lib/usageLimits");
-      const usageCheck = await checkUsageLimit(userId, "stockAnalysis");
-      if (!usageCheck.allowed) {
-        return res.status(403).json({ 
-          message: "Free tier limit reached",
-          usageType: "stockAnalysis",
-          currentCount: usageCheck.currentCount,
-          limit: usageCheck.limit,
-          requiresUpgrade: true
-        });
+      // For authenticated users, check server-side usage limits
+      if (!isGuest && userId) {
+        const { checkUsageLimit, incrementUsage } = await import("./lib/usageLimits");
+        const usageCheck = await checkUsageLimit(userId, "stockAnalysis");
+        if (!usageCheck.allowed) {
+          return res.status(403).json({ 
+            message: "Free tier limit reached",
+            usageType: "stockAnalysis",
+            currentCount: usageCheck.currentCount,
+            limit: usageCheck.limit,
+            requiresUpgrade: true
+          });
+        }
       }
 
       const { symbol } = req.body;
@@ -90,9 +93,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const analysis = await analyzeStockWithAI(symbol, quote.price);
       
-      await incrementUsage(userId, "stockAnalysis");
+      // Only increment usage for authenticated users
+      if (!isGuest && userId) {
+        const { incrementUsage } = await import("./lib/usageLimits");
+        await incrementUsage(userId, "stockAnalysis");
+      }
       
-      res.json({ symbol, ...analysis });
+      res.json({ symbol, ...analysis, isGuest });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Analysis failed" });
@@ -161,7 +168,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get(api.sp500.recommendations.path, isAuthenticated, async (req, res) => {
+  app.get(api.sp500.recommendations.path, allowGuestOrAuth, async (req, res) => {
     try {
       const recs = await storage.getTradeRecommendations();
       res.json(recs);
@@ -461,11 +468,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     ],
   };
 
-  app.get(api.market.indices.path, isAuthenticated, async (req, res) => {
+  app.get(api.market.indices.path, allowGuestOrAuth, async (req, res) => {
     try {
       // @ts-ignore
       const userId = req.user?.claims?.sub;
-      const prefs = userId ? await storage.getMarketPreferences(userId) : null;
+      const isGuest = (req as any).isGuest;
+      const prefs = (!isGuest && userId) ? await storage.getMarketPreferences(userId) : null;
       
       const showUS = prefs?.showUSMarket ?? true;
       const showSG = prefs?.showSGMarket ?? false;
@@ -869,23 +877,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // --- Dashboard Chat ---
-  app.post(api.dashboard.chat.path, isAuthenticated, async (req, res) => {
+  // --- Dashboard Chat (allow guests with client-side rate limiting) ---
+  app.post(api.dashboard.chat.path, allowGuestOrAuth, async (req, res) => {
     try {
-      if (!req.user) return res.status(401).send();
+      const isGuest = (req as any).isGuest;
       // @ts-ignore
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub;
 
-      const { checkUsageLimit, incrementUsage } = await import("./lib/usageLimits");
-      const usageCheck = await checkUsageLimit(userId, "chat");
-      if (!usageCheck.allowed) {
-        return res.status(403).json({ 
-          message: "Free tier limit reached",
-          usageType: "chat",
-          currentCount: usageCheck.currentCount,
-          limit: usageCheck.limit,
-          requiresUpgrade: true
-        });
+      // For authenticated users, check server-side usage limits
+      if (!isGuest && userId) {
+        const { checkUsageLimit } = await import("./lib/usageLimits");
+        const usageCheck = await checkUsageLimit(userId, "chat");
+        if (!usageCheck.allowed) {
+          return res.status(403).json({ 
+            message: "Free tier limit reached",
+            usageType: "chat",
+            currentCount: usageCheck.currentCount,
+            limit: usageCheck.limit,
+            requiresUpgrade: true
+          });
+        }
       }
 
       const parsed = api.dashboard.chat.input.safeParse(req.body);
@@ -961,9 +972,13 @@ Respond professionally. If asked about specific stocks, provide actionable insig
 
       const response = aiResponse.text || "I couldn't process your request. Please try again.";
       
-      await incrementUsage(userId, "chat");
+      // Only increment usage for authenticated users
+      if (!isGuest && userId) {
+        const { incrementUsage } = await import("./lib/usageLimits");
+        await incrementUsage(userId, "chat");
+      }
       
-      res.json({ response });
+      res.json({ response, isGuest });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Chat failed" });

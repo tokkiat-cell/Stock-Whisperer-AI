@@ -29,42 +29,48 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-export default function LayoutShell({ children }: { children: React.ReactNode }) {
+export default function LayoutShell({ children, isGuest = false }: { children: React.ReactNode; isGuest?: boolean }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const { data: usageData } = useQuery<{ planTier: string }>({
     queryKey: ['/api/usage'],
+    enabled: !isGuest,
   });
 
-  const planTier = usageData?.planTier || 'free';
+  const planTier = isGuest ? 'guest' : (usageData?.planTier || 'free');
   
   const getPlanInfo = () => {
     if (planTier === 'pro') return { name: 'Pro', icon: Crown, color: 'text-yellow-500' };
     if (planTier === 'basic') return { name: 'Basic', icon: Zap, color: 'text-primary' };
     if (planTier === 'subscriber') return { name: 'Subscriber', icon: Crown, color: 'text-primary' };
+    if (planTier === 'guest') return { name: 'Guest', icon: UserIcon, color: 'text-muted-foreground' };
     return { name: 'Free', icon: Sparkles, color: 'text-muted-foreground' };
   };
 
   const planInfo = getPlanInfo();
 
-  const navItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/chat", label: "AI Trade Chat", icon: MessageCircle },
-    { href: "/premarket", label: "Premarket Changes", icon: TrendingUp },
-    { href: "/scan", label: "AI Market Scanner", icon: Scan },
-    { href: "/daytrading-scanner", label: "Day Trading Scanner", icon: TrendingUp },
-    { href: "/month-trading-scanner", label: "Month Trading Scanner", icon: TrendingUp },
-    { href: "/investor-watchlist", label: "Growth Stocklist", icon: Target },
-    { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart },
-    { href: "/trading", label: "Trading Platform", icon: Server },
-    { href: "/analysis", label: "Symbol Analysis Chart", icon: LineChart },
-    { href: "/pricing", label: "Pricing", icon: CreditCard },
-    { href: "/subscription", label: "Subscription", icon: Settings },
-    { href: "/user-manual", label: "User Manual", icon: BookOpen },
-    { href: "/feedback", label: "Q&A / Feedback", icon: MessageSquare },
+  const allNavItems = [
+    { href: "/", label: "Dashboard", icon: LayoutDashboard, guestAllowed: true },
+    { href: "/chat", label: "AI Trade Chat", icon: MessageCircle, guestAllowed: true },
+    { href: "/premarket", label: "Premarket Changes", icon: TrendingUp, guestAllowed: true },
+    { href: "/scan", label: "AI Market Scanner", icon: Scan, guestAllowed: true },
+    { href: "/daytrading-scanner", label: "Day Trading Scanner", icon: TrendingUp, guestAllowed: true },
+    { href: "/month-trading-scanner", label: "Month Trading Scanner", icon: TrendingUp, guestAllowed: true },
+    { href: "/investor-watchlist", label: "Growth Stocklist", icon: Target, guestAllowed: false },
+    { href: "/portfolio", label: "Portfolio & P&L", icon: PieChart, guestAllowed: false },
+    { href: "/trading", label: "Trading Platform", icon: Server, guestAllowed: false },
+    { href: "/analysis", label: "Symbol Analysis Chart", icon: LineChart, guestAllowed: true },
+    { href: "/pricing", label: "Pricing", icon: CreditCard, guestAllowed: true },
+    { href: "/subscription", label: "Subscription", icon: Settings, guestAllowed: false },
+    { href: "/user-manual", label: "User Manual", icon: BookOpen, guestAllowed: true },
+    { href: "/feedback", label: "Q&A / Feedback", icon: MessageSquare, guestAllowed: false },
   ];
+  
+  const navItems = isGuest 
+    ? allNavItems.filter(item => item.guestAllowed)
+    : allNavItems;
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
@@ -115,33 +121,63 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
       </div>
 
       <div className="mt-auto p-6 border-t border-white/5">
-        <div className="flex items-center gap-3 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-white/10">
-            <UserIcon className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium truncate">{user?.firstName || 'Trader'}</p>
-              <Badge 
-                variant={planInfo.name === 'Free' ? 'secondary' : 'default'} 
-                className="text-xs px-1.5 py-0"
-                data-testid="badge-plan-status"
-              >
-                <planInfo.icon className={cn("w-3 h-3 mr-1", planInfo.color)} />
-                {planInfo.name}
-              </Badge>
+        {isGuest ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-white/10">
+                <UserIcon className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">Guest User</p>
+                  <Badge variant="secondary" className="text-xs px-1.5 py-0" data-testid="badge-plan-status">
+                    <UserIcon className="w-3 h-3 mr-1" />
+                    Guest
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">Limited access</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <Button 
+              className="w-full justify-start gap-2"
+              onClick={() => window.location.href = "/api/login"}
+              data-testid="button-guest-login"
+            >
+              <UserCog className="w-4 h-4" />
+              Sign In for Full Access
+            </Button>
           </div>
-        </div>
-        <Button 
-          variant="outline" 
-          className="w-full justify-start gap-2 border-white/10 hover:bg-white/5 hover:text-destructive transition-colors"
-          onClick={() => logout()}
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </Button>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4 px-2">
+              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-white/10">
+                <UserIcon className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{user?.firstName || 'Trader'}</p>
+                  <Badge 
+                    variant={planInfo.name === 'Free' ? 'secondary' : 'default'} 
+                    className="text-xs px-1.5 py-0"
+                    data-testid="badge-plan-status"
+                  >
+                    <planInfo.icon className={cn("w-3 h-3 mr-1", planInfo.color)} />
+                    {planInfo.name}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2 border-white/10 hover:bg-white/5 hover:text-destructive transition-colors"
+              onClick={() => logout()}
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

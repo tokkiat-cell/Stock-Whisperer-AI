@@ -27,6 +27,7 @@ import Premarket from "@/pages/premarket";
 import DayTradingScanner from "@/pages/daytrading-scanner";
 import MonthTradingScanner from "@/pages/month-trading-scanner";
 import LayoutShell from "@/components/layout-shell";
+import GuestBanner from "@/components/guest-banner";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { user, isLoading } = useAuth();
@@ -50,6 +51,27 @@ function ProtectedRoute({ component: Component, ...rest }: any) {
   );
 }
 
+function GuestAllowedRoute({ component: Component, guestAllowed = true, ...rest }: any) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  const isGuest = !user;
+
+  return (
+    <LayoutShell isGuest={isGuest}>
+      {isGuest && <GuestBanner />}
+      <Component {...rest} isGuest={isGuest} />
+    </LayoutShell>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -59,19 +81,19 @@ function Router() {
       }} />
       
       <Route path="/">
-        <ProtectedRoute component={Dashboard} />
+        <GuestAllowedRoute component={Dashboard} />
       </Route>
       
       <Route path="/analysis">
-        <ProtectedRoute component={AnalysisPage} />
+        <GuestAllowedRoute component={AnalysisPage} />
       </Route>
       
       <Route path="/scan">
-        <ProtectedRoute component={MarketScan} />
+        <GuestAllowedRoute component={MarketScan} />
       </Route>
       
       <Route path="/chat">
-        <ProtectedRoute component={ChatPage} />
+        <GuestAllowedRoute component={ChatPage} />
       </Route>
       
       <Route path="/portfolio">
@@ -92,7 +114,7 @@ function Router() {
       </Route>
       
       <Route path="/user-manual">
-        <ProtectedRoute component={UserManualPage} />
+        <GuestAllowedRoute component={UserManualPage} />
       </Route>
       
       <Route path="/feedback">
@@ -108,15 +130,15 @@ function Router() {
       </Route>
       
       <Route path="/premarket">
-        <ProtectedRoute component={Premarket} />
+        <GuestAllowedRoute component={Premarket} />
       </Route>
       
       <Route path="/daytrading-scanner">
-        <ProtectedRoute component={DayTradingScanner} />
+        <GuestAllowedRoute component={DayTradingScanner} />
       </Route>
       
       <Route path="/month-trading-scanner">
-        <ProtectedRoute component={MonthTradingScanner} />
+        <GuestAllowedRoute component={MonthTradingScanner} />
       </Route>
       
       <Route path="/checkout/success">
