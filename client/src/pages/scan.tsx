@@ -238,6 +238,8 @@ export default function MarketScan() {
 
   const { data: recommendations, isLoading } = useQuery<Recommendation[]>({
     queryKey: ["/api/sp500/recommendations"],
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const handleScan = async () => {

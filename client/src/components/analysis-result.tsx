@@ -30,7 +30,7 @@ interface AnalysisResultProps {
 export function AnalysisResult({ analysis, onApprove, isPending }: AnalysisResultProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const isBuy = analysis.recommendation === "BUY";
   const isHold = analysis.recommendation === "HOLD";
       
@@ -245,11 +245,21 @@ export function AnalysisResult({ analysis, onApprove, isPending }: AnalysisResul
           </Button>
           <Button 
             variant="ghost" 
-            size="icon"
+            size="sm"
             onClick={() => setExpanded(!expanded)}
             data-testid="button-expand-analysis"
           >
-            {expanded ? <ChevronUp /> : <ChevronDown />}
+            {expanded ? (
+              <>
+                <ChevronUp className="w-4 h-4 mr-1" />
+                Hide Details
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 mr-1" />
+                Show Details
+              </>
+            )}
           </Button>
         </div>
 
