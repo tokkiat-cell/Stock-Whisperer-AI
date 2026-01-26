@@ -550,12 +550,22 @@ export default function InvestorWatchlist() {
       items = items.filter(i => i.valuationPercent !== undefined && i.valuationPercent < 0);
     }
 
+    // Always sort favorites first (descending), then by selected field
     items.sort((a, b) => {
+      // Primary sort: favorites always first
+      const aFav = a.isFavorite ? 1 : 0;
+      const bFav = b.isFavorite ? 1 : 0;
+      if (aFav !== bFav) {
+        return bFav - aFav; // Favorites first (descending)
+      }
+      
+      // Secondary sort: by selected field
       let aVal: any, bVal: any;
       switch (sortField) {
         case "isFavorite":
-          aVal = a.isFavorite ? 1 : 0;
-          bVal = b.isFavorite ? 1 : 0;
+          // Already sorted by favorite above, use symbol as tiebreaker
+          aVal = a.symbol || "";
+          bVal = b.symbol || "";
           break;
         case "symbol":
           aVal = a.symbol || "";

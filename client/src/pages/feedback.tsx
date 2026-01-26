@@ -163,7 +163,7 @@ export default function FeedbackPage() {
                 <Textarea
                   value={questionForm.question}
                   onChange={(e) => setQuestionForm(prev => ({ ...prev, question: e.target.value }))}
-                  placeholder="What would you like to know about TK Stock Whisperper.AI?"
+                  placeholder="What would you like to know about TK Stock Whisperer.AI?"
                   rows={4}
                   data-testid="input-question"
                 />
@@ -191,7 +191,7 @@ export default function FeedbackPage() {
           <Card>
             <CardHeader>
               <CardTitle>Submit Feedback</CardTitle>
-              <CardDescription>Help us improve TK Stock Whisperper.AI</CardDescription>
+              <CardDescription>Help us improve TK Stock Whisperer.AI</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
