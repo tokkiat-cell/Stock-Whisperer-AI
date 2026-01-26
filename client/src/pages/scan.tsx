@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { 
   Select,
   SelectContent,
@@ -31,13 +32,68 @@ import {
   ExternalLink,
   Share2,
   Copy,
-  Check
+  Check,
+  Search,
+  X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { StockChart } from "@/components/stock-chart";
+
+interface SearchResult {
+  symbol: string;
+  name: string;
+}
+
+interface SearchAnalysisResult {
+  symbol: string;
+  recommendation: "BUY" | "SELL" | "HOLD";
+  entryPrice: string;
+  takeProfit: string;
+  stopLoss: string;
+  riskReward: string;
+  rationale: string;
+  confidence?: number;
+  candlePattern?: string;
+  trendType?: string;
+  movingAverages?: {
+    ma20: string;
+    ma40: string;
+    ma100: string;
+    ma150: string;
+    ma200: string;
+  };
+  technicalSummary?: string;
+  supportResistance?: {
+    support1: string;
+    support2: string;
+    resistance1: string;
+    resistance2: string;
+  };
+  optionsStrategy?: {
+    strategy: string;
+    description: string;
+    strikePrice: string;
+    targetStrike: string;
+    expiry: string;
+    maxProfit: string;
+    maxRisk: string;
+    rationale: string;
+  } | null;
+  technicalAnalysis?: {
+    trend: string;
+    candlePattern: string;
+    rsi: string;
+    macd: string;
+    movingAverages: {
+      ma20: string;
+      ma50: string;
+      ma200: string;
+    };
+  };
+}
 
 interface TechnicalIndicator {
   name: string;
@@ -122,6 +178,79 @@ export default function MarketScan() {
   const [chartOpen, setChartOpen] = useState(false);
   const [chartSymbol, setChartSymbol] = useState("");
   const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
+  
+  // Stock search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchAnalysis, setSearchAnalysis] = useState<SearchAnalysisResult | null>(null);
+  const [expandedSearchResult, setExpandedSearchResult] = useState(true);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounced search for stock symbols
+  useEffect(() => {
+    if (searchQuery.length < 1) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+    
+    const debounce = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/stocks/search?query=${encodeURIComponent(searchQuery)}`);
+        if (response.ok) {
+          const results = await response.json();
+          setSearchResults(results.slice(0, 8));
+          setShowSearchDropdown(true);
+        }
+      } catch (error) {
+        console.error("Search error:", error);
+      }
+    }, 300);
+    
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
+
+  // Analyze a specific stock
+  const analyzeStockMutation = useMutation({
+    mutationFn: async (symbol: string) => {
+      const response = await apiRequest("POST", "/api/analysis/analyze", { symbol });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setSearchAnalysis(data);
+      setSearchQuery("");
+      setShowSearchDropdown(false);
+      toast({
+        title: "Analysis Complete",
+        description: `Detailed analysis for ${data.symbol} is ready.`,
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "Could not analyze this stock. Please try again.",
+      });
+    },
+  });
+
+  const handleSearchSelect = (symbol: string) => {
+    setShowSearchDropdown(false);
+    analyzeStockMutation.mutate(symbol);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      handleSearchSelect(searchQuery.trim().toUpperCase());
+    }
+  };
+
+  const clearSearchAnalysis = () => {
+    setSearchAnalysis(null);
+    setSearchQuery("");
+  };
 
   const formatRecommendationForShare = (rec: Recommendation) => {
     const currency = marketCurrency[selectedMarket];
@@ -303,6 +432,297 @@ export default function MarketScan() {
           </Button>
         </div>
       </div>
+
+      {/* Stock Search */}
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Search className="w-4 h-4 text-primary" />
+          Search Stock
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Search for any stock symbol to get a detailed AI analysis report
+        </p>
+        
+        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Enter stock symbol (e.g., AAPL, MSFT, TSLA)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-20"
+              data-testid="input-stock-search"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2"
+              disabled={analyzeStockMutation.isPending || !searchQuery.trim()}
+              data-testid="button-search-stock"
+            >
+              {analyzeStockMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Analyze"
+              )}
+            </Button>
+          </div>
+          
+          {/* Search Autocomplete Dropdown */}
+          {showSearchDropdown && searchResults.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-64 overflow-y-auto">
+              {searchResults.map((result) => (
+                <button
+                  key={result.symbol}
+                  type="button"
+                  onClick={() => handleSearchSelect(result.symbol)}
+                  className="w-full px-4 py-2 text-left hover-elevate flex items-center justify-between gap-2"
+                  data-testid={`search-result-${result.symbol}`}
+                >
+                  <span className="font-medium">{result.symbol}</span>
+                  <span className="text-sm text-muted-foreground truncate">{result.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </form>
+      </Card>
+
+      {/* Search Analysis Result */}
+      {searchAnalysis && (
+        <Card className={cn(
+          "p-6",
+          searchAnalysis.recommendation === "HOLD" 
+            ? "bg-yellow-500/10" 
+            : searchAnalysis.recommendation === "BUY" 
+              ? "bg-green-500/10" 
+              : "bg-red-500/10"
+        )}>
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => openChart(searchAnalysis.symbol)}
+                className="text-2xl font-bold hover:text-primary transition-colors cursor-pointer"
+                data-testid={`button-chart-${searchAnalysis.symbol}`}
+              >
+                ${searchAnalysis.symbol}
+              </button>
+              <Badge 
+                variant={searchAnalysis.recommendation === "HOLD" ? "secondary" : searchAnalysis.recommendation === "BUY" ? "default" : "destructive"}
+                className={cn("text-sm font-bold px-3 py-1", 
+                  searchAnalysis.recommendation === "BUY" ? "bg-green-500" : 
+                  searchAnalysis.recommendation === "HOLD" ? "bg-yellow-500" :
+                  "bg-red-500"
+                )}
+              >
+                {searchAnalysis.recommendation === "BUY" ? <TrendingUp className="w-4 h-4 mr-1" /> : 
+                 searchAnalysis.recommendation === "HOLD" ? <Activity className="w-4 h-4 mr-1" /> :
+                 <TrendingDown className="w-4 h-4 mr-1" />}
+                {searchAnalysis.recommendation}
+              </Badge>
+              {searchAnalysis.confidence && (
+                <Badge variant="outline" className="text-sm">
+                  {searchAnalysis.confidence}% Confidence
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearSearchAnalysis}
+                data-testid="button-clear-search"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Key Levels Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-background/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                <Target className="w-3 h-3" />
+                Entry Price
+              </div>
+              <p className="font-semibold">${searchAnalysis.entryPrice}</p>
+            </div>
+            <div className="bg-background/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-green-500 text-xs mb-1">
+                <TrendingUp className="w-3 h-3" />
+                Take Profit
+              </div>
+              <p className="font-semibold text-green-500">${searchAnalysis.takeProfit}</p>
+            </div>
+            <div className="bg-background/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-red-500 text-xs mb-1">
+                <ShieldAlert className="w-3 h-3" />
+                Stop Loss
+              </div>
+              <p className="font-semibold text-red-500">${searchAnalysis.stopLoss}</p>
+            </div>
+            <div className="bg-background/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                <Scale className="w-3 h-3" />
+                Risk/Reward
+              </div>
+              <p className="font-semibold">{searchAnalysis.riskReward}</p>
+            </div>
+          </div>
+
+          {/* Rationale */}
+          <div className="bg-background/50 rounded-lg p-4 mb-4">
+            <h4 className="font-medium mb-2">AI Rationale</h4>
+            <p className="text-sm text-muted-foreground">{searchAnalysis.rationale}</p>
+          </div>
+
+          {/* Expand/Collapse Technical Details */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpandedSearchResult(!expandedSearchResult)}
+              data-testid="button-expand-search-result"
+            >
+              {expandedSearchResult ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-1" />
+                  Hide Details
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-1" />
+                  Show Details
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              data-testid="button-tradingview-search"
+            >
+              <a 
+                href={`https://www.tradingview.com/chart/?symbol=${searchAnalysis.symbol}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </Button>
+          </div>
+
+          {/* Expanded Technical Analysis */}
+          {expandedSearchResult && (
+            <div className="mt-4 space-y-4">
+              {/* Technical Analysis */}
+              {searchAnalysis.technicalAnalysis && (
+                <div className="bg-background/50 rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    Technical Analysis
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Trend</span>
+                      <p className="font-medium">{searchAnalysis.technicalAnalysis.trend}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Pattern</span>
+                      <p className="font-medium">{searchAnalysis.technicalAnalysis.candlePattern}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">RSI</span>
+                      <p className="font-medium">{searchAnalysis.technicalAnalysis.rsi}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">MACD</span>
+                      <p className="font-medium">{searchAnalysis.technicalAnalysis.macd}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Moving Averages */}
+              {searchAnalysis.movingAverages && (
+                <div className="bg-background/50 rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <LineChart className="w-4 h-4 text-primary" />
+                    Moving Averages
+                  </h4>
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                    {Object.entries(searchAnalysis.movingAverages).map(([key, value]) => (
+                      <div key={key}>
+                        <span className="text-xs text-muted-foreground">{key.toUpperCase()}</span>
+                        <p className="font-medium">${value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Support & Resistance */}
+              {searchAnalysis.supportResistance && (
+                <div className="bg-background/50 rounded-lg p-4">
+                  <h4 className="font-medium mb-3">Support & Resistance</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <span className="text-xs text-green-500">Support 1</span>
+                      <p className="font-medium">${searchAnalysis.supportResistance.support1}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-green-500">Support 2</span>
+                      <p className="font-medium">${searchAnalysis.supportResistance.support2}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-red-500">Resistance 1</span>
+                      <p className="font-medium">${searchAnalysis.supportResistance.resistance1}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-red-500">Resistance 2</span>
+                      <p className="font-medium">${searchAnalysis.supportResistance.resistance2}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Options Strategy */}
+              {searchAnalysis.optionsStrategy && (
+                <div className="bg-background/50 rounded-lg p-4">
+                  <h4 className="font-medium mb-3">Options Strategy</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-primary">{searchAnalysis.optionsStrategy.strategy}</span>
+                      <Badge variant="outline">{searchAnalysis.optionsStrategy.expiry}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{searchAnalysis.optionsStrategy.description}</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground">Strike Price</span>
+                        <p className="font-medium">${searchAnalysis.optionsStrategy.strikePrice}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Target Strike</span>
+                        <p className="font-medium">${searchAnalysis.optionsStrategy.targetStrike}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-green-500">Max Profit</span>
+                        <p className="font-medium text-green-500">{searchAnalysis.optionsStrategy.maxProfit}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-red-500">Max Risk</span>
+                        <p className="font-medium text-red-500">{searchAnalysis.optionsStrategy.maxRisk}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Scan Configuration */}
       <Card className="p-6">
