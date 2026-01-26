@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart, Pencil, Check, X, Star } from "lucide-react";
+import { Loader2, Plus, Upload, Trash2, TrendingUp, TrendingDown, RefreshCw, Target, ArrowUp, ArrowDown, Filter, ChevronUp, ChevronDown, LineChart, Pencil, Check, X, Star, Download, Database } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -309,6 +309,61 @@ export default function InvestorWatchlist() {
       setIsRefreshing(false);
     }
   };
+
+  const escapeCSV = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const exportToCSV = () => {
+    const listToExport = getItemsWithQuotes();
+    if (listToExport.length === 0) {
+      toast({ title: "No data to export", variant: "destructive" });
+      return;
+    }
+    
+    const headers = ["Symbol", "Price", "IV", "Disc%", "Moat", "S1", "S2", "S3", "S4", "Favorite"];
+    const rows = listToExport.map(item => [
+      escapeCSV(item.symbol),
+      escapeCSV(item.currentPrice?.toFixed(2)),
+      escapeCSV(item.intrinsicValue),
+      escapeCSV(item.valuationPercent?.toFixed(1)),
+      escapeCSV(item.moat),
+      escapeCSV(item.supportLevel1),
+      escapeCSV(item.supportLevel2),
+      escapeCSV(item.supportLevel3),
+      escapeCSV(item.supportLevel4),
+      item.isFavorite ? "Yes" : "No"
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `growth-stocklist-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Growth Stocklist exported to CSV" });
+  };
+
+  const forceLoadDefaultsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/investor-target-list/force-seed-defaults", {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investor-target-list"] });
+      toast({ title: `Added ${data.count} default stocks to your list` });
+    },
+    onError: () => {
+      toast({ title: "Failed to load default stocks", variant: "destructive" });
+    },
+  });
 
   // Auto-fetch prices when target list loads (only once on initial load)
   useEffect(() => {
@@ -692,6 +747,25 @@ export default function InvestorWatchlist() {
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-upload-csv">
             <Upload className="h-4 w-4 mr-2" />
             Upload CSV
+          </Button>
+          
+          <Button variant="outline" onClick={exportToCSV} disabled={targetList.length === 0} data-testid="button-export-csv">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => forceLoadDefaultsMutation.mutate()} 
+            disabled={forceLoadDefaultsMutation.isPending}
+            data-testid="button-load-defaults"
+          >
+            {forceLoadDefaultsMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4 mr-2" />
+            )}
+            Load Defaults
           </Button>
           
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

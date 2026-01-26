@@ -14,7 +14,7 @@ import {
   Wallet, Plus, Upload, Clipboard, Trash2, Loader2, Eye, 
   DollarSign, TrendingUp, BarChart3, Activity, FileSpreadsheet,
   Image, X, Sparkles, Bell, BellRing, ChevronUp, ChevronDown, Brain, LineChart,
-  ShieldCheck, ExternalLink, Pencil
+  ShieldCheck, ExternalLink, Pencil, Download
 } from "lucide-react";
 import type { PortfolioHolding, WatchlistItem, PriceAlert, UserNotificationSettings } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +40,8 @@ export default function PortfolioPage() {
   const [watchPasteData, setWatchPasteData] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [extractedSymbols, setExtractedSymbols] = useState<string[]>([]);
+  const [brokerType, setBrokerType] = useState<"ibkr" | "moomoo">("ibkr");
+  const brokerFileInputRef = useRef<HTMLInputElement>(null);
   
   // Price Alert State
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
@@ -89,14 +91,14 @@ export default function PortfolioPage() {
     companyName?: string;
   }
 
-  const { data: portfolioPrices = {}, isLoading: pricesLoading } = useQuery<Record<string, MarketData>>({
-    queryKey: ["/api/portfolio/prices"],
-    enabled: holdings.length > 0,
-    refetchInterval: 60000, // Refresh every minute
-  });
-
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
+  });
+
+  const { data: portfolioPrices = {}, isLoading: pricesLoading } = useQuery<Record<string, MarketData>>({
+    queryKey: ["/api/portfolio/prices"],
+    enabled: holdings.length > 0 || watchlist.length > 0,
+    refetchInterval: 60000, // Refresh every minute
   });
 
   const { data: priceAlerts = [] } = useQuery<PriceAlert[]>({
@@ -495,6 +497,173 @@ export default function PortfolioPage() {
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
+  const handleBrokerImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const holdings: Array<{ symbol: string; shares: string; avgCost: string }> = [];
+      
+      // Parse CSV with header detection
+      const parseCSVWithHeaders = (headerLine: string, dataLines: string[]) => {
+        const headers = headerLine.split(',').map(h => h.trim().replace(/"/g, '').toLowerCase());
+        
+        // Find column indices
+        const symbolIdx = headers.findIndex(h => h.includes('symbol') || h.includes('ticker') || h.includes('stock'));
+        const sharesIdx = headers.findIndex(h => h.includes('quantity') || h.includes('shares') || h.includes('qty') || h.includes('position'));
+        const costIdx = headers.findIndex(h => h.includes('avg') || h.includes('cost') || h.includes('price'));
+        
+        if (symbolIdx === -1) return [];
+        
+        const result: Array<{ symbol: string; shares: string; avgCost: string }> = [];
+        for (const line of dataLines) {
+          const parts = line.split(',').map(p => p.trim().replace(/"/g, ''));
+          if (parts.length > symbolIdx) {
+            const symbol = parts[symbolIdx]?.replace(/[^A-Z]/gi, '').toUpperCase();
+            const shares = sharesIdx >= 0 ? parts[sharesIdx]?.replace(/[^0-9.-]/g, '') : "0";
+            const avgCost = costIdx >= 0 ? parts[costIdx]?.replace(/[^0-9.-]/g, '') : "0";
+            
+            if (symbol && symbol.length >= 1 && symbol.length <= 6) {
+              result.push({ symbol, shares: shares || "0", avgCost: avgCost || "0" });
+            }
+          }
+        }
+        return result;
+      };
+      
+      if (brokerType === "ibkr") {
+        // IBKR Flex Query format: Look for Stocks section or try generic CSV
+        let inStocksSection = false;
+        let headerLine = "";
+        const dataLines: string[] = [];
+        
+        for (const line of lines) {
+          // IBKR Activity Statement format
+          if (line.includes('Stocks') && line.includes('Header')) {
+            inStocksSection = true;
+            headerLine = line;
+            continue;
+          }
+          if (inStocksSection && line.startsWith('Stocks,Data,')) {
+            dataLines.push(line.replace('Stocks,Data,', ''));
+          }
+        }
+        
+        if (dataLines.length > 0 && headerLine) {
+          // Parse IBKR specific format
+          const cleanHeader = headerLine.replace('Stocks,Header,', '');
+          holdings.push(...parseCSVWithHeaders(cleanHeader, dataLines));
+        }
+        
+        // Fallback: Generic CSV format
+        if (holdings.length === 0 && lines.length >= 2) {
+          holdings.push(...parseCSVWithHeaders(lines[0], lines.slice(1)));
+        }
+      } else if (brokerType === "moomoo") {
+        // Moomoo format: Try to parse with header detection
+        if (lines.length >= 2) {
+          holdings.push(...parseCSVWithHeaders(lines[0], lines.slice(1)));
+        }
+      }
+      
+      if (holdings.length === 0) {
+        toast({ 
+          title: "No valid holdings found", 
+          description: "Check that your CSV has columns for Symbol, Quantity, and Avg Cost.", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      bulkCreateHoldingsMutation.mutate(holdings);
+      if (brokerFileInputRef.current) brokerFileInputRef.current.value = "";
+    } catch (error) {
+      toast({ title: "Failed to parse broker file", variant: "destructive" });
+    }
+  };
+
+  const escapeCSV = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const exportPortfolioToCSV = () => {
+    if (holdings.length === 0) {
+      toast({ title: "No holdings to export", variant: "destructive" });
+      return;
+    }
+    
+    const headers = ["Symbol", "Shares", "Avg Cost", "Current Price", "Market Value", "P&L", "P&L %"];
+    const rows = holdings.map(holding => {
+      const priceData = portfolioPrices[holding.symbol.toUpperCase()];
+      const shares = parseFloat(holding.shares);
+      const avgCost = parseFloat(holding.avgCost);
+      const costBasis = shares * avgCost;
+      const currentPrice = priceData?.price || 0;
+      const marketValue = shares * currentPrice;
+      const pnl = marketValue - costBasis;
+      const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+      
+      return [
+        escapeCSV(holding.symbol),
+        escapeCSV(shares.toString()),
+        escapeCSV(avgCost.toFixed(2)),
+        escapeCSV(currentPrice.toFixed(2)),
+        escapeCSV(marketValue.toFixed(2)),
+        escapeCSV(pnl.toFixed(2)),
+        escapeCSV(pnlPercent.toFixed(2) + "%")
+      ];
+    });
+    
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `portfolio-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Portfolio exported to CSV" });
+  };
+
+  const exportWatchlistToCSV = () => {
+    if (watchlist.length === 0) {
+      toast({ title: "No watchlist items to export", variant: "destructive" });
+      return;
+    }
+    
+    const headers = ["Symbol", "Current Price", "Notes", "Added Date"];
+    const rows = watchlist.map(item => {
+      const priceData = portfolioPrices[item.symbol.toUpperCase()];
+      const currentPrice = priceData?.price || 0;
+      
+      return [
+        escapeCSV(item.symbol),
+        escapeCSV(currentPrice.toFixed(2)),
+        escapeCSV(item.notes),
+        escapeCSV(item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "")
+      ];
+    });
+    
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `watchlist-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Watchlist exported to CSV" });
+  };
+
   const totalValue = holdings.reduce((acc, h) => acc + (parseFloat(h.shares) * parseFloat(h.avgCost)), 0);
   const totalShares = holdings.reduce((acc, h) => acc + parseFloat(h.shares), 0);
 
@@ -821,9 +990,58 @@ export default function PortfolioPage() {
                   >
                     {bulkCreateHoldingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Import from Paste"}
                   </Button>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <ExternalLink className="w-4 h-4 text-primary" />
+                      Import from Broker (IBKR / Moomoo)
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Upload a CSV export from your brokerage account
+                    </p>
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        variant={brokerType === "ibkr" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setBrokerType("ibkr")}
+                        data-testid="button-broker-ibkr"
+                      >
+                        IBKR
+                      </Button>
+                      <Button
+                        variant={brokerType === "moomoo" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setBrokerType("moomoo")}
+                        data-testid="button-broker-moomoo"
+                      >
+                        Moomoo
+                      </Button>
+                    </div>
+                    <Input
+                      ref={brokerFileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleBrokerImport}
+                      data-testid="input-broker-import"
+                    />
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
+            
+            <Button variant="outline" onClick={exportPortfolioToCSV} disabled={holdings.length === 0} data-testid="button-export-portfolio">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
 
           {holdings.length === 0 ? (
@@ -1058,6 +1276,11 @@ export default function PortfolioPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            
+            <Button variant="outline" onClick={exportWatchlistToCSV} disabled={watchlist.length === 0} data-testid="button-export-watchlist">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
 
           {watchlist.length === 0 ? (
@@ -1072,18 +1295,38 @@ export default function PortfolioPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {watchlist.map((item) => {
                 const symbolAlerts = getAlertsForSymbol(item.symbol);
+                const priceData = portfolioPrices[item.symbol.toUpperCase()];
+                const currentPrice = priceData?.price || 0;
+                const changePercent = priceData?.changePercent || 0;
+                const isPriceLoaded = !!priceData;
                 return (
                   <Card key={item.id} className="p-4" data-testid={`watchlist-${item.symbol}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <button 
-                          onClick={() => openChart(item.symbol)}
-                          className="font-semibold text-lg text-primary hover:underline cursor-pointer text-left flex items-center gap-1 group"
-                          data-testid={`button-chart-watch-${item.symbol}`}
-                        >
-                          {item.symbol}
-                          <LineChart className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </button>
+                        <div className="flex items-center justify-between">
+                          <button 
+                            onClick={() => openChart(item.symbol)}
+                            className="font-semibold text-lg text-primary hover:underline cursor-pointer text-left flex items-center gap-1 group"
+                            data-testid={`button-chart-watch-${item.symbol}`}
+                          >
+                            {item.symbol}
+                            <LineChart className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                          <div className="text-right">
+                            {isPriceLoaded ? (
+                              <div>
+                                <span className="font-mono font-semibold">${currentPrice.toFixed(2)}</span>
+                                <span className={`ml-2 text-xs ${changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                  {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
+                                </span>
+                              </div>
+                            ) : pricesLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </div>
+                        </div>
                         {item.notes && (
                           <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
                         )}

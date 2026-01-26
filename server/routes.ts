@@ -762,14 +762,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // @ts-ignore
       const userId = req.user.claims.sub;
       const holdings = await storage.getPortfolioHoldings(userId);
+      const watchlist = await storage.getWatchlist(userId);
       
-      if (holdings.length === 0) {
+      // Combine portfolio and watchlist symbols (deduplicate)
+      const holdingSymbols = holdings.map(h => h.symbol.toUpperCase());
+      const watchlistSymbols = watchlist.map(w => w.symbol.toUpperCase());
+      const allSymbols = [...new Set([...holdingSymbols, ...watchlistSymbols])];
+      
+      if (allSymbols.length === 0) {
         return res.json({});
       }
       
-      const symbols = holdings.map(h => h.symbol);
       const { getBatchQuotes } = await import('./lib/marketData');
-      const prices = await getBatchQuotes(symbols);
+      const prices = await getBatchQuotes(allSymbols);
       
       res.json(prices);
     } catch (error) {
@@ -1937,6 +1942,37 @@ Respond professionally. If asked about specific stocks, provide actionable insig
     } catch (error) {
       console.error('Error seeding default stocks:', error);
       res.status(500).json({ error: 'Failed to seed default stocks' });
+    }
+  });
+
+  // Force add default stocks (for users who want to load defaults even if they have stocks)
+  app.post('/api/investor-target-list/force-seed-defaults', isAuthenticated, async (req, res) => {
+    if (!req.user) return res.status(401).send();
+    try {
+      // @ts-ignore
+      const userId = req.user.claims.sub;
+      
+      // Get existing symbols to avoid duplicates
+      const existingItems = await storage.getInvestorTargetList(userId);
+      const existingSymbols = new Set(existingItems.map(item => item.symbol.toUpperCase()));
+      
+      // Only add stocks that don't already exist
+      const itemsToAdd = defaultStocks
+        .filter(stock => !existingSymbols.has(stock.symbol.toUpperCase()))
+        .map(stock => ({
+          ...stock,
+          source: 'DEFAULT_SEED' as const,
+        }));
+      
+      if (itemsToAdd.length === 0) {
+        return res.json({ count: 0, message: 'All default stocks already exist in your list' });
+      }
+      
+      const results = await storage.bulkAddInvestorTargetItems(userId, itemsToAdd);
+      res.json({ count: results.length });
+    } catch (error) {
+      console.error('Error force seeding default stocks:', error);
+      res.status(500).json({ error: 'Failed to add default stocks' });
     }
   });
 
