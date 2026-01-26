@@ -720,7 +720,7 @@ export default function TradingPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="text-center mb-4">
-              <h2 className="text-xl font-bold text-primary">Welcome to TK Stock Whisperer.AI platform</h2>
+              <h2 className="text-xl font-bold text-primary">Welcome to Stock Whisperer.AI platform</h2>
             </div>
             <DialogTitle className="flex items-center gap-2">
               <LogIn className="w-5 h-5 text-primary" />

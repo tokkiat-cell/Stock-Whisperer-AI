@@ -22,7 +22,7 @@ export default function UserManualPage() {
           User Manual
         </h2>
         <p className="text-muted-foreground mt-1">
-          Learn how to use all the features of TK Stock Whisperer.AI platform
+          Learn how to use all the features of Stock Whisperer.AI platform
         </p>
       </div>
 
@@ -39,12 +39,12 @@ export default function UserManualPage() {
         <TabsContent value="getting-started" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Welcome to TK Stock Whisperer.AI</CardTitle>
+              <CardTitle>Welcome to Stock Whisperer.AI</CardTitle>
               <CardDescription>Your AI-powered stock trading assistant</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                TK Stock Whisperer.AI is a comprehensive stock trading platform that combines artificial intelligence 
+                Stock Whisperer.AI is a comprehensive stock trading platform that combines artificial intelligence 
                 with real-time market data to help you make smarter trading decisions.
               </p>
               
