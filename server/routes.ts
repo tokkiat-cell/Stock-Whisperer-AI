@@ -84,14 +84,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
 
-      const { symbol } = req.body;
+      const { symbol, timeframe } = req.body;
       const quote = await getStockQuote(symbol);
       
       if (!quote) {
         return res.status(404).json({ message: "Stock not found for analysis" });
       }
 
-      const analysis = await analyzeStockWithAI(symbol, quote.price);
+      const analysis = await analyzeStockWithAI(symbol, quote.price, timeframe);
       
       // Only increment usage for authenticated users
       if (!isGuest && userId) {

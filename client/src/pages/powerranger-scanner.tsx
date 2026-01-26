@@ -291,7 +291,7 @@ export default function PowerRangerScanner() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setLocation(`/analysis?symbol=${result.symbol}`);
+                          setLocation(`/scan?symbol=${result.symbol}`);
                         }}
                         data-testid={`button-analyze-${result.symbol}`}
                       >

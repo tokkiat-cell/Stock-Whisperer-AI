@@ -327,7 +327,7 @@ export default function DayTradingScanner() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setLocation(`/analysis?symbol=${setup.symbol}`);
+                            setLocation(`/scan?symbol=${setup.symbol}`);
                           }}
                           data-testid={`button-analyze-${setup.symbol}`}
                         >

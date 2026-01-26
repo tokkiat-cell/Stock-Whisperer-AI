@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import AnalysisPage from "@/pages/analysis";
 import MarketScan from "@/pages/scan";
 import ChatPage from "@/pages/chat";
 import PortfolioPage from "@/pages/portfolio";
@@ -82,10 +81,6 @@ function Router() {
       
       <Route path="/">
         <GuestAllowedRoute component={Dashboard} />
-      </Route>
-      
-      <Route path="/analysis">
-        <GuestAllowedRoute component={AnalysisPage} />
       </Route>
       
       <Route path="/scan">

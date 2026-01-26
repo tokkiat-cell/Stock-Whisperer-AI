@@ -6,11 +6,25 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-export async function analyzeStockWithAI(symbol: string, price: number) {
+type Timeframe = "day" | "month" | "swing" | "longterm";
+
+const timeframeContext: Record<Timeframe, string> = {
+  day: "Day Trading (Intraday) - Focus on short-term momentum, price action, and quick entry/exit points within the trading day",
+  month: "Monthly Trade (1-4 weeks) - Focus on swing setups, weekly patterns, and medium-term trends",
+  swing: "Swing Trade (3-9 months) - Focus on intermediate trends, sector rotation, and multi-month price targets",
+  longterm: "Long-term Investment (1+ year) - Focus on fundamental value, long-term growth potential, and major support/resistance levels"
+};
+
+export async function analyzeStockWithAI(symbol: string, price: number, timeframe?: Timeframe) {
   try {
+    const tf = timeframe || "day";
+    const timeframeInfo = timeframeContext[tf];
+    
     const prompt = `
 Analyze the stock ${symbol} which is currently trading at $${price}.
-Provide a comprehensive trading recommendation with detailed technical analysis and options trading setup.
+TRADING TIMEFRAME: ${timeframeInfo}
+
+Provide a comprehensive trading recommendation with detailed technical analysis and options trading setup tailored for this timeframe.
 
 Return a valid JSON object with the following structure:
 {

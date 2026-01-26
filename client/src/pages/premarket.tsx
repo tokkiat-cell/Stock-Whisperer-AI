@@ -44,7 +44,7 @@ export default function Premarket() {
   const [stockCount, setStockCount] = useState(20);
 
   const handleAnalyzeSymbol = (symbol: string) => {
-    setLocation(`/analysis?symbol=${symbol}`);
+    setLocation(`/scan?symbol=${symbol}`);
   };
 
   const { data: premarketData, isLoading } = useQuery<PremarketData>({

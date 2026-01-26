@@ -29,7 +29,7 @@ export default function Dashboard() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (search.trim()) {
-      setLocation(`/analysis?symbol=${search.trim().toUpperCase()}`);
+      setLocation(`/scan?symbol=${search.trim().toUpperCase()}`);
     }
   };
 

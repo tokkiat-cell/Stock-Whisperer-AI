@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -171,6 +171,7 @@ const marketCurrency: Record<MarketType, { symbol: string; code: string; toUSD: 
 export default function MarketScan() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [isScanning, setIsScanning] = useState(false);
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("day");
@@ -214,7 +215,7 @@ export default function MarketScan() {
   // Analyze a specific stock
   const analyzeStockMutation = useMutation({
     mutationFn: async (symbol: string) => {
-      const response = await apiRequest("POST", "/api/analysis/analyze", { symbol });
+      const response = await apiRequest("POST", "/api/analysis/analyze", { symbol, timeframe });
       return response.json();
     },
     onSuccess: (data) => {
@@ -250,7 +251,25 @@ export default function MarketScan() {
   const clearSearchAnalysis = () => {
     setSearchAnalysis(null);
     setSearchQuery("");
+    // Clear the URL parameter when clearing the analysis
+    setLocation("/scan", { replace: true });
   };
+
+  // Handle URL parameter for symbol (e.g., /scan?symbol=AAPL)
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const urlSymbol = params.get("symbol");
+    
+    // Only trigger if we have a symbol in URL and it's different from what we already analyzed
+    if (urlSymbol && !analyzeStockMutation.isPending) {
+      const upperSymbol = urlSymbol.toUpperCase();
+      // If we already have an analysis for this exact symbol, don't re-trigger
+      if (searchAnalysis?.symbol === upperSymbol) return;
+      
+      setSearchQuery(upperSymbol);
+      analyzeStockMutation.mutate(upperSymbol);
+    }
+  }, [searchString]);
 
   const formatRecommendationForShare = (rec: Recommendation) => {
     const currency = marketCurrency[selectedMarket];
@@ -443,50 +462,85 @@ export default function MarketScan() {
           Search for any stock symbol to get a detailed AI analysis report
         </p>
         
-        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Enter stock symbol (e.g., AAPL, MSFT, TSLA)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-20"
-              data-testid="input-stock-search"
-            />
-            <Button
-              type="submit"
-              size="sm"
-              className="absolute right-1 top-1/2 -translate-y-1/2"
-              disabled={analyzeStockMutation.isPending || !searchQuery.trim()}
-              data-testid="button-search-stock"
-            >
-              {analyzeStockMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Analyze"
-              )}
-            </Button>
-          </div>
-          
-          {/* Search Autocomplete Dropdown */}
-          {showSearchDropdown && searchResults.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-64 overflow-y-auto">
-              {searchResults.map((result) => (
-                <button
-                  key={result.symbol}
-                  type="button"
-                  onClick={() => handleSearchSelect(result.symbol)}
-                  className="w-full px-4 py-2 text-left hover-elevate flex items-center justify-between gap-2"
-                  data-testid={`search-result-${result.symbol}`}
-                >
-                  <span className="font-medium">{result.symbol}</span>
-                  <span className="text-sm text-muted-foreground truncate">{result.name}</span>
-                </button>
-              ))}
+        <form onSubmit={handleSearchSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Stock Symbol Input */}
+            <div className="relative md:col-span-1">
+              <Label className="flex items-center gap-2 mb-2">
+                <Search className="w-4 h-4 text-muted-foreground" />
+                Stock Symbol
+              </Label>
+              <div className="relative">
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="e.g., AAPL, MSFT"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  data-testid="input-stock-search"
+                />
+                {/* Search Autocomplete Dropdown */}
+                {showSearchDropdown && searchResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-64 overflow-y-auto">
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.symbol}
+                        type="button"
+                        onClick={() => handleSearchSelect(result.symbol)}
+                        className="w-full px-4 py-2 text-left hover-elevate flex items-center justify-between gap-2"
+                        data-testid={`search-result-${result.symbol}`}
+                      >
+                        <span className="font-medium">{result.symbol}</span>
+                        <span className="text-sm text-muted-foreground truncate">{result.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Timeframe Selection */}
+            <div className="md:col-span-1">
+              <Label className="flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                Trading Timeframe
+              </Label>
+              <Select value={timeframe} onValueChange={(v) => setTimeframe(v as Timeframe)}>
+                <SelectTrigger data-testid="select-search-timeframe">
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Day Trading (Intraday)</SelectItem>
+                  <SelectItem value="month">Monthly Trade (1-4 weeks)</SelectItem>
+                  <SelectItem value="swing">Swing Trade (3-9 months)</SelectItem>
+                  <SelectItem value="longterm">Long-term Investment (1+ year)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Analyze Button */}
+            <div className="flex items-end">
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={analyzeStockMutation.isPending || !searchQuery.trim()}
+                data-testid="button-search-stock"
+              >
+                {analyzeStockMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Scan className="w-4 h-4 mr-2" />
+                    Analyze Stock
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </form>
       </Card>
 

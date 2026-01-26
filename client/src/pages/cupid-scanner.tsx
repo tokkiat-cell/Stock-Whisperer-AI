@@ -158,7 +158,7 @@ export default function CupidScanner() {
                           className="font-mono font-bold text-lg cursor-pointer hover:text-primary"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setLocation(`/analysis?symbol=${result.symbol}`);
+                            setLocation(`/scan?symbol=${result.symbol}`);
                           }}
                           data-testid={`link-symbol-${result.symbol}`}
                         >
@@ -254,7 +254,7 @@ export default function CupidScanner() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setLocation(`/analysis?symbol=${result.symbol}`);
+                          setLocation(`/scan?symbol=${result.symbol}`);
                         }}
                         data-testid={`button-analyze-${result.symbol}`}
                       >
