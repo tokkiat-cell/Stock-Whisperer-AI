@@ -241,14 +241,15 @@ export default function MarketScan() {
   });
 
   const handleSearchSelect = (symbol: string) => {
+    // Only populate the search field - user must select timeframe and click Analyze
+    setSearchQuery(symbol);
     setShowSearchDropdown(false);
-    analyzeStockMutation.mutate(symbol);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      handleSearchSelect(searchQuery.trim().toUpperCase());
+    if (searchQuery.trim() && searchTimeframe) {
+      analyzeStockMutation.mutate(searchQuery.trim().toUpperCase());
     }
   };
 
