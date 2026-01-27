@@ -261,6 +261,27 @@ export default function MarketScan() {
     setLocation("/scan", { replace: true });
   };
 
+  // Clear stale analysis when timeframe changes (user must click Analyze again)
+  const previousTimeframeRef = useRef<Timeframe | "">(searchTimeframe);
+  useEffect(() => {
+    // If timeframe changed and there's an existing analysis, clear it
+    // This prevents showing stale recommendations based on wrong timeframe
+    if (
+      previousTimeframeRef.current !== searchTimeframe &&
+      previousTimeframeRef.current !== "" &&
+      searchAnalysis
+    ) {
+      // Keep the symbol in searchQuery so user just needs to click Analyze
+      setSearchQuery(searchAnalysis.symbol);
+      setSearchAnalysis(null);
+      toast({
+        title: "Timeframe Changed",
+        description: `Click Analyze to see ${searchAnalysis.symbol} recommendations for ${timeframeLabels[searchTimeframe as Timeframe] || searchTimeframe}.`,
+      });
+    }
+    previousTimeframeRef.current = searchTimeframe;
+  }, [searchTimeframe, searchAnalysis, toast]);
+
   // Handle URL parameter for symbol (e.g., /scan?symbol=AAPL)
   useEffect(() => {
     const params = new URLSearchParams(searchString);
