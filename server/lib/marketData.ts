@@ -270,92 +270,171 @@ const POPULAR_STOCKS = [
   'CRWD', 'PANW', 'ZS', 'OKTA', 'NET', 'DDOG', 'SNOW', 'MDB', 'ESTC', 'PATH'
 ];
 
+// Get date components in Eastern Time
+function getETComponents(date: Date): { hours: number; minutes: number; day: number; month: number; year: number; totalMinutes: number } {
+  const etTime = new Date(date.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const hours = etTime.getHours();
+  const minutes = etTime.getMinutes();
+  return {
+    hours,
+    minutes,
+    day: etTime.getDate(),
+    month: etTime.getMonth(),
+    year: etTime.getFullYear(),
+    totalMinutes: hours * 60 + minutes
+  };
+}
+
+// Check if given time (in ET total minutes) is within premarket (4:00-9:30 AM ET)
+function isPremarketMinutes(totalMinutes: number): boolean {
+  return totalMinutes >= 240 && totalMinutes < 570; // 4:00 AM to 9:30 AM ET
+}
+
+// Check if we're currently in premarket hours
+function isCurrentlyPremarket(): boolean {
+  const now = getETComponents(new Date());
+  return isPremarketMinutes(now.totalMinutes);
+}
+
+// Check if we're currently in regular market hours (9:30 AM - 4:00 PM ET, weekdays)
+function isCurrentlyMarketHours(): boolean {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const hours = etTime.getHours();
+  const minutes = etTime.getMinutes();
+  const totalMinutes = hours * 60 + minutes;
+  const day = etTime.getDay();
+  
+  if (day === 0 || day === 6) return false; // Weekend
+  return totalMinutes >= 570 && totalMinutes < 960; // 9:30 AM to 4:00 PM ET
+}
+
+// Get premarket/market movers using 5-minute intraday chart data
+// During premarket: shows premarket movers from premarket candles
+// During market hours: shows current movers from latest candles
+// After hours: shows after-hours movers
 export async function getPremarketGainersAndLosers(): Promise<{
   gainers: PremarketMover[];
   losers: PremarketMover[];
 }> {
   try {
-    // Try screener first
-    try {
-      const [gainersResult, losersResult] = await Promise.all([
-        yahooFinance.screener({
-          scrIds: 'day_gainers',
-          count: 25,
-        }),
-        yahooFinance.screener({
-          scrIds: 'day_losers',
-          count: 25,
-        }),
-      ]);
-
-      const mapQuoteToMover = (quote: any): PremarketMover | null => {
-        if (!quote || !quote.symbol || quote.regularMarketPrice === undefined) {
-          return null;
-        }
-        return {
-          symbol: quote.symbol,
-          name: quote.shortName || quote.longName || quote.symbol,
-          price: quote.regularMarketPrice || 0,
-          change: quote.regularMarketChange || 0,
-          changePercent: quote.regularMarketChangePercent || 0,
-          volume: quote.regularMarketVolume,
-        };
-      };
-
-      const gainers = (gainersResult?.quotes || [])
-        .map(mapQuoteToMover)
-        .filter((m): m is PremarketMover => m !== null)
-        .slice(0, 20);
-
-      const losers = (losersResult?.quotes || [])
-        .map(mapQuoteToMover)
-        .filter((m): m is PremarketMover => m !== null)
-        .slice(0, 20);
-
-      if (gainers.length > 0 || losers.length > 0) {
-        return { gainers, losers };
-      }
-    } catch (screenerError) {
-      console.log('Yahoo screener failed, falling back to batch quotes:', screenerError);
-    }
-
-    // Fallback: fetch quotes for popular stocks and sort by % change
     const allMovers: PremarketMover[] = [];
     const batchSize = 10;
     
+    // Calculate time range for today's data (get last 2 days to ensure we have previous close)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 2);
+    
+    const inPremarket = isCurrentlyPremarket();
+    const inMarketHours = isCurrentlyMarketHours();
+    const sessionType = inPremarket ? "premarket" : (inMarketHours ? "market" : "after-hours");
+    
+    console.log(`Market scan [${sessionType}]: Fetching 5-minute chart data for ${POPULAR_STOCKS.length} stocks...`);
+    
+    // Fetch 5-minute chart data for each popular stock
     for (let i = 0; i < POPULAR_STOCKS.length; i += batchSize) {
       const batch = POPULAR_STOCKS.slice(i, i + batchSize);
       const promises = batch.map(async (symbol) => {
         try {
-          const quote = await yahooFinance.quote(symbol);
-          if (quote && quote.regularMarketPrice !== undefined) {
-            return {
-              symbol: quote.symbol || symbol,
-              name: quote.shortName || quote.longName || symbol,
-              price: quote.regularMarketPrice || 0,
-              change: quote.regularMarketChange || 0,
-              changePercent: quote.regularMarketChangePercent || 0,
-              volume: quote.regularMarketVolume,
-            };
+          // Fetch 5-minute intraday chart
+          const chart = await yahooFinance.chart(symbol, {
+            period1: startDate,
+            period2: endDate,
+            interval: '5m',
+            includePrePost: true, // Include premarket and afterhours data
+          });
+          
+          if (!chart || !chart.quotes || chart.quotes.length === 0) {
+            return null;
           }
+          
+          // Filter valid candles with close prices
+          const allCandles = chart.quotes.filter((q: any) => 
+            q.close !== null && q.close !== undefined && q.close > 0 && q.date
+          );
+          
+          if (allCandles.length === 0) return null;
+          
+          // Get current date in ET for proper day comparison
+          const todayET = getETComponents(new Date());
+          const todayETDate = todayET.day;
+          const todayETMonth = todayET.month;
+          const todayETYear = todayET.year;
+          
+          // Filter for today's premarket candles using ET timezone (single conversion per candle)
+          const todaysPremarketCandles = allCandles.filter((q: any) => {
+            const candleET = getETComponents(new Date(q.date));
+            const isSameDay = candleET.day === todayETDate && 
+                              candleET.month === todayETMonth &&
+                              candleET.year === todayETYear;
+            const isPremarket = isPremarketMinutes(candleET.totalMinutes);
+            return isSameDay && isPremarket;
+          });
+          
+          // For premarket scan: only use premarket candles
+          // Skip stocks that don't have premarket trading activity
+          if (todaysPremarketCandles.length === 0) {
+            return null;
+          }
+          
+          // Get the most recent premarket candle
+          const latestCandle = todaysPremarketCandles[todaysPremarketCandles.length - 1];
+          const currentPrice = latestCandle.close;
+          
+          // Get previous close ONLY from chart metadata (most reliable)
+          // Do not use fallback calculations to ensure accuracy
+          const previousClose = chart.meta?.previousClose || chart.meta?.chartPreviousClose;
+          
+          if (!previousClose || previousClose === 0 || !currentPrice) return null;
+          
+          // Calculate change from previous close to current 5-minute candle
+          const change = currentPrice - previousClose;
+          const changePercent = (change / previousClose) * 100;
+          
+          // Get volume from latest candle
+          const volume = latestCandle.volume;
+          
+          // Get company name from chart meta
+          const name = chart.meta?.shortName || chart.meta?.longName || symbol;
+          
+          return {
+            symbol: symbol,
+            name: name,
+            price: currentPrice,
+            change: change,
+            changePercent: changePercent,
+            volume: volume,
+          } as PremarketMover;
         } catch (err) {
           // Ignore individual stock errors
+          return null;
         }
-        return null;
       });
       
       const results = await Promise.all(promises);
       results.forEach(r => { if (r) allMovers.push(r); });
     }
 
-    // Sort by % change to find gainers and losers
+    // Sort by % change to find biggest movers
     const sorted = [...allMovers].sort((a, b) => b.changePercent - a.changePercent);
-    const gainers = sorted.slice(0, 20);
-    const losers = sorted.slice(-20).reverse();
+    
+    // Gainers are those with positive change, sorted by highest % gain
+    const gainers = sorted
+      .filter(m => m.changePercent > 0)
+      .slice(0, 20);
+    
+    // Losers are those with negative change, sorted by most negative
+    const losers = sorted
+      .filter(m => m.changePercent < 0)
+      .sort((a, b) => a.changePercent - b.changePercent)
+      .slice(0, 20);
 
+    console.log(`Market scan complete (5m charts): ${gainers.length} gainers, ${losers.length} losers from ${allMovers.length} stocks`);
+    
     return { gainers, losers };
   } catch (error) {
-    console.error('Yahoo Finance Screener Error:', error);
+    console.error('Market Scan Error:', error);
     return { gainers: [], losers: [] };
   }
 }
