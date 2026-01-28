@@ -477,6 +477,37 @@ export default function MarketScan() {
     staleTime: 0,
   });
 
+  // Clear stale market scan results when timeframe or market changes
+  const prevMarketScanTimeframeRef = useRef<Timeframe>(timeframe);
+  const prevMarketRef = useRef<MarketType>(selectedMarket);
+  useEffect(() => {
+    const timeframeChanged = prevMarketScanTimeframeRef.current !== timeframe;
+    const marketChanged = prevMarketRef.current !== selectedMarket;
+    
+    // If settings changed and there are existing recommendations (or cached data), clear them
+    if (timeframeChanged || marketChanged) {
+      const currentRecs = queryClient.getQueryData<Recommendation[]>(["/api/sp500/recommendations"]);
+      if (currentRecs && currentRecs.length > 0) {
+        // Clear the cached recommendations and reset UI state
+        queryClient.setQueryData(["/api/sp500/recommendations"], []);
+        setExpandedSymbol(null); // Reset any expanded card
+        
+        // Build descriptive message
+        const changes: string[] = [];
+        if (timeframeChanged) changes.push(timeframeLabels[timeframe]);
+        if (marketChanged) changes.push(marketLabels[selectedMarket]);
+        
+        toast({
+          title: "Settings Changed",
+          description: `Click "Run Scan" to see ${changes.join(" / ")} recommendations.`,
+        });
+      }
+    }
+    
+    prevMarketScanTimeframeRef.current = timeframe;
+    prevMarketRef.current = selectedMarket;
+  }, [timeframe, selectedMarket, toast]);
+
   const handleScan = async () => {
     setIsScanning(true);
     try {
