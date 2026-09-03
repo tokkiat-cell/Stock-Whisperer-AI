@@ -173,15 +173,13 @@ function isInUptrend(candles: CandleData[]): boolean {
   return currentPrice > sma20 && sma20 > sma50 && pricesAboveSMA >= 15;
 }
 
-export async function analyzeTugOfWarSetup(symbol: string): Promise<TugOfWarSetup | null> {
+export function analyzeTugOfWarPattern(
+  candles: CandleData[],
+  symbol: string,
+  name: string,
+  currentPrice: number
+): TugOfWarSetup | null {
   try {
-    const candles = await getHistoricalData(symbol, 60);
-    if (candles.length < 30) return null;
-    
-    const quote: any = await yahooFinance.quote(symbol);
-    const currentPrice = quote.regularMarketPrice || candles[candles.length - 1].close;
-    const name = quote.shortName || quote.longName || symbol;
-    
     const consolidation = detectTightConsolidation(candles);
     const shakeout = detectShakeoutBar(candles, consolidation.consolidationLow);
     const maInfo = isNearMovingAverage(candles);
@@ -252,6 +250,22 @@ export async function analyzeTugOfWarSetup(symbol: string): Promise<TugOfWarSetu
       consolidationHigh: consolidation.consolidationHigh,
       consolidationLow: consolidation.consolidationLow
     };
+  } catch (error) {
+    console.error(`Error analyzing ${symbol}:`, error);
+    return null;
+  }
+}
+
+export async function analyzeTugOfWarSetup(symbol: string): Promise<TugOfWarSetup | null> {
+  try {
+    const candles = await getHistoricalData(symbol, 60);
+    if (candles.length < 30) return null;
+
+    const quote: any = await yahooFinance.quote(symbol);
+    const currentPrice = quote.regularMarketPrice || candles[candles.length - 1].close;
+    const name = quote.shortName || quote.longName || symbol;
+
+    return analyzeTugOfWarPattern(candles, symbol, name, currentPrice);
   } catch (error) {
     console.error(`Error analyzing ${symbol}:`, error);
     return null;

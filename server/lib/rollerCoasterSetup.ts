@@ -278,15 +278,13 @@ function getTrendDirection(candles: CandleData[]): 'up' | 'down' | 'sideways' {
   return 'sideways';
 }
 
-export async function analyzeRollerCoasterSetup(symbol: string): Promise<RollerCoasterSetup | null> {
+export function analyzeRollerCoasterPattern(
+  candles: CandleData[],
+  symbol: string,
+  name: string,
+  currentPrice: number
+): RollerCoasterSetup | null {
   try {
-    const candles = await getHistoricalData(symbol, 60);
-    if (candles.length < 30) return null;
-    
-    const quote: any = await yahooFinance.quote(symbol);
-    const currentPrice = quote.regularMarketPrice || candles[candles.length - 1].close;
-    const name = quote.shortName || quote.longName || symbol;
-    
     const waterfall = detectWaterfallPattern(candles);
     const entryBar = detectEntryBar(candles, waterfall.waterfallEndIndex);
     const target50 = calculate50Retracement(waterfall.waterfallHigh, waterfall.waterfallLow);
@@ -356,6 +354,22 @@ export async function analyzeRollerCoasterSetup(symbol: string): Promise<RollerC
       resistanceLevel: resistance,
       trendDirection
     };
+  } catch (error) {
+    console.error(`Error analyzing ${symbol}:`, error);
+    return null;
+  }
+}
+
+export async function analyzeRollerCoasterSetup(symbol: string): Promise<RollerCoasterSetup | null> {
+  try {
+    const candles = await getHistoricalData(symbol, 60);
+    if (candles.length < 30) return null;
+
+    const quote: any = await yahooFinance.quote(symbol);
+    const currentPrice = quote.regularMarketPrice || candles[candles.length - 1].close;
+    const name = quote.shortName || quote.longName || symbol;
+
+    return analyzeRollerCoasterPattern(candles, symbol, name, currentPrice);
   } catch (error) {
     console.error(`Error analyzing ${symbol}:`, error);
     return null;

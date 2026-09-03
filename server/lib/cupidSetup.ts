@@ -73,7 +73,7 @@ export async function detectCupidSetup(symbol: string): Promise<CupidSetupResult
   }
 }
 
-function analyzeCupidPattern(
+export function analyzeCupidPattern(
   candles: CandleData[],
   symbol: string,
   name: string,
