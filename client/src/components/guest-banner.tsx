@@ -27,9 +27,9 @@ export default function GuestBanner() {
           <span className="text-sm text-muted-foreground hidden sm:block">
             Sign in for full access
           </span>
-          <Button 
-            size="sm" 
-            onClick={() => window.location.href = "/api/login"}
+          <Button
+            size="sm"
+            onClick={() => window.location.href = "/api/auth/google"}
             data-testid="button-guest-signin"
           >
             <LogIn className="w-4 h-4 mr-1" />

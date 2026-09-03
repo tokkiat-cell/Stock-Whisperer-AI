@@ -137,9 +137,9 @@ export default function LayoutShell({ children, isGuest = false }: { children: R
                 <p className="text-xs text-muted-foreground">Limited access</p>
               </div>
             </div>
-            <Button 
+            <Button
               className="w-full justify-start gap-2"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/api/auth/google"}
               data-testid="button-guest-login"
             >
               <UserCog className="w-4 h-4" />
