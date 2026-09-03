@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, TrendingUp, TrendingDown, Activity, Loader2, Sparkles, Scan, LineChart, Crown, Zap, ArrowRight, PieChart, DollarSign } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Activity, Loader2, Sparkles, LineChart, Crown, Zap, ArrowRight, PieChart, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -32,10 +32,6 @@ export default function Dashboard() {
       setLocation(`/scan?symbol=${search.trim().toUpperCase()}`);
     }
   };
-
-  const { data: recommendations } = useQuery<any[]>({
-    queryKey: ["/api/sp500/recommendations"],
-  });
 
   const { data: usageData } = useQuery<{ planTier: string }>({
     queryKey: ['/api/usage'],
@@ -128,38 +124,6 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* AI Scanner CTA */}
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Scan className="w-7 h-7 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">AI Market Scanner</h3>
-              <p className="text-sm text-muted-foreground">Get personalized trade recommendations</p>
-            </div>
-            <Button onClick={() => setLocation("/scan")} data-testid="button-go-scanner">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Scan Now
-            </Button>
-          </div>
-          {recommendations && recommendations.length > 0 && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground mb-2">Latest recommendations:</p>
-              <div className="flex flex-wrap gap-2">
-                {recommendations.slice(0, 5).map((rec, idx) => (
-                  <span 
-                    key={idx} 
-                    className={`text-xs font-mono font-bold px-2 py-1 rounded ${rec.recommendation === 'BUY' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}
-                  >
-                    {rec.symbol}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
-
         {/* Portfolio Summary */}
         <Card className="p-6">
           <div className="flex items-center gap-4">
@@ -193,25 +157,25 @@ export default function Dashboard() {
             </Button>
           </div>
         </Card>
-      </div>
 
-      {/* Premarket Changes CTA */}
-      <Card className="p-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl bg-green-500/10 flex items-center justify-center">
-            <Activity className="w-7 h-7 text-green-500" />
+        {/* Premarket Changes CTA */}
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <Activity className="w-7 h-7 text-green-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Premarket Changes</h3>
+              <p className="text-sm text-muted-foreground">Top 20 daily gainers and losers</p>
+            </div>
+            <Button onClick={() => setLocation("/premarket")} variant="outline" data-testid="button-go-premarket">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              View
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg">Premarket Changes</h3>
-            <p className="text-sm text-muted-foreground">View top 20 daily gainers and losers by % change</p>
-          </div>
-          <Button onClick={() => setLocation("/premarket")} variant="outline" data-testid="button-go-premarket">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            View Changes
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       <StockChart
         symbol={chartSymbol}

@@ -478,7 +478,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const prefs = (!isGuest && userId) ? await storage.getMarketPreferences(userId) : null;
       
       const showUS = prefs?.showUSMarket ?? true;
-      const showSG = prefs?.showSGMarket ?? false;
+      const showSG = prefs?.showSGMarket ?? true;
       const showHK = prefs?.showHKMarket ?? false;
       const showCN = prefs?.showCNMarket ?? false;
       const showEU = prefs?.showEUMarket ?? false;
@@ -551,7 +551,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         selectedIndices: prefs?.selectedIndices ?? [],
         selectedStocks: prefs?.selectedStocks ?? [],
         showUSMarket: prefs?.showUSMarket ?? true,
-        showSGMarket: prefs?.showSGMarket ?? false,
+        showSGMarket: prefs?.showSGMarket ?? true,
         showHKMarket: prefs?.showHKMarket ?? false,
         showCNMarket: prefs?.showCNMarket ?? false,
         showEUMarket: prefs?.showEUMarket ?? false,

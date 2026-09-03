@@ -280,7 +280,7 @@ export const marketPreferences = pgTable("market_preferences", {
   selectedIndices: text("selected_indices").array().default([]).notNull(), // e.g., ['^GSPC', '^DJI', '^IXIC', '^STI']
   selectedStocks: text("selected_stocks").array().default([]).notNull(), // Custom stocks to track
   showUSMarket: boolean("show_us_market").default(true).notNull(),
-  showSGMarket: boolean("show_sg_market").default(false).notNull(),
+  showSGMarket: boolean("show_sg_market").default(true).notNull(),
   showHKMarket: boolean("show_hk_market").default(false).notNull(),
   showCNMarket: boolean("show_cn_market").default(false).notNull(),
   showEUMarket: boolean("show_eu_market").default(false).notNull(),
