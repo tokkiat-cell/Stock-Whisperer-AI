@@ -22,14 +22,14 @@ function IndexCard({ index, onChartClick }: { index: MarketIndex; onChartClick?:
       data-testid={`card-index-${safeSymbol}`}
       onClick={() => onChartClick?.(index.symbol)}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-mono" data-testid={`badge-market-${safeSymbol}`}>
+      <div className="flex items-start justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Badge variant="outline" className="text-xs font-mono shrink-0" data-testid={`badge-market-${safeSymbol}`}>
             {index.market}
           </Badge>
-          <span className="text-xs text-muted-foreground" data-testid={`text-name-${safeSymbol}`}>{index.name}</span>
+          <span className="text-xs text-muted-foreground truncate" data-testid={`text-name-${safeSymbol}`}>{index.name}</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <LineChart className="w-4 h-4 text-primary" />
           {isNeutral ? (
             <Minus className="w-4 h-4 text-muted-foreground" />
@@ -244,7 +244,7 @@ export function MarketOverview() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Market Overview</h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
           ))}
@@ -287,7 +287,7 @@ export function MarketOverview() {
             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
             US Markets
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {usIndices.map(index => (
               <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
@@ -301,7 +301,7 @@ export function MarketOverview() {
             <span className="w-2 h-2 rounded-full bg-orange-500"></span>
             Singapore Markets
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
             {sgIndices.map(index => (
               <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
@@ -315,7 +315,7 @@ export function MarketOverview() {
             <span className="w-2 h-2 rounded-full bg-red-500"></span>
             Hong Kong Markets
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
             {hkIndices.map(index => (
               <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
@@ -329,7 +329,7 @@ export function MarketOverview() {
             <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
             China Markets
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {cnIndices.map(index => (
               <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}
@@ -343,7 +343,7 @@ export function MarketOverview() {
             <span className="w-2 h-2 rounded-full bg-purple-500"></span>
             European Markets
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {euIndices.map(index => (
               <IndexCard key={index.symbol} index={index} onChartClick={handleChartClick} />
             ))}

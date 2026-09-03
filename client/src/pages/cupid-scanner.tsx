@@ -51,7 +51,7 @@ export default function CupidScanner() {
         entryPrice: result.entryZone.high.toString(),
         stopLoss: result.stopLoss.toString(),
         takeProfit: result.targetPrice.toString(),
-        notes: `Cupid Setup - ${result.confidence}% confidence, R/R: ${result.riskRewardRatio.toFixed(1)}`,
+        notes: `Cupid Setup - ${Math.round(result.confidence)}% confidence, R/R: ${result.riskRewardRatio.toFixed(1)}`,
       });
     },
     onSuccess: () => {
@@ -168,7 +168,7 @@ export default function CupidScanner() {
                       </div>
                     </div>
                     <Badge className={getConfidenceColor(result.confidence)}>
-                      {result.confidence}% Match
+                      {Math.round(result.confidence)}% Match
                     </Badge>
                   </div>
                   

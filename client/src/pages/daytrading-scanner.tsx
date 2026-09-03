@@ -74,7 +74,7 @@ export default function DayTradingScanner() {
         entryPrice: setup.entryPrice.toString(),
         stopLoss: setup.stopLoss.toString(),
         takeProfit: setup.targetPrice.toString(),
-        notes: `${setup.patternName} - ${setup.confidence}% confidence, R/R: ${setup.riskRewardRatio.toFixed(1)}`,
+        notes: `${setup.patternName} - ${Math.round(setup.confidence)}% confidence, R/R: ${setup.riskRewardRatio.toFixed(1)}`,
       });
     },
     onSuccess: () => {
@@ -250,7 +250,7 @@ export default function DayTradingScanner() {
                       </div>
                       
                       <Badge className={getConfidenceColor(setup.confidence)} data-testid={`badge-confidence-${setup.symbol}`}>
-                        {setup.confidence}%
+                        {Math.round(setup.confidence)}%
                       </Badge>
                       
                       <span className={`font-mono ${getRRColor(setup.riskRewardRatio)}`} data-testid={`text-rr-${setup.symbol}`}>

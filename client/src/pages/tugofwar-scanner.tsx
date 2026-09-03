@@ -94,7 +94,7 @@ export default function TugOfWarScanner() {
         entryPrice: result.entryLevel.toString(),
         stopLoss: result.stopLoss.toString(),
         takeProfit: result.targetPrice.toString(),
-        notes: `Tug of War Setup - ${result.confidence}% confidence, ${result.marketStage} stage`,
+        notes: `Tug of War Setup - ${Math.round(result.confidence)}% confidence, ${result.marketStage} stage`,
       });
     },
     onSuccess: () => {
@@ -220,7 +220,7 @@ export default function TugOfWarScanner() {
                       <p className="text-sm text-muted-foreground">Current Price</p>
                     </div>
                     <Badge className={getConfidenceColor(result.confidence)} data-testid={`badge-confidence-${result.symbol}`}>
-                      {result.confidence}% Confidence
+                      {Math.round(result.confidence)}% Confidence
                     </Badge>
                     {expandedSymbol === result.symbol ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </div>

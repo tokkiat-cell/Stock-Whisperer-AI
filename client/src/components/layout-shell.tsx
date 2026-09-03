@@ -209,7 +209,7 @@ export default function LayoutShell({ children, isGuest = false }: { children: R
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 p-4 md:p-8 pt-20 lg:pt-8 min-h-screen animate-in">
+      <main className="flex-1 min-w-0 lg:ml-72 p-4 md:p-8 pt-20 lg:pt-8 min-h-screen animate-in">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>

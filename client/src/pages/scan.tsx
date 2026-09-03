@@ -391,7 +391,7 @@ export default function MarketScan() {
     text += `Risk/Reward: ${searchAnalysis.riskReward}\n`;
     
     if (searchAnalysis.confidence) {
-      text += `Confidence: ${searchAnalysis.confidence}%\n`;
+      text += `Confidence: ${Math.round(searchAnalysis.confidence)}%\n`;
     }
     
     if (searchAnalysis.rationale) {
@@ -696,7 +696,7 @@ export default function MarketScan() {
               </Badge>
               {searchAnalysis.confidence && (
                 <Badge variant="outline" className="text-sm">
-                  {searchAnalysis.confidence}% Confidence
+                  {Math.round(searchAnalysis.confidence)}% Confidence
                 </Badge>
               )}
             </div>

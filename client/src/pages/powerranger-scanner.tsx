@@ -58,7 +58,7 @@ export default function PowerRangerScanner() {
         entryPrice: result.entryLevel.toString(),
         stopLoss: result.stopLoss.toString(),
         takeProfit: result.targetPrice.toString(),
-        notes: `Power Ranger Setup - ${result.confidence}% confidence, Gap: ${result.gapPercent.toFixed(1)}%`,
+        notes: `Power Ranger Setup - ${Math.round(result.confidence)}% confidence, Gap: ${result.gapPercent.toFixed(1)}%`,
       });
     },
     onSuccess: () => {
@@ -186,7 +186,7 @@ export default function PowerRangerScanner() {
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-lg" data-testid={`text-symbol-${result.symbol}`}>{result.symbol}</span>
                         <Badge className={getConfidenceColor(result.confidence)} data-testid={`badge-confidence-${result.symbol}`}>
-                          {result.confidence}%
+                          {Math.round(result.confidence)}%
                         </Badge>
                         {getShockBadge(result.shockValue)}
                       </div>
