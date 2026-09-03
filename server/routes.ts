@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes, isAuthenticated, allowGuestOrAuth } from "./replit_integrations/auth";
+import { setupGoogleAuth } from "./auth/googleAuth";
 import { searchStocks, getStockQuote, getStockHistory } from "./lib/marketData";
 import { analyzeStockWithAI } from "./lib/aiAnalysis";
 import { getEnhancedAnalysis, scanMarketWithEnhancedAnalysis } from "./lib/enhancedAnalysis";
@@ -18,6 +19,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Setup Auth
   await setupAuth(app);
   registerAuthRoutes(app);
+  setupGoogleAuth(app);
 
   // --- Stock Routes (allow guests for view-only data) ---
   app.get(api.stocks.search.path, allowGuestOrAuth, async (req, res) => {

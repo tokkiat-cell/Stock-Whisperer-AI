@@ -66,6 +66,27 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Registered here (not further down) so it applies regardless of which
+  // provider strategy actually runs — including Google, or no Replit OIDC at all.
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+  if (!process.env.REPL_ID) {
+    console.warn(
+      "[auth] REPL_ID not set — Replit Login disabled for this local run. Guest mode still works."
+    );
+    app.get("/api/login", (_req, res) => {
+      res.status(501).json({ message: "Replit Login is unavailable outside Replit." });
+    });
+    app.get("/api/callback", (_req, res) => {
+      res.status(501).json({ message: "Replit Login is unavailable outside Replit." });
+    });
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => res.redirect("/"));
+    });
+    return;
+  }
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -99,9 +120,6 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
-
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
@@ -130,8 +148,48 @@ export async function setupAuth(app: Express) {
   });
 }
 
+const LOCAL_DEV_USER_ID = "local-dev-guest";
+let localDevUserSeeded = false;
+
+async function ensureLocalDevUser() {
+  if (localDevUserSeeded) return;
+  await authStorage.upsertUser({
+    id: LOCAL_DEV_USER_ID,
+    email: "local-dev@localhost",
+    firstName: "Local",
+    lastName: "Dev",
+    profileImageUrl: null,
+  });
+  localDevUserSeeded = true;
+}
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  const hasRealSession = req.isAuthenticated() && (req.user as any)?.expires_at;
+
+  // Opt-in only — must never trigger just because REPL_ID is unset, or every
+  // real deployment outside Replit (Render, etc.) would silently let anyone
+  // in without logging in at all.
+  if (process.env.LOCAL_DEV_AUTH_BYPASS === "true" && !hasRealSession) {
+    try {
+      await ensureLocalDevUser();
+    } catch (err) {
+      console.warn("[auth] Failed to seed local dev user:", err);
+    }
+    (req as any).user = {
+      claims: { sub: LOCAL_DEV_USER_ID, email: "local-dev@localhost" },
+      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 365,
+    };
+    return next();
+  }
+
   const user = req.user as any;
+
+  if (!process.env.REPL_ID) {
+    // Real session exists (e.g. Google), but there's no Replit OIDC config
+    // to do token-refresh with — just trust it as-is.
+    if (!hasRealSession) return res.status(401).json({ message: "Unauthorized" });
+    return next();
+  }
 
   if (!req.isAuthenticated() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });

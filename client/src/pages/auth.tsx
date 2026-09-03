@@ -1,10 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Wallet, ArrowRight, ShieldCheck, Zap, BarChart3 } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 
 export default function AuthPage() {
   const handleLogin = () => {
     window.location.href = "/api/login";
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = "/api/auth/google";
   };
 
   return (
@@ -62,14 +67,24 @@ export default function AuthPage() {
 
           <Card className="p-8 glass-panel border-white/5 shadow-2xl">
             <div className="space-y-6">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all duration-200"
                 onClick={handleLogin}
               >
                 Sign In to stockwhisperer.AI <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              
+
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full h-12 font-semibold text-lg"
+                onClick={handleGoogleLogin}
+                data-testid="button-google-login"
+              >
+                <SiGoogle className="mr-2 w-5 h-5" /> Continue with Google
+              </Button>
+
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-white/10" />
