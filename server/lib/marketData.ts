@@ -1,5 +1,6 @@
 import YahooFinance from "yahoo-finance2";
 import { getAlphaVantageQuote } from "./alphaVantageClient";
+import { getFinnhubQuote } from "./finnhubClient";
 
 const yahooFinance = new YahooFinance();
 
@@ -9,7 +10,7 @@ export interface MarketData {
   change: number;
   changePercent: number;
   companyName?: string;
-  dataSource?: "yahoo" | "alphavantage";
+  dataSource?: "yahoo" | "alphavantage" | "finnhub";
 }
 
 export async function searchStocks(query: string): Promise<{ symbol: string; name: string }[]> {
@@ -34,12 +35,12 @@ export async function searchStocks(query: string): Promise<{ symbol: string; nam
 export async function getStockQuote(symbol: string): Promise<MarketData | null> {
   try {
     const quote = await yahooFinance.quote(symbol.toUpperCase());
-    
+
     if (!quote || !quote.regularMarketPrice) {
       console.error(`Yahoo Finance: No data for ${symbol}, trying Alpha Vantage...`);
       return await getAlphaVantageStockQuote(symbol);
     }
-    
+
     return {
       symbol: quote.symbol || symbol.toUpperCase(),
       price: quote.regularMarketPrice,
@@ -49,7 +50,7 @@ export async function getStockQuote(symbol: string): Promise<MarketData | null> 
       dataSource: "yahoo"
     };
   } catch (error) {
-    console.error(`Yahoo Finance Quote Error for ${symbol}:`, error);
+    console.error(`Yahoo Finance Quote Error for ${symbol}, trying Alpha Vantage...`, error);
     return await getAlphaVantageStockQuote(symbol);
   }
 }
@@ -58,10 +59,10 @@ async function getAlphaVantageStockQuote(symbol: string): Promise<MarketData | n
   try {
     const avQuote = await getAlphaVantageQuote(symbol);
     if (!avQuote || avQuote.price === 0) {
-      console.error(`Alpha Vantage: No data for ${symbol}`);
-      return null;
+      console.error(`Alpha Vantage: No data for ${symbol}, trying Finnhub...`);
+      return await getFinnhubStockQuote(symbol);
     }
-    
+
     return {
       symbol: avQuote.symbol,
       price: avQuote.price,
@@ -70,7 +71,28 @@ async function getAlphaVantageStockQuote(symbol: string): Promise<MarketData | n
       dataSource: "alphavantage"
     };
   } catch (error) {
-    console.error(`Alpha Vantage Quote Error for ${symbol}:`, error);
+    console.error(`Alpha Vantage Quote Error for ${symbol}, trying Finnhub...`, error);
+    return await getFinnhubStockQuote(symbol);
+  }
+}
+
+async function getFinnhubStockQuote(symbol: string): Promise<MarketData | null> {
+  try {
+    const fhQuote = await getFinnhubQuote(symbol);
+    if (!fhQuote || fhQuote.price === 0) {
+      console.error(`Finnhub: No data for ${symbol}`);
+      return null;
+    }
+
+    return {
+      symbol: fhQuote.symbol,
+      price: fhQuote.price,
+      change: fhQuote.change,
+      changePercent: fhQuote.changePercent,
+      dataSource: "finnhub"
+    };
+  } catch (error) {
+    console.error(`Finnhub Quote Error for ${symbol}:`, error);
     return null;
   }
 }
