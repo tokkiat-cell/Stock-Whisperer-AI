@@ -39,6 +39,56 @@ export interface TechnicalAnalysisResult {
   };
 }
 
+export interface FinnhubQuote {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  open: number;
+  high: number;
+  low: number;
+  previousClose: number;
+}
+
+export async function getFinnhubQuote(symbol: string): Promise<FinnhubQuote | null> {
+  if (!FINNHUB_API_KEY) {
+    console.warn("FINNHUB_API_KEY not set for real-time quote");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${FINNHUB_BASE_URL}/quote?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Finnhub API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Finnhub returns all-zero fields (rather than an error) for an unknown symbol.
+    if (!data || (data.c === 0 && data.pc === 0)) {
+      console.warn(`Finnhub: No quote data for ${symbol}`);
+      return null;
+    }
+
+    return {
+      symbol: symbol.toUpperCase(),
+      price: data.c,
+      change: data.d,
+      changePercent: data.dp,
+      open: data.o,
+      high: data.h,
+      low: data.l,
+      previousClose: data.pc,
+    };
+  } catch (error) {
+    console.error(`Finnhub Quote Error for ${symbol}:`, error);
+    return null;
+  }
+}
+
 export async function getPatternRecognition(symbol: string): Promise<CandlestickPattern> {
   if (!FINNHUB_API_KEY) {
     console.warn("FINNHUB_API_KEY not set, returning mock pattern data");

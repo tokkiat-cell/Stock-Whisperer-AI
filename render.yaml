@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: stock-whisperer-ai
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stock-whisperer-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: AI_INTEGRATIONS_OPENAI_API_KEY
+        sync: false
+      - key: AI_INTEGRATIONS_GEMINI_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: TRADEFEEDS_API_KEY
+        sync: false
+
+databases:
+  - name: stock-whisperer-db
+    plan: free
